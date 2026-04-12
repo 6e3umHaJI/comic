@@ -10,6 +10,7 @@ import by.bsuir.springbootproject.repositories.ChapterRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
 import by.bsuir.springbootproject.services.CollectionService;
 import by.bsuir.springbootproject.services.ComicService;
+import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -42,6 +43,7 @@ public class ComicController {
     private final CollectionService collectionService;
     private final ChapterRepository chapterRepository;
     private final TranslationRepository translationRepository;
+    private final SecurityContextUtils securityContextUtils;
 
     @GetMapping("/{id}")
     public String showComic(@PathVariable Integer id,
@@ -56,7 +58,7 @@ public class ComicController {
         model.addAttribute("chaptersPageSize", Values.CHAPTERS_PAGE_SIZE);
 
         if (request.getUserPrincipal() != null) {
-            Integer userId = by.bsuir.springbootproject.utils.SecurityContextUtils.getUser()
+            Integer userId = securityContextUtils.getUserFromContext()
                     .map(by.bsuir.springbootproject.entities.User::getId)
                     .orElse(null);
 

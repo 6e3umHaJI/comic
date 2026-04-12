@@ -16,12 +16,13 @@ import java.util.Map;
 public class RatingController {
 
     private final RatingService ratingService;
+    private final SecurityContextUtils securityContextUtils;
 
     @PostMapping("/{comicId}")
     @ResponseBody
     public ResponseEntity<?> rateComic(@PathVariable int comicId,
                                        @RequestParam int value) {
-        var userOpt = SecurityContextUtils.getUser();
+        var userOpt = securityContextUtils.getUserFromContext();
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(401).body(Map.of("error", "Авторизуйтесь, чтобы оценить"));
         }
@@ -33,7 +34,7 @@ public class RatingController {
     @DeleteMapping("/{comicId}")
     @ResponseBody
     public ResponseEntity<?> removeRating(@PathVariable int comicId) {
-        var userOpt = SecurityContextUtils.getUser();
+        var userOpt = securityContextUtils.getUserFromContext();
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(401).body(Map.of("error", "Авторизация требуема"));
         }

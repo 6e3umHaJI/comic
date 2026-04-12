@@ -14,12 +14,13 @@ import org.springframework.web.servlet.ModelAndView;
 public class HomeController {
 
     private final ComicService comicService;
+    private final SecurityContextUtils securityContextUtils;
 
     @GetMapping({RoutePaths.ROOT, RoutePaths.HOME})
     public ModelAndView openHomePage() {
         ModelAndView modelAndView = new ModelAndView(ViewPaths.HOME);
 
-        modelAndView.addObject("user", SecurityContextUtils.getUser().orElse(null));
+        modelAndView.addObject("user", securityContextUtils.getUserFromContext().orElse(null));
         modelAndView.addObject("popularComics", comicService.getMostPopularComics());
         modelAndView.addObject("recentUpdates", comicService.getRecentUpdates());
         modelAndView.addObject("newComics", comicService.getNewestComics());

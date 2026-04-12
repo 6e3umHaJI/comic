@@ -24,6 +24,7 @@ public class ReaderServiceImpl implements ReaderService {
     private final TranslationRepository translationRepository;
     private final ComicPageRepository comicPageRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final SecurityContextUtils securityContextUtils;
 
     @Override
     public ReaderData getReaderData(Integer translationId) {
@@ -72,7 +73,7 @@ public class ReaderServiceImpl implements ReaderService {
     @Override
     @Transactional
     public void markChapterReadIfAuthenticated(Integer chapterId) {
-        SecurityContextUtils.getUser().ifPresent(user -> jdbcTemplate.update("""
+        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
                 insert into read_chapters(user_id, chapter_id)
                 values (?, ?)
                 on conflict do nothing
@@ -81,7 +82,7 @@ public class ReaderServiceImpl implements ReaderService {
 
     @Override
     public Integer getSavedPageIfAuthenticated(Integer translationId) {
-        return SecurityContextUtils.getUser().map(user -> {
+        return securityContextUtils.getUserFromContext().map(user -> {
             try {
                 Integer page = jdbcTemplate.queryForObject("""
                         select current_page
@@ -102,7 +103,7 @@ public class ReaderServiceImpl implements ReaderService {
             return;
         }
 
-        SecurityContextUtils.getUser().ifPresent(user -> jdbcTemplate.update("""
+        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
                 insert into read_progress(user_id, translation_id, current_page, updated_at)
                 values (?, ?, ?, now())
                 on conflict (user_id, translation_id)

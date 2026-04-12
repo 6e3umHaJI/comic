@@ -6,7 +6,6 @@
     <c:choose>
         <c:when test="${empty comics}">
             <div class="no-results">
-                <img src="/assets/no-results.svg" alt="нет данных">
                 <p>Ничего не найдено...</p>
             </div>
         </c:when>

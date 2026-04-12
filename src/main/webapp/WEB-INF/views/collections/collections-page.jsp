@@ -27,5 +27,6 @@
 </div>
 
 <script src="<c:url value='/script/collections.js'/>"></script>
+<script src="<c:url value='/script/collection-modal.js'/>"></script>
 </body>
 </html>

@@ -4,9 +4,9 @@ function showInlineNotice(containerId, message, type = 'error') {
 
     el.hidden = false;
     el.textContent = message;
-    el.className = 'collection-inline-notice ' + (type === 'success'
-        ? 'collection-inline-notice-success'
-        : 'collection-inline-notice-error');
+    el.className = 'collections-inline-notice ' + (type === 'success'
+        ? 'collections-inline-notice-success'
+        : 'collections-inline-notice-error');
 }
 
 function hideInlineNotice(containerId) {
@@ -35,13 +35,7 @@ function postFormUrlEncoded(url, data) {
         },
         body: params.toString()
     }).then(async r => {
-        const json = await r.json().catch(() => ({}));
-        if (!r.ok && json.success !== false) {
-            return {
-                success: false,
-                message: json.message || 'Ошибка запроса'
-            };
-        }
+        const json = await r.json();
         return json;
     });
 }
@@ -61,24 +55,30 @@ function loadCollectionSection(sectionId = null, page = 0, viewMode = 'card') {
         .then(r => r.text())
         .then(html => {
             document.getElementById('collectionsRoot').innerHTML = html;
+            bindCollectionsPageEvents();
         });
 }
 
-function reloadCollectionIfOpen(sectionId = null) {
+function reloadCollectionsIfOpen(sectionId = null) {
     const root = document.getElementById('collectionsRoot');
     if (!root) return;
 
-    const main = root.querySelector('.collection-main');
+    const main = root.querySelector('.collections-main');
     const viewMode = main?.dataset.viewMode || 'card';
     const resolvedSectionId = sectionId ?? main?.dataset.activeSectionId ?? null;
 
     loadCollectionSection(resolvedSectionId, 0, viewMode);
 }
 
-window.reloadCollectionsIfOpen = reloadCollectionIfOpen;
+window.reloadCollectionsIfOpen = reloadCollectionsIfOpen;
 
-function getCheckedComicIds() {
-    return Array.from(document.querySelectorAll('.collection-comic-check:checked')).map(i => i.value);
+function showTransferNotice(message) {
+    const notice = document.getElementById('collectionTransferNotice');
+    if (!notice) return;
+
+    notice.hidden = false;
+    notice.textContent = message;
+    notice.className = 'collection-inline-notice collection-inline-notice-error';
 }
 
 function openTransferModal(title, action, sectionId, sections) {
@@ -111,6 +111,59 @@ function openTransferModal(title, action, sectionId, sections) {
         </div>
     `;
 
+    let selectedTargetId = null;
+
+    body.querySelectorAll('[data-transfer-target-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            body.querySelectorAll('[data-transfer-target-id]').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedTargetId = btn.dataset.transferTargetId;
+        });
+    });
+
+    document.getElementById('confirmTransferActionBtn')?.addEventListener('click', () => {
+        if (!selectedTargetId) {
+            showTransferNotice('Выберите категорию');
+            return;
+        }
+
+        if (action === 'delete-section') {
+            postFormUrlEncoded('/collections/delete', {
+                sectionId,
+                targetSectionId: selectedTargetId
+            }).then(json => {
+                if (!json.success) {
+                    showTransferNotice(json.message || 'Не удалось удалить категорию');
+                    return;
+                }
+
+                closeTransferModal();
+                reloadCollectionsIfOpen(null);
+            }).catch(() => showTransferNotice('Не удалось удалить категорию'));
+        }
+
+        if (action === 'move-comics') {
+            const main = document.querySelector('.collections-main');
+            const fromSectionId = main?.dataset.activeSectionId;
+            const checked = Array.from(document.querySelectorAll('.collection-comic-check:checked'))
+                .map(i => i.value);
+
+            postFormUrlEncoded('/collections/move', {
+                fromSectionId,
+                toSectionId: selectedTargetId,
+                comicIds: checked
+            }).then(json => {
+                if (!json.success) {
+                    showTransferNotice(json.message || 'Не удалось перенести тайтлы');
+                    return;
+                }
+
+                closeTransferModal();
+                reloadCollectionsIfOpen(fromSectionId);
+            }).catch(() => showTransferNotice('Не удалось перенести тайтлы'));
+        }
+    });
+
     modal.classList.add('visible');
 }
 
@@ -121,231 +174,184 @@ function closeTransferModal() {
     if (body) body.innerHTML = '';
 }
 
-document.addEventListener('click', async (e) => {
-    const tabBtn = e.target.closest('.collection-tab');
-    if (tabBtn && !e.target.closest('.collection-icon-action')) {
-        loadCollectionSection(tabBtn.dataset.sectionId, 0, 'card');
-        return;
-    }
+function setCheckedState(checked) {
+    document.querySelectorAll('.collection-comic-check').forEach(input => {
+        input.checked = checked;
+    });
+}
 
-    if (e.target.closest('#createSectionBtn')) {
-        document.getElementById('createSectionInline')?.removeAttribute('hidden');
-        document.getElementById('createSectionInput')?.focus();
-        return;
-    }
+function getSelectedComicIds() {
+    return Array.from(document.querySelectorAll('.collection-comic-check:checked'))
+        .map(i => i.value);
+}
 
-    if (e.target.closest('#cancelCreateSectionBtn')) {
-        document.getElementById('createSectionInline')?.setAttribute('hidden', 'hidden');
-        const input = document.getElementById('createSectionInput');
-        if (input) input.value = '';
-        hideInlineNotice('collectionSidebarNotice');
-        return;
-    }
+function bindCollectionsPageEvents() {
+    hideInlineNotice('collectionsMainNotice');
+    hideInlineNotice('collectionsSidebarNotice');
 
-    if (e.target.closest('#confirmCreateSectionBtn')) {
-        const name = document.getElementById('createSectionInput')?.value?.trim() || '';
-        const json = await postFormUrlEncoded('/collections/create', { name });
+    document.querySelectorAll('.collection-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            loadCollectionSection(btn.dataset.sectionId, 0, 'card');
+        });
+    });
 
-        if (!json.success) {
-            showInlineNotice('collectionSidebarNotice', json.message || 'Не удалось создать категорию');
-            return;
-        }
+    const createBtn = document.getElementById('createSectionBtn');
+    const createInline = document.getElementById('createSectionInline');
+    const createInput = document.getElementById('createSectionInput');
+    const confirmCreateBtn = document.getElementById('confirmCreateSectionBtn');
+    const cancelCreateBtn = document.getElementById('cancelCreateSectionBtn');
 
-        reloadCollectionIfOpen(null);
-        return;
-    }
+    createBtn?.addEventListener('click', () => {
+        createInline.hidden = false;
+        createInput?.focus();
+    });
 
-    if (e.target.closest('#renameSectionToggleBtn')) {
-        document.getElementById('renameSectionInline')?.removeAttribute('hidden');
-        document.getElementById('renameSectionInput')?.focus();
-        return;
-    }
+    cancelCreateBtn?.addEventListener('click', () => {
+        if (createInline) createInline.hidden = true;
+        if (createInput) createInput.value = '';
+        hideInlineNotice('collectionsSidebarNotice');
+    });
 
-    if (e.target.closest('#cancelRenameSectionBtn')) {
-        document.getElementById('renameSectionInline')?.setAttribute('hidden', 'hidden');
-        hideInlineNotice('collectionMainNotice');
-        return;
-    }
+    confirmCreateBtn?.addEventListener('click', () => {
+        const name = createInput?.value?.trim() || '';
 
-    if (e.target.closest('#confirmRenameSectionBtn')) {
-        const btn = document.getElementById('confirmRenameSectionBtn');
-        const sectionId = btn?.dataset.sectionId;
-        const name = document.getElementById('renameSectionInput')?.value?.trim() || '';
-
-        const json = await postFormUrlEncoded('/collections/rename', { sectionId, name });
-
-        if (!json.success) {
-            showInlineNotice('collectionMainNotice', json.message || 'Не удалось переименовать категорию');
-            return;
-        }
-
-        reloadCollectionIfOpen(sectionId);
-        return;
-    }
-
-    if (e.target.closest('#deleteSectionToggleBtn')) {
-        const btn = document.getElementById('deleteSectionToggleBtn');
-        const sectionId = btn?.dataset.sectionId;
-        const hasComics = btn?.dataset.hasComics === 'true';
-
-        if (!hasComics) {
-            const json = await postFormUrlEncoded('/collections/delete', { sectionId });
-
+        postFormUrlEncoded('/collections/create', { name }).then(json => {
             if (!json.success) {
-                showInlineNotice('collectionMainNotice', json.message || 'Не удалось удалить категорию');
+                showInlineNotice('collectionsSidebarNotice', json.message || 'Не удалось создать категорию');
                 return;
             }
 
-            reloadCollectionIfOpen(null);
+            reloadCollectionsIfOpen(null);
+        });
+    });
+
+    const renameToggleBtn = document.getElementById('renameSectionToggleBtn');
+    const renameInline = document.getElementById('renameSectionInline');
+    const renameInput = document.getElementById('renameSectionInput');
+    const confirmRenameBtn = document.getElementById('confirmRenameSectionBtn');
+    const cancelRenameBtn = document.getElementById('cancelRenameSectionBtn');
+
+    renameToggleBtn?.addEventListener('click', () => {
+        renameInline.hidden = false;
+        renameInput?.focus();
+    });
+
+    cancelRenameBtn?.addEventListener('click', () => {
+        if (renameInline) renameInline.hidden = true;
+        hideInlineNotice('collectionsMainNotice');
+    });
+
+    confirmRenameBtn?.addEventListener('click', () => {
+        const sectionId = confirmRenameBtn.dataset.sectionId;
+        const name = renameInput?.value?.trim() || '';
+
+        postFormUrlEncoded('/collections/rename', { sectionId, name }).then(json => {
+            if (!json.success) {
+                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось переименовать категорию');
+                return;
+            }
+
+            reloadCollectionsIfOpen(sectionId);
+        });
+    });
+
+    const deleteToggleBtn = document.getElementById('deleteSectionToggleBtn');
+    deleteToggleBtn?.addEventListener('click', () => {
+        const sectionId = deleteToggleBtn.dataset.sectionId;
+        const hasComics = deleteToggleBtn.dataset.hasComics === 'true';
+
+        if (!hasComics) {
+            postFormUrlEncoded('/collections/delete', { sectionId }).then(json => {
+                if (!json.success) {
+                    showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить категорию');
+                    return;
+                }
+
+                reloadCollectionsIfOpen(null);
+            });
             return;
         }
 
-        const sections = Array.from(document.querySelectorAll('.collection-tab'))
+        const tabs = Array.from(document.querySelectorAll('.collection-tab'))
             .filter(tab => tab.dataset.sectionId !== sectionId)
             .map(tab => ({
                 id: tab.dataset.sectionId,
                 name: tab.querySelector('.collection-tab-name')?.textContent?.trim() || ''
             }));
 
-        if (!sections.length) {
-            showInlineNotice('collectionMainNotice', 'Нет категории для переноса');
+        if (!tabs.length) {
+            showInlineNotice('collectionsMainNotice', 'Нет категории для переноса');
             return;
         }
 
-        openTransferModal('Куда перенести тайтлы перед удалением?', 'delete-section', sectionId, sections);
-        return;
-    }
+        openTransferModal('Куда перенести тайтлы перед удалением?', 'delete-section', sectionId, tabs);
+    });
 
-    if (e.target.closest('[data-transfer-target-id]')) {
-        const button = e.target.closest('[data-transfer-target-id]');
-        document.querySelectorAll('[data-transfer-target-id]').forEach(btn => btn.classList.remove('selected'));
-        button.classList.add('selected');
-        return;
-    }
+    document.getElementById('selectAllBtn')?.addEventListener('click', () => {
+        setCheckedState(true);
+    });
 
-    if (e.target.closest('#confirmTransferActionBtn')) {
-        const btn = document.getElementById('confirmTransferActionBtn');
-        const selected = document.querySelector('[data-transfer-target-id].selected');
-        const noticeId = 'collectionTransferNotice';
+    document.getElementById('clearSelectionBtn')?.addEventListener('click', () => {
+        setCheckedState(false);
+    });
 
-        if (!selected) {
-            showInlineNotice(noticeId, 'Выберите категорию');
-            return;
-        }
-
-        const action = btn.dataset.action;
-        const sectionId = btn.dataset.sectionId;
-
-        if (action === 'delete-section') {
-            const json = await postFormUrlEncoded('/collections/delete', {
-                sectionId,
-                targetSectionId: selected.dataset.transferTargetId
-            });
-
-            if (!json.success) {
-                showInlineNotice(noticeId, json.message || 'Не удалось удалить категорию');
-                return;
-            }
-
-            closeTransferModal();
-            reloadCollectionIfOpen(null);
-            return;
-        }
-
-        if (action === 'move-comics') {
-            const main = document.querySelector('.collection-main');
-            const fromSectionId = main?.dataset.activeSectionId;
-            const comicIds = getCheckedComicIds();
-
-            const json = await postFormUrlEncoded('/collections/move', {
-                fromSectionId,
-                toSectionId: selected.dataset.transferTargetId,
-                comicIds
-            });
-
-            if (!json.success) {
-                showInlineNotice(noticeId, json.message || 'Не удалось перенести тайтлы');
-                return;
-            }
-
-            closeTransferModal();
-            reloadCollectionIfOpen(fromSectionId);
-            return;
-        }
-    }
-
-    if (e.target.closest('#moveSelectedBtn')) {
-        const checked = getCheckedComicIds();
+    document.getElementById('moveSelectedBtn')?.addEventListener('click', () => {
+        const checked = getSelectedComicIds();
 
         if (!checked.length) {
-            showInlineNotice('collectionMainNotice', 'Сначала выберите тайтлы');
+            showInlineNotice('collectionsMainNotice', 'Сначала выберите тайтлы');
             return;
         }
 
-        const main = document.querySelector('.collection-main');
+        const main = document.querySelector('.collections-main');
         const activeSectionId = main?.dataset.activeSectionId;
 
-        const sections = Array.from(document.querySelectorAll('.collection-tab'))
+        const tabs = Array.from(document.querySelectorAll('.collection-tab'))
             .filter(tab => tab.dataset.sectionId !== activeSectionId)
             .map(tab => ({
                 id: tab.dataset.sectionId,
                 name: tab.querySelector('.collection-tab-name')?.textContent?.trim() || ''
             }));
 
-        if (!sections.length) {
-            showInlineNotice('collectionMainNotice', 'Нет категории для переноса');
+        if (!tabs.length) {
+            showInlineNotice('collectionsMainNotice', 'Нет категории для переноса');
             return;
         }
 
-        openTransferModal('Куда перенести выбранные тайтлы?', 'move-comics', activeSectionId, sections);
-        return;
-    }
+        openTransferModal('Куда перенести выбранные тайтлы?', 'move-comics', activeSectionId, tabs);
+    });
 
-    if (e.target.closest('#removeSelectedBtn')) {
-        const checked = getCheckedComicIds();
+    document.getElementById('removeSelectedBtn')?.addEventListener('click', () => {
+        const checked = getSelectedComicIds();
 
         if (!checked.length) {
-            showInlineNotice('collectionMainNotice', 'Сначала выберите тайтлы');
+            showInlineNotice('collectionsMainNotice', 'Сначала выберите тайтлы');
             return;
         }
 
-        const main = document.querySelector('.collection-main');
+        const main = document.querySelector('.collections-main');
         const sectionId = main?.dataset.activeSectionId;
 
-        const json = await postFormUrlEncoded('/collections/remove', {
+        postFormUrlEncoded('/collections/remove', {
             sectionId,
             comicIds: checked
-        });
+        }).then(json => {
+            if (!json.success) {
+                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить тайтлы из категории');
+                return;
+            }
 
-        if (!json.success) {
-            showInlineNotice('collectionMainNotice', json.message || 'Не удалось удалить тайтлы из категории');
-            return;
+            reloadCollectionsIfOpen(sectionId);
+        });
+    });
+
+    document.getElementById('collectionTransferModalClose')?.addEventListener('click', closeTransferModal);
+
+    document.getElementById('collectionTransferModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'collectionTransferModal') {
+            closeTransferModal();
         }
+    });
+}
 
-        reloadCollectionIfOpen(sectionId);
-        return;
-    }
-
-    if (e.target.closest('#selectAllComicsBtn')) {
-        document.querySelectorAll('.collection-comic-check').forEach(i => {
-            i.checked = true;
-        });
-        return;
-    }
-
-    if (e.target.closest('#clearSelectedComicsBtn')) {
-        document.querySelectorAll('.collection-comic-check').forEach(i => {
-            i.checked = false;
-        });
-        return;
-    }
-
-    if (e.target.closest('#collectionTransferModalClose')) {
-        closeTransferModal();
-        return;
-    }
-
-    if (e.target.id === 'collectionTransferModal') {
-        closeTransferModal();
-    }
-});
+document.addEventListener('DOMContentLoaded', bindCollectionsPageEvents);

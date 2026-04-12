@@ -20,6 +20,7 @@ import java.util.Map;
 public class CollectionsController {
 
     private final CollectionService collectionService;
+    private final SecurityContextUtils securityContextUtils;
 
     @GetMapping
     public ModelAndView page(@RequestParam(required = false) Integer sectionId,
@@ -27,7 +28,7 @@ public class CollectionsController {
                              @RequestParam(defaultValue = "card") String viewMode,
                              @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
 
-        User user = SecurityContextUtils.getUser()
+        User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
         ModelAndView mv = collectionService.getCollectionsPage(user.getId(), sectionId, page, viewMode);
@@ -39,7 +40,7 @@ public class CollectionsController {
 
     @GetMapping(RoutePaths.COLLECTIONS_COMIC_MODAL)
     public ModelAndView comicModal(@RequestParam Integer comicId) {
-        User user = SecurityContextUtils.getUser()
+        User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
         ModelAndView mv = collectionService.getComicModal(user.getId(), comicId);
@@ -51,7 +52,7 @@ public class CollectionsController {
     @ResponseBody
     public Map<String, Object> syncComicCollections(@RequestParam Integer comicId,
                                                     @RequestParam(required = false) List<Integer> sectionIds) {
-        User user = SecurityContextUtils.getUser()
+        User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
         try {
@@ -73,7 +74,7 @@ public class CollectionsController {
     @PostMapping(RoutePaths.COLLECTIONS_CREATE)
     @ResponseBody
     public Map<String, Object> create(@ModelAttribute CollectionCreateForm form) {
-        User user = SecurityContextUtils.getUser()
+        User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
         try {
@@ -88,7 +89,7 @@ public class CollectionsController {
     @ResponseBody
     public Map<String, Object> rename(@ModelAttribute CollectionRenameForm form) {
         try {
-            User user = SecurityContextUtils.getUser()
+            User user = securityContextUtils.getUserFromContext()
                     .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
             collectionService.renameSection(user.getId(), form);
@@ -102,7 +103,7 @@ public class CollectionsController {
     @ResponseBody
     public Map<String, Object> delete(@ModelAttribute CollectionDeleteForm form) {
         try {
-            User user = SecurityContextUtils.getUser()
+            User user = securityContextUtils.getUserFromContext()
                     .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
             collectionService.deleteSection(user.getId(), form);
@@ -116,7 +117,7 @@ public class CollectionsController {
     @ResponseBody
     public Map<String, Object> move(@ModelAttribute CollectionMoveForm form) {
         try {
-            User user = SecurityContextUtils.getUser()
+            User user = securityContextUtils.getUserFromContext()
                     .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
             collectionService.moveComics(user.getId(), form);
@@ -130,7 +131,7 @@ public class CollectionsController {
     @ResponseBody
     public Map<String, Object> remove(@ModelAttribute CollectionRemoveForm form) {
         try {
-            User user = SecurityContextUtils.getUser()
+            User user = securityContextUtils.getUserFromContext()
                     .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
             collectionService.removeComics(user.getId(), form);

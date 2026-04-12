@@ -2,10 +2,10 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 
-<div class="collection-layout">
-    <aside class="collection-sidebar">
-        <div class="collection-sidebar-head">
-            <div class="collection-sidebar-title-row">
+<div class="collections-layout">
+    <aside class="collections-sidebar">
+        <div class="collections-sidebar-head">
+            <div class="collections-sidebar-title-row">
                 <h2>Коллекция</h2>
 
                 <button type="button"
@@ -14,26 +14,26 @@
                         title="Добавить категорию"
                         aria-label="Добавить категорию">
                     <span class="collection-tool-icon"
-                          style="-webkit-mask-image:url('/assets/icons/plus.svg'); mask-image:url('/assets/icons/plus.svg');"></span>
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/plus.svg"/>'); mask-image:url('<c:url value="/assets/icons/plus.svg"/>');"></span>
                 </button>
             </div>
 
-            <div class="collection-create-inline" id="createSectionInline" hidden>
+            <div class="collections-create-inline" id="createSectionInline" hidden>
                 <input type="text"
                        id="createSectionInput"
                        class="auth-input"
                        maxlength="100"
                        placeholder="Название категории">
-                <div class="collection-create-inline-actions">
+                <div class="collections-create-actions">
                     <button type="button" class="btn" id="confirmCreateSectionBtn">Создать</button>
                     <button type="button" class="btn btn-outline" id="cancelCreateSectionBtn">Отмена</button>
                 </div>
             </div>
 
-            <div class="collection-inline-notice" id="collectionSidebarNotice" hidden></div>
+            <div class="collections-inline-notice" id="collectionsSidebarNotice" hidden></div>
         </div>
 
-        <div class="collection-tabs">
+        <div class="collections-tabs">
             <c:forEach items="${sections}" var="section">
                 <button type="button"
                         class="collection-tab ${section.id == activeSection.id ? 'active' : ''}"
@@ -47,24 +47,24 @@
         </div>
     </aside>
 
-    <section class="collection-main"
+    <section class="collections-main"
              data-active-section-id="${activeSection.id}"
              data-view-mode="${viewMode}">
 
-        <div class="collection-main-head">
-            <div class="collection-main-title-wrap">
-                <div class="collection-title-row">
+        <div class="collections-main-head">
+            <div class="collections-main-title-wrap">
+                <div class="collections-title-row">
                     <h3>${activeSection.name}</h3>
 
                     <c:if test="${!activeSection.isDefault}">
-                        <div class="collection-title-tools">
+                        <div class="collections-title-tools">
                             <button type="button"
                                     class="collection-icon-action"
                                     id="renameSectionToggleBtn"
                                     title="Переименовать"
                                     aria-label="Переименовать">
                                 <span class="collection-tool-icon"
-                                      style="-webkit-mask-image:url('/assets/icons/edit.svg'); mask-image:url('/assets/icons/edit.svg');"></span>
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/edit.svg"/>'); mask-image:url('<c:url value="/assets/icons/edit.svg"/>');"></span>
                             </button>
 
                             <button type="button"
@@ -75,16 +75,16 @@
                                     title="Удалить"
                                     aria-label="Удалить">
                                 <span class="collection-tool-icon"
-                                      style="-webkit-mask-image:url('/assets/icons/trash.svg'); mask-image:url('/assets/icons/trash.svg');"></span>
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/trash.svg"/>'); mask-image:url('<c:url value="/assets/icons/trash.svg"/>');"></span>
                             </button>
                         </div>
                     </c:if>
                 </div>
 
-                <div class="collection-inline-notice" id="collectionMainNotice" hidden></div>
+                <div class="collections-inline-notice" id="collectionsMainNotice" hidden></div>
 
                 <c:if test="${!activeSection.isDefault}">
-                    <div class="collection-rename-inline" id="renameSectionInline" hidden>
+                    <div class="collections-rename-inline" id="renameSectionInline" hidden>
                         <input type="text"
                                id="renameSectionInput"
                                class="auth-input"
@@ -109,47 +109,32 @@
                 <button type="button"
                         class="btn ${viewMode == 'card' ? '' : 'btn-outline'}"
                         onclick="loadCollectionSection(${activeSection.id}, 0, 'card'); return false;"
-                        title="Карточки"
                         aria-label="Карточки">
-                    <span class="collection-tool-icon"
-                          style="-webkit-mask-image:url('/assets/icons/card.svg'); mask-image:url('/assets/icons/card.svg');"></span>
+                    <span class="btn-icon"
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/card.svg"/>'); mask-image:url('<c:url value="/assets/icons/card.svg"/>');"></span>
                 </button>
-
                 <button type="button"
                         class="btn ${viewMode == 'list' ? '' : 'btn-outline'}"
                         onclick="loadCollectionSection(${activeSection.id}, 0, 'list'); return false;"
-                        title="Список"
                         aria-label="Список">
-                    <span class="collection-tool-icon"
-                          style="-webkit-mask-image:url('/assets/icons/list.svg'); mask-image:url('/assets/icons/list.svg');"></span>
+                    <span class="btn-icon"
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/list.svg"/>'); mask-image:url('<c:url value="/assets/icons/list.svg"/>');"></span>
                 </button>
             </div>
         </div>
 
         <c:if test="${hasSavedComics}">
-            <div class="collection-selection-links">
-                <button type="button" class="collection-link-action" id="selectAllComicsBtn">Выбрать все</button>
-                <button type="button" class="collection-link-action" id="clearSelectedComicsBtn">Снять выбор</button>
-            </div>
-
-            <div class="collection-actions">
-                <button type="button"
-                        class="btn btn-outline"
-                        id="moveSelectedBtn">
-                    Перенести выбранные
-                </button>
-                <button type="button"
-                        class="btn btn-outline"
-                        id="removeSelectedBtn">
-                    Удалить из категории
-                </button>
+            <div class="collections-actions">
+                <button type="button" class="collections-text-action" id="selectAllBtn">Выбрать все</button>
+                <button type="button" class="collections-text-action" id="clearSelectionBtn">Снять выбор</button>
+                <button type="button" class="collections-text-action" id="moveSelectedBtn">Перенести выбранные</button>
+                <button type="button" class="collections-text-action" id="removeSelectedBtn">Удалить из категории</button>
             </div>
         </c:if>
 
         <c:choose>
             <c:when test="${empty savedComics}">
                 <div class="no-results">
-                    <img src="<c:url value='/assets/no-results.svg'/>" alt="Пусто">
                     <p>В этой категории пока нет тайтлов.</p>
                 </div>
             </c:when>
@@ -187,9 +172,10 @@
 
                             <c:otherwise>
                                 <div class="card-comic">
-                                    <label class="collection-select-box card-select-box" aria-label="Выбрать комикс">
+                                    <label class="collection-select-box card-select-box">
                                         <input type="checkbox" class="collection-comic-check" value="${comic.id}">
                                         <span class="collection-select-mark"></span>
+                                        <span class="collection-select-label">Выбрать</span>
                                     </label>
 
                                     <a href="<c:url value='/comics/${comic.id}'/>" class="cover-link">
