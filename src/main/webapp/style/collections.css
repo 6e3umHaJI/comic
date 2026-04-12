@@ -459,3 +459,40 @@
     box-sizing: border-box;
 }
 
+.tr-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.tr-close:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(150,150,150,0.06);
+}
+И ещё добавь стиль для новой destructive-опции:
+.collection-choice-btn-danger {
+    border-color: #d46a6a;
+}
+
+.collection-choice-btn-danger:hover,
+.collection-choice-btn-danger.selected {
+    border-color: #d46a6a;
+    background: rgba(233, 62, 67, 0.09);
+}
+
+

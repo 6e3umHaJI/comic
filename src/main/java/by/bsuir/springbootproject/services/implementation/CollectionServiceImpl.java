@@ -10,6 +10,8 @@ import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.SavedComicRepository;
 import by.bsuir.springbootproject.repositories.UserSectionRepository;
 import by.bsuir.springbootproject.services.CollectionService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,10 @@ public class CollectionServiceImpl implements CollectionService {
     private final UserSectionRepository userSectionRepository;
     private final SavedComicRepository savedComicRepository;
     private final ComicRepository comicRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     @Override
     @Transactional(readOnly = true)
@@ -248,17 +254,21 @@ public class CollectionServiceImpl implements CollectionService {
                 throw new IllegalArgumentException("Нужно выбрать другую категорию");
             }
 
+            UserSection targetRef = entityManager.getReference(UserSection.class, target.getId());
+
             for (SavedComic item : sourceItems) {
-                if (!savedComicRepository.existsBySectionIdAndComicId(target.getId(), item.getComic().getId())) {
-                    savedComicRepository.save(
-                            SavedComic.builder()
-                                    .section(target)
-                                    .comic(item.getComic())
-                                    .addedAt(LocalDateTime.now())
-                                    .build()
-                    );
+                Integer comicId = item.getComic().getId();
+
+                if (!savedComicRepository.existsBySectionIdAndComicId(targetRef.getId(), comicId)) {
+                    SavedComic moved = new SavedComic();
+                    moved.setSection(targetRef);
+                    moved.setComic(entityManager.getReference(by.bsuir.springbootproject.entities.Comic.class, comicId));
+                    moved.setAddedAt(LocalDateTime.now());
+
+                    savedComicRepository.save(moved);
                 }
             }
+
 
             List<Integer> sourceComicIds = sourceItems.stream()
                     .map(item -> item.getComic().getId())
@@ -297,17 +307,21 @@ public class CollectionServiceImpl implements CollectionService {
             throw new IllegalArgumentException("Нет выбранных тайтлов для переноса");
         }
 
+        UserSection toRef = entityManager.getReference(UserSection.class, to.getId());
+
         for (SavedComic item : fromItems) {
-            if (!savedComicRepository.existsBySectionIdAndComicId(to.getId(), item.getComic().getId())) {
-                savedComicRepository.save(
-                        SavedComic.builder()
-                                .section(to)
-                                .comic(item.getComic())
-                                .addedAt(LocalDateTime.now())
-                                .build()
-                );
+            Integer comicId = item.getComic().getId();
+
+            if (!savedComicRepository.existsBySectionIdAndComicId(toRef.getId(), comicId)) {
+                SavedComic moved = new SavedComic();
+                moved.setSection(toRef);
+                moved.setComic(entityManager.getReference(by.bsuir.springbootproject.entities.Comic.class, comicId));
+                moved.setAddedAt(LocalDateTime.now());
+
+                savedComicRepository.save(moved);
             }
         }
+
 
         savedComicRepository.deleteBySectionIdAndComicIds(
                 from.getId(),

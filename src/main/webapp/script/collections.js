@@ -110,13 +110,48 @@ function openTransferModal(title, action, sectionId, sections) {
 
     let selectedTargetId = null;
 
-    const items = sections.map(section => `
+    const deleteWithoutTransferItem = action === 'delete-section'
+        ? `
         <button type="button"
-                class="collection-choice-btn"
-                data-transfer-target-id="${escapeHtml(section.id)}">
-            <span class="collection-choice-name">${escapeHtml(section.name)}</span>
+                class="collection-choice-btn collection-choice-btn-danger"
+                data-delete-comics="true">
+            <span class="collection-choice-name">Удалить категорию вместе с комиксами</span>
         </button>
-    `).join('');
+      `
+        : '';
+
+    const items = deleteWithoutTransferItem + sections.map(section => `
+    <button type="button"
+            class="collection-choice-btn"
+            data-transfer-target-id="${escapeHtml(section.id)}">
+        <span class="collection-choice-name">${escapeHtml(section.name)}</span>
+    </button>
+`).join('');
+    Добавь состояние:
+        let selectedTargetId = null;
+    let deleteComics = false;
+    Замени обработчик выбора:
+        body.querySelectorAll('[data-transfer-target-id], [data-delete-comics]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                body.querySelectorAll('[data-transfer-target-id], [data-delete-comics]').forEach(b => {
+                    b.classList.remove('selected');
+                });
+
+                btn.classList.add('selected');
+
+                if (btn.dataset.deleteComics === 'true') {
+                    deleteComics = true;
+                    selectedTargetId = null;
+                } else {
+                    deleteComics = false;
+                    selectedTargetId = btn.dataset.transferTargetId;
+                }
+
+                hideTransferNotice();
+            });
+        });
+
+
 
     body.innerHTML = `
         <div class="collection-picker">
@@ -157,9 +192,15 @@ function openTransferModal(title, action, sectionId, sections) {
         }
 
         if (action === 'delete-section') {
+            if (!deleteComics && !selectedTargetId) {
+                showTransferNotice('Выберите категорию или удаление без переноса');
+                return;
+            }
+
             postFormUrlEncoded('/collections/delete', {
                 sectionId,
-                targetSectionId: selectedTargetId
+                targetSectionId: selectedTargetId,
+                deleteComics: deleteComics
             }).then(json => {
                 if (!json.success) {
                     showTransferNotice(json.message || 'Не удалось удалить категорию');
@@ -172,6 +213,7 @@ function openTransferModal(title, action, sectionId, sections) {
 
             return;
         }
+
 
         if (action === 'move-comics') {
             const main = document.querySelector('.collections-main');

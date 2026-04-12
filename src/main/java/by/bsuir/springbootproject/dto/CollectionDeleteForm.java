@@ -8,4 +8,5 @@ import lombok.Setter;
 public class CollectionDeleteForm {
     private Integer sectionId;
     private Integer targetSectionId;
+    private Boolean deleteComics;
 }
