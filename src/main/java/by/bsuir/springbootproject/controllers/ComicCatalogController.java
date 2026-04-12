@@ -1,0 +1,69 @@
+package by.bsuir.springbootproject.controllers;
+
+import by.bsuir.springbootproject.constants.RoutePaths;
+import by.bsuir.springbootproject.constants.SessionAttributesNames;
+import by.bsuir.springbootproject.constants.Values;
+import by.bsuir.springbootproject.constants.ViewPaths;
+import by.bsuir.springbootproject.entities.SearchCriteria;
+import by.bsuir.springbootproject.services.ComicCatalogService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+@RequestMapping(RoutePaths.CATALOG)
+@SessionAttributes(SessionAttributesNames.SEARCH_CRITERIA)
+@RequiredArgsConstructor
+public class ComicCatalogController {
+
+    private static final String XML_HTTP_REQUEST = "XMLHttpRequest";
+
+    private final ComicCatalogService catalogService;
+
+    @GetMapping
+    public ModelAndView openCatalog(
+            @ModelAttribute(SessionAttributesNames.SEARCH_CRITERIA) SearchCriteria criteria,
+            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+
+        ModelAndView mv = catalogService.findComics(criteria);
+
+        if (XML_HTTP_REQUEST.equals(requestedWith)) {
+            mv.setViewName(ViewPaths.CATALOG_CONTENT);
+        } else {
+            mv.setViewName(ViewPaths.CATALOG);
+        }
+
+        return mv;
+    }
+
+    @PostMapping
+    public ModelAndView postCatalog(
+            @ModelAttribute(SessionAttributesNames.SEARCH_CRITERIA) SearchCriteria criteria,
+            @RequestParam(required = false) String reset,
+            @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
+
+        if ("true".equals(reset)) {
+            criteria.reset();
+        }
+
+        ModelAndView mv = catalogService.findComics(criteria);
+        mv.setViewName(XML_HTTP_REQUEST.equals(requestedWith)
+                ? ViewPaths.CATALOG_CONTENT
+                : ViewPaths.CATALOG);
+
+        return mv;
+    }
+
+    @ModelAttribute(SessionAttributesNames.SEARCH_CRITERIA)
+    public SearchCriteria initCriteria() {
+        return SearchCriteria.builder()
+                .pageNumber(Values.DEFAULT_START_PAGE)
+                .pageSize(Values.DEFAULT_PAGE_SIZE)
+                .keyWords("")
+                .sortField("popularityScore")
+                .sortDirection("desc")
+                .viewMode("card")
+                .build();
+    }
+}

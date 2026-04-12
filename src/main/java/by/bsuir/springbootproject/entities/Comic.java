@@ -1,0 +1,134 @@
+package by.bsuir.springbootproject.entities;
+
+import jakarta.persistence.*;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.time.format.DateTimeFormatter;
+
+@AttributeOverride(name = "id", column = @Column(name = "comic_id"))
+@Entity
+@Table(name = "comics")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
+public class Comic extends BaseEntity {
+
+    @Column(nullable = false, length = 255)
+    private String title;
+
+    @Column(name = "original_title", length = 255)
+    private String originalTitle;
+
+    @ManyToOne
+    @JoinColumn(name = "type_id")
+    private ComicType type;
+
+    @ManyToOne
+    @JoinColumn(name = "age_rating_id")
+    private AgeRating ageRating;
+
+    @Column(name = "release_year")
+    private Integer releaseYear;
+
+    @ManyToOne
+    @JoinColumn(name = "translation_status_id")
+    private TranslationStatus translationStatus;
+
+    @ManyToOne
+    @JoinColumn(name = "comic_status_id")
+    private ComicStatus comicStatus;
+
+    @Column(name = "short_description", columnDefinition = "TEXT")
+    private String shortDescription;
+
+    @Column(name = "full_description", columnDefinition = "TEXT")
+    private String fullDescription;
+
+    @Column(columnDefinition = "TEXT")
+    private String cover;
+
+    @OneToMany(mappedBy = "comic", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Chapter> chapters = new HashSet<>();
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @Column(name = "popularity_score", nullable = false)
+    private Long popularityScore = 0L;
+
+
+    @Column(name = "ratings_count")
+    private Integer ratingsCount;
+
+    @Column(name = "chapters_count")
+    private Integer chaptersCount;
+
+    @Column(name = "avg_rating")
+    private Double avgRating = 0.0;
+
+    @ManyToMany
+    @JoinTable(
+            name = "comic_tags",
+            joinColumns = @JoinColumn(name = "comic_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "comic_genres",
+            joinColumns = @JoinColumn(name = "comic_id"),
+            inverseJoinColumns = @JoinColumn(name = "genre_id")
+    )
+    private Set<Genre> genres = new HashSet<>();
+
+    @OneToMany(mappedBy = "comic", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ComicRelation> relatedComics = new HashSet<>();
+
+    @OneToMany(mappedBy = "relatedComic", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ComicRelation> parentRelations = new HashSet<>();
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public String getFormattedUpdatedAt() {
+        return updatedAt != null ? updatedAt.toLocalDate().toString() : "";
+    }
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
+    private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
+    public String getCreatedAtFormatted() {
+        return createdAt != null ? createdAt.format(DATE_FORMATTER) : "";
+    }
+
+    public String getUpdatedAtFormatted() {
+        return updatedAt != null ? updatedAt.format(DATE_FORMATTER) : "";
+    }
+
+    public String getCreatedAtIso() {
+        return createdAt != null ? createdAt.format(ISO_DATE_TIME_FORMATTER) : "";
+    }
+
+    public String getUpdatedAtIso() {
+        return updatedAt != null ? updatedAt.format(ISO_DATE_TIME_FORMATTER) : "";
+    }
+}
+

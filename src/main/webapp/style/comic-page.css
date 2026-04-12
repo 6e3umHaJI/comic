@@ -1,0 +1,562 @@
+.comic-page {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    overflow: hidden;
+}
+
+.comic-left {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.comic-cover {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.comic-meta {
+    margin-top: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.comic-meta p { margin: 4px 0; }
+
+.add-chapter-btn {
+    margin-top: 10px;
+    width: 100%;
+}
+
+.comic-right {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 310px);
+    box-sizing: border-box;
+}
+
+.comic-title {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.comic-rating {
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-top: 25px;
+}
+
+.tab-buttons a,
+.tab-buttons button {
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.tab-buttons a.active,
+.tab-buttons button.active {
+    background-color: var(--accent);
+    color: #fff;
+}
+
+.tab-content {
+    border: 1px solid var(--border);
+    padding: 20px;
+    border-radius: 0 0 8px 8px;
+    background: var(--card);
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+}
+
+.related-carousel {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+}
+
+.related-carousel::-webkit-scrollbar {
+    height: 6px;
+}
+.related-carousel::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 10px;
+}
+
+.related-comic {
+    flex: 0 0 140px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+    text-align: center;
+    background: var(--card);
+    transition: background 0.2s;
+    position: relative;
+}
+
+.related-comic:hover {
+    background: var(--border);
+    transform: none;
+}
+
+.related-comic img {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.related-comic p {
+    margin: 4px 0;
+    font-size: 0.9rem;
+}
+
+.rel-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(17,17,17,0.9);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 1;
+}
+
+.search-bar {
+    margin-bottom: 15px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    outline: none;
+}
+
+.rating-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+.rating-table td {
+    padding: 4px;
+    vertical-align: middle;
+}
+.rating-table .bar {
+    height: 8px;
+    background: var(--accent);
+    border-radius: 4px;
+}
+
+.chapter-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chapter-group {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    padding: 10px 12px;
+}
+
+.chapter-header {
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chapter-header:hover {
+    color: var(--accent);
+}
+
+.translation-list {
+    list-style: none;
+    padding: 0 30px;
+    margin-top: 6px;
+    text-align: left;
+}
+
+.translation-list li {
+    margin: 4px 0;
+}
+
+.translation-list a {
+    text-decoration: none;
+    color: var(--text);
+}
+
+.translation-list a:hover {
+    text-decoration: underline;
+    color: var(--accent);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal.visible { display: flex; }
+
+.modal-content {
+    background: var(--card);
+    color: var(--text);
+    padding: 25px;
+    border-radius: 8px;
+    text-align: center;
+    width: 300px;
+    border: 1px solid var(--border);
+    box-shadow: 0 0 14px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.close-button {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    cursor: pointer;
+    font-size: 1.4rem;
+    color: var(--text);
+}
+
+.stars {
+    display: flex;
+    justify-content: center;
+    margin: 15px 0;
+}
+.star {
+    font-size: 2rem;
+    color: var(--border);
+    margin: 0 4px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+.star:hover, .star.hover {
+    color: var(--accent);
+}
+
+#descShort, #descFull { margin-bottom: 16px; }
+#toggleDesc { display: block; margin: 16px auto; }
+
+.chapters-controls {
+  justify-content: center !important;
+  margin: 14px 0 !important;
+  gap: 12px !important;
+}
+.pager.chaptersPager {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.chapter-group { border-bottom: none !important; }
+
+.tr-modal {
+  width: min(720px, 92%);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+.tr-title { margin: 0 0 8px 0; }
+.tr-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
+.tr-select, #chapterSearch {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.tr-card {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  transition: background .2s, border-color .2s;
+}
+.tr-card:hover {
+  background: rgba(150,150,150,0.08);
+  border-color: var(--accent);
+}
+.tr-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.rating-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(17,17,17,0.92);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.pagination {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  gap: 6px;
+}
+.pagination li a {
+  text-decoration: none;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.pagination li a.active-page,
+.pagination li a.active {
+  background-color: var(--accent);
+  color: #fff;
+}
+.pagination li.disabled a { pointer-events: none; opacity: .5; }
+.pagination li.disabled span {
+  display: inline-block;
+  padding: 6px 10px;
+  color: var(--text);
+  opacity: .6;
+}
+
+.chapter-click { cursor: pointer; transition: background .2s; }
+.chapter-click:hover { background: rgba(150,150,150,0.08); }
+
+.cover-wrap {
+  position: relative;
+  display: block;
+}
+.cover-wrap img {
+  display: block;
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.rel-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(17,17,17,0.9);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 2;
+}
+.rating-badge { z-index: 2; }
+
+.pagination button {
+  appearance: none;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 36px;
+  line-height: 1;
+  font-weight: 600;
+}
+.pagination button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.pagination li.disabled button { opacity: .5; cursor: default; pointer-events: none; }
+
+.pagination {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  gap: 6px;
+}
+.pagination li { list-style: none; }
+.pagination li > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.pagination li > *.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.pagination li.disabled > * {
+  opacity: .5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.tr-close {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  cursor: pointer;
+  font-size: 1.6rem;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  line-height: 1;
+  transition: color .2s;
+}
+.tr-close:hover {
+  color: var(--accent);
+}
+
+.icon-only-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.icon-only-btn .btn-icon,
+.pagination-icon-link .nav-icon {
+  margin: 0 !important;
+}
+
+.carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#chapterDirToggle {
+  width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#chapterDirToggle .btn-icon {
+  margin: 0 !important;
+}
+
+.pagination-icon-link,
+.icon-only-btn,
+.carousel-controls button,
+.carousel-controls a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.pagination-icon-link .nav-icon,
+.icon-only-btn .btn-icon,
+.carousel-controls .btn-icon,
+.carousel-controls .nav-icon {
+  margin: 0 !important;
+  pointer-events: none;
+}
+
+.carousel-controls .btn,
+.carousel-controls .btn-outline,
+#relatedPrev,
+#relatedNext,
+#chapterDirToggle {
+  width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.pagination li a,
+.pagination li > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.pagination-icon-link {
+  width: 36px;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 !important;
+}
+
+.pagination li a,
+.pagination li button,
+.pagination-icon-link,
+#relatedPrev,
+#relatedNext,
+#chapterDirToggle,
+.carousel-controls button,
+.carousel-controls a {
+  cursor: pointer !important;
+}
+
+.pagination li.disabled a,
+.pagination li.disabled button,
+.pagination li.disabled > * {
+  cursor: default !important;
+}
