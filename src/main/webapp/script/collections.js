@@ -4,14 +4,17 @@ function showInlineNotice(containerId, message, type = 'error') {
 
     el.hidden = false;
     el.textContent = message;
-    el.className = 'collections-inline-notice ' + (type === 'success'
-        ? 'collections-inline-notice-success'
-        : 'collections-inline-notice-error');
+    el.className =
+        'collections-inline-notice ' +
+        (type === 'success'
+            ? 'collections-inline-notice-success'
+            : 'collections-inline-notice-error');
 }
 
 function hideInlineNotice(containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
+
     el.hidden = true;
     el.textContent = '';
 }
@@ -34,10 +37,7 @@ function postFormUrlEncoded(url, data) {
             'X-Requested-With': 'XMLHttpRequest'
         },
         body: params.toString()
-    }).then(async r => {
-        const json = await r.json();
-        return json;
-    });
+    }).then(async r => await r.json());
 }
 
 function loadCollectionSection(sectionId = null, page = 0, viewMode = 'card') {
@@ -81,43 +81,72 @@ function showTransferNotice(message) {
     notice.className = 'collection-inline-notice collection-inline-notice-error';
 }
 
+function hideTransferNotice() {
+    const notice = document.getElementById('collectionTransferNotice');
+    if (!notice) return;
+
+    notice.hidden = true;
+    notice.textContent = '';
+    notice.className = 'collection-inline-notice';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function openTransferModal(title, action, sectionId, sections) {
     const modal = document.getElementById('collectionTransferModal');
     const body = document.getElementById('collectionTransferModalBody');
-    if (!modal || !body) return;
+
+    if (!modal || !body) {
+        showInlineNotice('collectionsMainNotice', 'Модальное окно не найдено');
+        return;
+    }
+
+    let selectedTargetId = null;
 
     const items = sections.map(section => `
-        <button type="button" class="collection-choice-btn" data-transfer-target-id="${section.id}">
-            <span class="collection-choice-name">${section.name}</span>
+        <button type="button"
+                class="collection-choice-btn"
+                data-transfer-target-id="${escapeHtml(section.id)}">
+            <span class="collection-choice-name">${escapeHtml(section.name)}</span>
         </button>
     `).join('');
 
     body.innerHTML = `
         <div class="collection-picker">
-            <h3>${title}</h3>
+            <h3>${escapeHtml(title)}</h3>
+
             <div class="collection-inline-notice" id="collectionTransferNotice" hidden></div>
+
             <div class="collection-picker-scroll">
                 <div class="collection-picker-list">${items}</div>
             </div>
+
             <div class="collection-modal-actions">
                 <button type="button"
                         class="btn collection-save-btn"
-                        id="confirmTransferActionBtn"
-                        data-action="${action}"
-                        data-section-id="${sectionId}">
+                        id="confirmTransferActionBtn">
                     Подтвердить
                 </button>
             </div>
         </div>
     `;
 
-    let selectedTargetId = null;
-
     body.querySelectorAll('[data-transfer-target-id]').forEach(btn => {
         btn.addEventListener('click', () => {
-            body.querySelectorAll('[data-transfer-target-id]').forEach(b => b.classList.remove('selected'));
+            body.querySelectorAll('[data-transfer-target-id]').forEach(b => {
+                b.classList.remove('selected');
+            });
+
             btn.classList.add('selected');
             selectedTargetId = btn.dataset.transferTargetId;
+            hideTransferNotice();
         });
     });
 
@@ -140,6 +169,8 @@ function openTransferModal(title, action, sectionId, sections) {
                 closeTransferModal();
                 reloadCollectionsIfOpen(null);
             }).catch(() => showTransferNotice('Не удалось удалить категорию'));
+
+            return;
         }
 
         if (action === 'move-comics') {
@@ -164,15 +195,25 @@ function openTransferModal(title, action, sectionId, sections) {
         }
     });
 
-    modal.classList.add('visible');
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
 }
 
 function closeTransferModal() {
     const modal = document.getElementById('collectionTransferModal');
     const body = document.getElementById('collectionTransferModalBody');
-    if (modal) modal.classList.remove('visible');
-    if (body) body.innerHTML = '';
+
+    if (modal) {
+        modal.hidden = true;
+    }
+
+    if (body) {
+        body.innerHTML = '';
+    }
+
+    document.body.style.overflow = '';
 }
+
 
 function setCheckedState(checked) {
     document.querySelectorAll('.collection-comic-check').forEach(input => {
@@ -217,7 +258,10 @@ function bindCollectionsPageEvents() {
 
         postFormUrlEncoded('/collections/create', { name }).then(json => {
             if (!json.success) {
-                showInlineNotice('collectionsSidebarNotice', json.message || 'Не удалось создать категорию');
+                showInlineNotice(
+                    'collectionsSidebarNotice',
+                    json.message || 'Не удалось создать категорию'
+                );
                 return;
             }
 
@@ -247,7 +291,10 @@ function bindCollectionsPageEvents() {
 
         postFormUrlEncoded('/collections/rename', { sectionId, name }).then(json => {
             if (!json.success) {
-                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось переименовать категорию');
+                showInlineNotice(
+                    'collectionsMainNotice',
+                    json.message || 'Не удалось переименовать категорию'
+                );
                 return;
             }
 
@@ -256,6 +303,7 @@ function bindCollectionsPageEvents() {
     });
 
     const deleteToggleBtn = document.getElementById('deleteSectionToggleBtn');
+
     deleteToggleBtn?.addEventListener('click', () => {
         const sectionId = deleteToggleBtn.dataset.sectionId;
         const hasComics = deleteToggleBtn.dataset.hasComics === 'true';
@@ -263,7 +311,10 @@ function bindCollectionsPageEvents() {
         if (!hasComics) {
             postFormUrlEncoded('/collections/delete', { sectionId }).then(json => {
                 if (!json.success) {
-                    showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить категорию');
+                    showInlineNotice(
+                        'collectionsMainNotice',
+                        json.message || 'Не удалось удалить категорию'
+                    );
                     return;
                 }
 
@@ -284,7 +335,12 @@ function bindCollectionsPageEvents() {
             return;
         }
 
-        openTransferModal('Куда перенести тайтлы перед удалением?', 'delete-section', sectionId, tabs);
+        openTransferModal(
+            'Куда перенести тайтлы перед удалением?',
+            'delete-section',
+            sectionId,
+            tabs
+        );
     });
 
     document.getElementById('selectAllBtn')?.addEventListener('click', () => {
@@ -318,7 +374,12 @@ function bindCollectionsPageEvents() {
             return;
         }
 
-        openTransferModal('Куда перенести выбранные тайтлы?', 'move-comics', activeSectionId, tabs);
+        openTransferModal(
+            'Куда перенести выбранные тайтлы?',
+            'move-comics',
+            activeSectionId,
+            tabs
+        );
     });
 
     document.getElementById('removeSelectedBtn')?.addEventListener('click', () => {
@@ -337,7 +398,10 @@ function bindCollectionsPageEvents() {
             comicIds: checked
         }).then(json => {
             if (!json.success) {
-                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить тайтлы из категории');
+                showInlineNotice(
+                    'collectionsMainNotice',
+                    json.message || 'Не удалось удалить тайтлы из категории'
+                );
                 return;
             }
 
@@ -347,7 +411,7 @@ function bindCollectionsPageEvents() {
 
     document.getElementById('collectionTransferModalClose')?.addEventListener('click', closeTransferModal);
 
-    document.getElementById('collectionTransferModal')?.addEventListener('click', (e) => {
+    document.getElementById('collectionTransferModal')?.addEventListener('click', e => {
         if (e.target.id === 'collectionTransferModal') {
             closeTransferModal();
         }

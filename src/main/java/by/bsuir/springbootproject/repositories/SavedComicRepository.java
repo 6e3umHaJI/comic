@@ -28,8 +28,7 @@ public interface SavedComicRepository extends JpaRepository<SavedComic, Integer>
     @Modifying
     @Query("""
         delete from SavedComic sc
-        where sc.section.id = :sectionId
-          and sc.comic.id in :comicIds
+        where sc.section.id = :sectionId and sc.comic.id in :comicIds
     """)
     void deleteBySectionIdAndComicIds(@Param("sectionId") Integer sectionId,
                                       @Param("comicIds") List<Integer> comicIds);
@@ -59,12 +58,12 @@ public interface SavedComicRepository extends JpaRepository<SavedComic, Integer>
             left join fetch c.translationStatus
             left join fetch c.comicStatus
             where sc.section.id = :sectionId
-            """,
+        """,
             countQuery = """
             select count(sc)
             from SavedComic sc
             where sc.section.id = :sectionId
-            """
+        """
     )
     Page<SavedComic> findPageBySectionId(Integer sectionId, Pageable pageable);
 }

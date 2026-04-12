@@ -430,3 +430,32 @@
         width: 100%;
     }
 }
+
+.modal[hidden] {
+    display: none !important;
+}
+
+.modal.collection-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+}
+
+.modal.collection-modal .modal-content.collection-modal-content {
+    width: min(460px, 92vw);
+    max-width: 460px;
+    max-height: 82vh;
+    overflow: hidden;
+    padding: 20px 18px 18px;
+    border-radius: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+}
+

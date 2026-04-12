@@ -287,8 +287,10 @@ public class CollectionServiceImpl implements CollectionService {
             throw new IllegalArgumentException("Выберите другую категорию");
         }
 
+        List<Integer> selectedComicIds = form.getComicIds();
+
         List<SavedComic> fromItems = savedComicRepository.findAllBySectionId(from.getId()).stream()
-                .filter(sc -> form.getComicIds().contains(sc.getComic().getId()))
+                .filter(sc -> selectedComicIds.contains(sc.getComic().getId()))
                 .toList();
 
         if (fromItems.isEmpty()) {
@@ -328,6 +330,7 @@ public class CollectionServiceImpl implements CollectionService {
 
         savedComicRepository.deleteBySectionIdAndComicIds(form.getSectionId(), form.getComicIds());
     }
+
 
     @Override
     public void ensureDefaultSections(User user) {
