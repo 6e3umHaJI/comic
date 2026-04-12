@@ -4,8 +4,7 @@ function showInlineNotice(containerId, message, type = 'error') {
 
     el.hidden = false;
     el.textContent = message;
-    el.className =
-        'collections-inline-notice ' +
+    el.className = 'collections-inline-notice ' +
         (type === 'success'
             ? 'collections-inline-notice-success'
             : 'collections-inline-notice-error');
@@ -54,7 +53,10 @@ function loadCollectionSection(sectionId = null, page = 0, viewMode = 'card') {
     })
         .then(r => r.text())
         .then(html => {
-            document.getElementById('collectionsRoot').innerHTML = html;
+            const root = document.getElementById('collectionsRoot');
+            if (!root) return;
+
+            root.innerHTML = html;
             bindCollectionsPageEvents();
         });
 }
@@ -71,6 +73,7 @@ function reloadCollectionsIfOpen(sectionId = null) {
 }
 
 window.reloadCollectionsIfOpen = reloadCollectionsIfOpen;
+window.loadCollectionSection = loadCollectionSection;
 
 function showTransferNotice(message) {
     const notice = document.getElementById('collectionTransferNotice');
@@ -99,6 +102,18 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function getSelectedComicIds() {
+    return Array.from(document.querySelectorAll('.collection-comic-check:checked'))
+        .map(i => Number(i.value))
+        .filter(Number.isFinite);
+}
+
+function setCheckedState(checked) {
+    document.querySelectorAll('.collection-comic-check').forEach(input => {
+        input.checked = checked;
+    });
+}
+
 function openTransferModal(title, action, sectionId, sections) {
     const modal = document.getElementById('collectionTransferModal');
     const body = document.getElementById('collectionTransferModalBody');
@@ -108,99 +123,91 @@ function openTransferModal(title, action, sectionId, sections) {
         return;
     }
 
-    let selectedTargetId = null;
+    const allowDeleteWithoutTransfer = action === 'delete-section';
 
-    const deleteWithoutTransferItem = action === 'delete-section'
+    const deleteWithoutTransferItem = allowDeleteWithoutTransfer
         ? `
-        <button type="button"
-                class="collection-choice-btn collection-choice-btn-danger"
-                data-delete-comics="true">
-            <span class="collection-choice-name">Удалить категорию вместе с комиксами</span>
-        </button>
-      `
+            <button type="button"
+                    class="collection-choice-btn collection-choice-btn-danger"
+                    data-delete-comics="true">
+                <span class="collection-choice-name">Удалить категорию вместе с комиксами</span>
+            </button>
+        `
         : '';
 
     const items = deleteWithoutTransferItem + sections.map(section => `
-    <button type="button"
-            class="collection-choice-btn"
-            data-transfer-target-id="${escapeHtml(section.id)}">
-        <span class="collection-choice-name">${escapeHtml(section.name)}</span>
-    </button>
-`).join('');
-    Добавь состояние:
-        let selectedTargetId = null;
-    let deleteComics = false;
-    Замени обработчик выбора:
-        body.querySelectorAll('[data-transfer-target-id], [data-delete-comics]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                body.querySelectorAll('[data-transfer-target-id], [data-delete-comics]').forEach(b => {
-                    b.classList.remove('selected');
-                });
-
-                btn.classList.add('selected');
-
-                if (btn.dataset.deleteComics === 'true') {
-                    deleteComics = true;
-                    selectedTargetId = null;
-                } else {
-                    deleteComics = false;
-                    selectedTargetId = btn.dataset.transferTargetId;
-                }
-
-                hideTransferNotice();
-            });
-        });
-
-
+        <button type="button"
+                class="collection-choice-btn"
+                data-transfer-target-id="${escapeHtml(section.id)}">
+            <span class="collection-choice-name">${escapeHtml(section.name)}</span>
+        </button>
+    `).join('');
 
     body.innerHTML = `
         <div class="collection-picker">
             <h3>${escapeHtml(title)}</h3>
 
-            <div class="collection-inline-notice" id="collectionTransferNotice" hidden></div>
+            <div id="collectionTransferNotice" class="collection-inline-notice" hidden></div>
 
             <div class="collection-picker-scroll">
                 <div class="collection-picker-list">${items}</div>
             </div>
 
             <div class="collection-modal-actions">
-                <button type="button"
-                        class="btn collection-save-btn"
-                        id="confirmTransferActionBtn">
+                <button type="button" class="btn collection-save-btn" id="confirmTransferActionBtn">
                     Подтвердить
                 </button>
             </div>
         </div>
     `;
 
-    body.querySelectorAll('[data-transfer-target-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            body.querySelectorAll('[data-transfer-target-id]').forEach(b => {
-                b.classList.remove('selected');
-            });
+    if (action === 'delete-section') {
+        const deleteBtn = body.querySelector('[data-delete-comics="true"]');
+        if (deleteBtn) {
+            deleteBtn.classList.add('selected');
+        }
+    }
 
-            btn.classList.add('selected');
-            selectedTargetId = btn.dataset.transferTargetId;
+
+    let deleteComics = action === 'delete-section';
+    let selectedTargetIds = [];
+
+
+    body.querySelectorAll('[data-transfer-target-id], [data-delete-comics]').forEach(btn => {
+        btn.addEventListener('click', () => {
             hideTransferNotice();
+
+            if (btn.dataset.deleteComics === 'true') {
+                body.querySelectorAll('[data-transfer-target-id]').forEach(b => b.classList.remove('selected'));
+                btn.classList.toggle('selected');
+
+                deleteComics = btn.classList.contains('selected');
+                selectedTargetIds = [];
+                return;
+            }
+
+            body.querySelectorAll('[data-delete-comics]').forEach(b => b.classList.remove('selected'));
+            deleteComics = false;
+
+            btn.classList.toggle('selected');
+
+            selectedTargetIds = Array.from(body.querySelectorAll('[data-transfer-target-id].selected'))
+                .map(b => Number(b.dataset.transferTargetId))
+                .filter(Number.isFinite);
         });
     });
 
     document.getElementById('confirmTransferActionBtn')?.addEventListener('click', () => {
-        if (!selectedTargetId) {
-            showTransferNotice('Выберите категорию');
-            return;
-        }
-
         if (action === 'delete-section') {
-            if (!deleteComics && !selectedTargetId) {
-                showTransferNotice('Выберите категорию или удаление без переноса');
+            if (!deleteComics && !selectedTargetIds.length) {
+                showTransferNotice('Выберите хотя бы одну категорию или удаление без переноса');
                 return;
             }
 
             postFormUrlEncoded('/collections/delete', {
                 sectionId,
-                targetSectionId: selectedTargetId,
-                deleteComics: deleteComics
+                targetSectionIds: selectedTargetIds,
+                deleteComics
             }).then(json => {
                 if (!json.success) {
                     showTransferNotice(json.message || 'Не удалось удалить категорию');
@@ -214,27 +221,28 @@ function openTransferModal(title, action, sectionId, sections) {
             return;
         }
 
-
-        if (action === 'move-comics') {
-            const main = document.querySelector('.collections-main');
-            const fromSectionId = main?.dataset.activeSectionId;
-            const checked = Array.from(document.querySelectorAll('.collection-comic-check:checked'))
-                .map(i => i.value);
-
-            postFormUrlEncoded('/collections/move', {
-                fromSectionId,
-                toSectionId: selectedTargetId,
-                comicIds: checked
-            }).then(json => {
-                if (!json.success) {
-                    showTransferNotice(json.message || 'Не удалось перенести тайтлы');
-                    return;
-                }
-
-                closeTransferModal();
-                reloadCollectionsIfOpen(fromSectionId);
-            }).catch(() => showTransferNotice('Не удалось перенести тайтлы'));
+        if (!selectedTargetIds.length) {
+            showTransferNotice('Выберите хотя бы одну категорию');
+            return;
         }
+
+        const main = document.querySelector('.collections-main');
+        const fromSectionId = Number(main?.dataset.activeSectionId);
+        const checkedComicIds = getSelectedComicIds();
+
+        postFormUrlEncoded('/collections/move', {
+            fromSectionId,
+            toSectionIds: selectedTargetIds,
+            comicIds: checkedComicIds
+        }).then(json => {
+            if (!json.success) {
+                showTransferNotice(json.message || 'Не удалось перенести тайтлы');
+                return;
+            }
+
+            closeTransferModal();
+            reloadCollectionsIfOpen(fromSectionId);
+        }).catch(() => showTransferNotice('Не удалось перенести тайтлы'));
     });
 
     modal.hidden = false;
@@ -245,27 +253,10 @@ function closeTransferModal() {
     const modal = document.getElementById('collectionTransferModal');
     const body = document.getElementById('collectionTransferModalBody');
 
-    if (modal) {
-        modal.hidden = true;
-    }
-
-    if (body) {
-        body.innerHTML = '';
-    }
+    if (modal) modal.hidden = true;
+    if (body) body.innerHTML = '';
 
     document.body.style.overflow = '';
-}
-
-
-function setCheckedState(checked) {
-    document.querySelectorAll('.collection-comic-check').forEach(input => {
-        input.checked = checked;
-    });
-}
-
-function getSelectedComicIds() {
-    return Array.from(document.querySelectorAll('.collection-comic-check:checked'))
-        .map(i => i.value);
 }
 
 function bindCollectionsPageEvents() {
@@ -300,10 +291,7 @@ function bindCollectionsPageEvents() {
 
         postFormUrlEncoded('/collections/create', { name }).then(json => {
             if (!json.success) {
-                showInlineNotice(
-                    'collectionsSidebarNotice',
-                    json.message || 'Не удалось создать категорию'
-                );
+                showInlineNotice('collectionsSidebarNotice', json.message || 'Не удалось создать категорию');
                 return;
             }
 
@@ -333,10 +321,7 @@ function bindCollectionsPageEvents() {
 
         postFormUrlEncoded('/collections/rename', { sectionId, name }).then(json => {
             if (!json.success) {
-                showInlineNotice(
-                    'collectionsMainNotice',
-                    json.message || 'Не удалось переименовать категорию'
-                );
+                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось переименовать категорию');
                 return;
             }
 
@@ -353,10 +338,7 @@ function bindCollectionsPageEvents() {
         if (!hasComics) {
             postFormUrlEncoded('/collections/delete', { sectionId }).then(json => {
                 if (!json.success) {
-                    showInlineNotice(
-                        'collectionsMainNotice',
-                        json.message || 'Не удалось удалить категорию'
-                    );
+                    showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить категорию');
                     return;
                 }
 
@@ -371,11 +353,6 @@ function bindCollectionsPageEvents() {
                 id: tab.dataset.sectionId,
                 name: tab.querySelector('.collection-tab-name')?.textContent?.trim() || ''
             }));
-
-        if (!tabs.length) {
-            showInlineNotice('collectionsMainNotice', 'Нет категории для переноса');
-            return;
-        }
 
         openTransferModal(
             'Куда перенести тайтлы перед удалением?',
@@ -412,12 +389,12 @@ function bindCollectionsPageEvents() {
             }));
 
         if (!tabs.length) {
-            showInlineNotice('collectionsMainNotice', 'Нет категории для переноса');
+            showInlineNotice('collectionsMainNotice', 'Нет категорий для переноса');
             return;
         }
 
         openTransferModal(
-            'Куда перенести выбранные тайтлы?',
+            'Куда перенести?',
             'move-comics',
             activeSectionId,
             tabs
@@ -440,10 +417,7 @@ function bindCollectionsPageEvents() {
             comicIds: checked
         }).then(json => {
             if (!json.success) {
-                showInlineNotice(
-                    'collectionsMainNotice',
-                    json.message || 'Не удалось удалить тайтлы из категории'
-                );
+                showInlineNotice('collectionsMainNotice', json.message || 'Не удалось удалить тайтлы из категории');
                 return;
             }
 

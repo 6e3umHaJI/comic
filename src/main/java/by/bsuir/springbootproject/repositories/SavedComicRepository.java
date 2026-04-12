@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,18 @@ public interface SavedComicRepository extends JpaRepository<SavedComic, Integer>
     """)
     void deleteBySectionIdAndComicIds(@Param("sectionId") Integer sectionId,
                                       @Param("comicIds") List<Integer> comicIds);
+
+    @Modifying
+    @Query(
+            value = """
+            insert into saved_comics (section_id, comic_id, added_at)
+            values (:sectionId, :comicId, :addedAt)
+        """,
+            nativeQuery = true
+    )
+    void insertSavedComic(@Param("sectionId") Integer sectionId,
+                          @Param("comicId") Integer comicId,
+                          @Param("addedAt") LocalDateTime addedAt);
 
     @Query("""
         select sc.section.id

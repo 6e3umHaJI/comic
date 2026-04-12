@@ -44,8 +44,8 @@
                   </select>
 
                   <select name="sortDirection" id="sortDirection">
-                      <option value="asc" ${searchCriteria.sortDirection == 'asc' ? 'selected' : ''}>↑ По возрастанию</option>
-                      <option value="desc" ${searchCriteria.sortDirection == 'desc' ? 'selected' : ''}>↓ По убыванию</option>
+                      <option value="asc" ${searchCriteria.sortDirection == 'asc' ? 'selected' : ''}>По возрастанию</option>
+                      <option value="desc" ${searchCriteria.sortDirection == 'desc' ? 'selected' : ''}>По убыванию</option>
                   </select>
               </form>
           </div>

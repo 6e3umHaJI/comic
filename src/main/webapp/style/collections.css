@@ -484,7 +484,7 @@
     color: var(--accent);
     background: rgba(150,150,150,0.06);
 }
-И ещё добавь стиль для новой destructive-опции:
+
 .collection-choice-btn-danger {
     border-color: #d46a6a;
 }

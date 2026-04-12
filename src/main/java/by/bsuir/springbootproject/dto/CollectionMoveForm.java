@@ -9,6 +9,6 @@ import java.util.List;
 @Setter
 public class CollectionMoveForm {
     private Integer fromSectionId;
-    private Integer toSectionId;
+    private List<Integer> toSectionIds;
     private List<Integer> comicIds;
 }

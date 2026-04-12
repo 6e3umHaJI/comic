@@ -133,6 +133,7 @@ public class CollectionServiceImpl implements CollectionService {
     @Override
     public void syncComicCollections(Integer userId, Integer comicId, List<Integer> sectionIds) {
         List<UserSection> allSections = userSectionRepository.findByUserIdOrderByIsDefaultDescNameAsc(userId);
+
         Set<Integer> allowedIds = allSections.stream()
                 .map(UserSection::getId)
                 .collect(Collectors.toSet());
@@ -144,9 +145,6 @@ public class CollectionServiceImpl implements CollectionService {
 
         List<Integer> currentIds = savedComicRepository.findSectionIdsByUserIdAndComicId(userId, comicId);
 
-        Comic comic = comicRepository.findById(comicId)
-                .orElseThrow(() -> new IllegalArgumentException("Комикс не найден"));
-
         for (Integer currentId : currentIds) {
             if (!targetIds.contains(currentId)) {
                 savedComicRepository.deleteBySectionIdAndComicId(currentId, comicId);
@@ -155,19 +153,15 @@ public class CollectionServiceImpl implements CollectionService {
 
         for (Integer targetId : targetIds) {
             if (!currentIds.contains(targetId)) {
-                UserSection section = userSectionRepository.findByIdAndUserId(targetId, userId)
-                        .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
-
-                savedComicRepository.save(
-                        SavedComic.builder()
-                                .section(section)
-                                .comic(comic)
-                                .addedAt(LocalDateTime.now())
-                                .build()
+                savedComicRepository.insertSavedComic(
+                        targetId,
+                        comicId,
+                        LocalDateTime.now()
                 );
             }
         }
     }
+
 
     @Override
     public void createSection(Integer userId, CollectionCreateForm form) {
@@ -243,43 +237,58 @@ public class CollectionServiceImpl implements CollectionService {
         List<SavedComic> sourceItems = savedComicRepository.findAllBySectionId(source.getId());
 
         if (!sourceItems.isEmpty()) {
-            if (form.getTargetSectionId() == null) {
-                throw new IllegalArgumentException("Выберите категорию, в которую перенести тайтлы");
-            }
+            boolean deleteComics = form.getDeleteComics() == null || form.getDeleteComics();
 
-            UserSection target = userSectionRepository.findByIdAndUserId(form.getTargetSectionId(), userId)
-                    .orElseThrow(() -> new IllegalArgumentException("Категория переноса не найдена"));
+            if (!deleteComics) {
+                List<Integer> targetIds = form.getTargetSectionIds();
 
-            if (source.getId().equals(target.getId())) {
-                throw new IllegalArgumentException("Нужно выбрать другую категорию");
-            }
+                if (targetIds == null || targetIds.isEmpty()) {
+                    throw new IllegalArgumentException("Выберите хотя бы одну категорию переноса");
+                }
 
-            UserSection targetRef = entityManager.getReference(UserSection.class, target.getId());
+                List<UserSection> targets = targetIds.stream()
+                        .distinct()
+                        .map(id -> userSectionRepository.findByIdAndUserId(id, userId)
+                                .orElseThrow(() -> new IllegalArgumentException("Категория переноса не найдена")))
+                        .filter(target -> !source.getId().equals(target.getId()))
+                        .toList();
 
-            for (SavedComic item : sourceItems) {
-                Integer comicId = item.getComic().getId();
+                if (targets.isEmpty()) {
+                    throw new IllegalArgumentException("Выберите хотя бы одну другую категорию");
+                }
 
-                if (!savedComicRepository.existsBySectionIdAndComicId(targetRef.getId(), comicId)) {
-                    SavedComic moved = new SavedComic();
-                    moved.setSection(targetRef);
-                    moved.setComic(entityManager.getReference(by.bsuir.springbootproject.entities.Comic.class, comicId));
-                    moved.setAddedAt(LocalDateTime.now());
+                for (SavedComic item : sourceItems) {
+                    Integer comicId = item.getComic().getId();
 
-                    savedComicRepository.save(moved);
+                    for (UserSection target : targets) {
+                        if (!savedComicRepository.existsBySectionIdAndComicId(target.getId(), comicId)) {
+                            savedComicRepository.insertSavedComic(
+                                    target.getId(),
+                                    comicId,
+                                    LocalDateTime.now()
+                            );
+                        }
+                    }
                 }
             }
-
 
             List<Integer> sourceComicIds = sourceItems.stream()
                     .map(item -> item.getComic().getId())
                     .toList();
 
             savedComicRepository.deleteBySectionIdAndComicIds(source.getId(), sourceComicIds);
+            entityManager.flush();
+            entityManager.clear();
         }
 
-        userSectionRepository.delete(source);
+        UserSection sourceToDelete = userSectionRepository.findByIdAndUserId(form.getSectionId(), userId)
+                .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
+
+        userSectionRepository.delete(sourceToDelete);
         userSectionRepository.flush();
     }
+
+
 
     @Override
     public void moveComics(Integer userId, CollectionMoveForm form) {
@@ -290,11 +299,20 @@ public class CollectionServiceImpl implements CollectionService {
         UserSection from = userSectionRepository.findByIdAndUserId(form.getFromSectionId(), userId)
                 .orElseThrow(() -> new IllegalArgumentException("Исходная категория не найдена"));
 
-        UserSection to = userSectionRepository.findByIdAndUserId(form.getToSectionId(), userId)
-                .orElseThrow(() -> new IllegalArgumentException("Целевая категория не найдена"));
+        List<Integer> targetIds = form.getToSectionIds();
+        if (targetIds == null || targetIds.isEmpty()) {
+            throw new IllegalArgumentException("Выберите хотя бы одну целевую категорию");
+        }
 
-        if (from.getId().equals(to.getId())) {
-            throw new IllegalArgumentException("Выберите другую категорию");
+        List<UserSection> targets = targetIds.stream()
+                .distinct()
+                .map(id -> userSectionRepository.findByIdAndUserId(id, userId)
+                        .orElseThrow(() -> new IllegalArgumentException("Целевая категория не найдена")))
+                .filter(target -> !from.getId().equals(target.getId()))
+                .toList();
+
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("Выберите хотя бы одну другую категорию");
         }
 
         List<Integer> selectedComicIds = form.getComicIds();
@@ -307,27 +325,30 @@ public class CollectionServiceImpl implements CollectionService {
             throw new IllegalArgumentException("Нет выбранных тайтлов для переноса");
         }
 
-        UserSection toRef = entityManager.getReference(UserSection.class, to.getId());
-
         for (SavedComic item : fromItems) {
             Integer comicId = item.getComic().getId();
 
-            if (!savedComicRepository.existsBySectionIdAndComicId(toRef.getId(), comicId)) {
-                SavedComic moved = new SavedComic();
-                moved.setSection(toRef);
-                moved.setComic(entityManager.getReference(by.bsuir.springbootproject.entities.Comic.class, comicId));
-                moved.setAddedAt(LocalDateTime.now());
-
-                savedComicRepository.save(moved);
+            for (UserSection target : targets) {
+                if (!savedComicRepository.existsBySectionIdAndComicId(target.getId(), comicId)) {
+                    savedComicRepository.insertSavedComic(
+                            target.getId(),
+                            comicId,
+                            LocalDateTime.now()
+                    );
+                }
             }
         }
-
 
         savedComicRepository.deleteBySectionIdAndComicIds(
                 from.getId(),
                 fromItems.stream().map(item -> item.getComic().getId()).toList()
         );
+
+        entityManager.flush();
+        entityManager.clear();
     }
+
+
 
     @Override
     public void removeComics(Integer userId, CollectionRemoveForm form) {

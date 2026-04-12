@@ -23,7 +23,7 @@
                        id="createSectionInput"
                        class="auth-input"
                        maxlength="100"
-                       placeholder="Название категории">
+                       placeholder="Название...">
                 <div class="collections-create-actions">
                     <button type="button" class="btn" id="confirmCreateSectionBtn">Создать</button>
                     <button type="button" class="btn btn-outline" id="cancelCreateSectionBtn">Отмена</button>
@@ -125,10 +125,12 @@
 
         <c:if test="${hasSavedComics}">
             <div class="collections-actions">
+                <button type="button" class="btn btn-outline" id="moveSelectedBtn">Перенести выбранные</button>
+                <button type="button" class="btn btn-outline" id="removeSelectedBtn">Удалить из категории</button>
+            </div>
+            <div class="collections-actions">
                 <button type="button" class="collections-text-action" id="selectAllBtn">Выбрать все</button>
                 <button type="button" class="collections-text-action" id="clearSelectionBtn">Снять выбор</button>
-                <button type="button" class="collections-text-action" id="moveSelectedBtn">Перенести выбранные</button>
-                <button type="button" class="collections-text-action" id="removeSelectedBtn">Удалить из категории</button>
             </div>
         </c:if>
 
