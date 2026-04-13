@@ -75,20 +75,40 @@ public class ComicSearchSpecification implements Specification<Comic> {
             }
         }
 
+        if (criteria.getSelectedLanguages() != null && criteria.getSelectedLanguages().length > 0) {
+            Subquery<Integer> languageSubquery = query.subquery(Integer.class);
+            Root<Translation> tr = languageSubquery.from(Translation.class);
+            Join<Translation, Chapter> ch = tr.join("chapter");
+            Join<Translation, Language> lang = tr.join("language");
+            Join<Translation, ReviewStatus> rs = tr.join("reviewStatus");
+
+            languageSubquery.select(ch.get("comic").get("id"));
+            languageSubquery.where(
+                    cb.equal(ch.get("comic").get("id"), root.get("id")),
+                    cb.equal(rs.get("name"), "Одобрено"),
+                    lang.get("name").in((Object[]) criteria.getSelectedLanguages())
+            );
+            languageSubquery.groupBy(ch.get("comic").get("id"));
+
+            if (criteria.isStrictLanguageMatch()) {
+                languageSubquery.having(
+                        cb.equal(
+                                cb.countDistinct(lang.get("name")),
+                                criteria.getSelectedLanguages().length
+                        )
+                );
+            }
+
+            predicates.add(cb.exists(languageSubquery));
+        }
+
+
         if (criteria.getSelectedTypes() != null && criteria.getSelectedTypes().length > 0) {
             Join<Comic, ComicType> type = root.join("type", JoinType.LEFT);
             CriteriaBuilder.In<String> inTypes = cb.in(type.get("name"));
             for (String t : criteria.getSelectedTypes())
                 inTypes.value(t);
             predicates.add(inTypes);
-        }
-
-        if (criteria.getSelectedTranslationStatuses() != null && criteria.getSelectedTranslationStatuses().length > 0) {
-            Join<Comic, TranslationStatus> tr = root.join("translationStatus", JoinType.LEFT);
-            CriteriaBuilder.In<String> inStatuses = cb.in(tr.get("name"));
-            for (String s : criteria.getSelectedTranslationStatuses())
-                inStatuses.value(s);
-            predicates.add(inStatuses);
         }
 
         if (criteria.getSelectedComicStatuses() != null && criteria.getSelectedComicStatuses().length > 0) {

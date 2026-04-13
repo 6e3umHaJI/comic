@@ -181,7 +181,7 @@
 .collection-icon-action:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-tool-icon {
@@ -282,7 +282,7 @@
 .collection-add-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-picker-scroll {
@@ -322,7 +322,7 @@
 
 .collection-choice-btn:hover {
     border-color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-choice-btn.selected {
@@ -482,7 +482,7 @@
 .tr-close:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-choice-btn-danger {
@@ -546,7 +546,7 @@
 .tr-close:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-choice-btn-danger {

@@ -77,7 +77,9 @@ public class ComicController {
             model.addAttribute("similarComics", comicService.getSimilarComics(id));
             model.addAttribute("ratingDistribution", comicService.getRatingDistribution(id));
             model.addAttribute("favoriteStats", comicService.getFavoriteStats(id));
+            model.addAttribute("approvedLangStats", comicService.getApprovedLangStatsByComic(id));
         }
+
 
         boolean ajax = XML_HTTP_REQUEST.equals(request.getHeader("X-Requested-With"));
         return ajax ? ViewPaths.COMIC_TAB_CONTENT : ViewPaths.COMIC_PAGE;

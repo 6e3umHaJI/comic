@@ -311,7 +311,7 @@ a {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.14);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
     padding: 8px;
     z-index: 1200;
 }
@@ -328,7 +328,7 @@ a {
 }
 
 .profile-dropdown-item:hover {
-    background: rgba(150,150,150,0.08);
+    background: rgba(150, 150, 150, 0.08);
     color: var(--accent);
 }
 
@@ -366,7 +366,7 @@ a {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.14);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
     padding: 8px;
     z-index: 1200;
     box-sizing: border-box;
@@ -384,7 +384,7 @@ a {
 }
 
 .profile-dropdown-item:hover {
-    background: rgba(150,150,150,0.08);
+    background: rgba(150, 150, 150, 0.08);
     color: var(--accent);
 }
 
@@ -501,7 +501,7 @@ a {
 .collection-add-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-add-icon {
@@ -552,7 +552,7 @@ a {
 
 .collection-choice-btn:hover {
     border-color: var(--accent);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .collection-choice-btn.selected {
@@ -588,4 +588,36 @@ a {
     justify-content: center;
 }
 
+.check-ui {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid var(--border);
+    border-radius: 5px;
+    background: var(--card);
+    display: inline-grid;
+    place-content: center;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.check-ui::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    transform: scale(0);
+    transition: transform .16s ease;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+    background: var(--accent);
+}
+
+.check-ui:checked {
+    border-color: var(--accent);
+}
+
+.check-ui:checked::before {
+    transform: scale(1);
+}
 

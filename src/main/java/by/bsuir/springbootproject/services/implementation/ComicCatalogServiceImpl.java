@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.services.implementation;
 
-import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.SearchCriteria;
 import by.bsuir.springbootproject.repositories.*;
 import by.bsuir.springbootproject.services.ComicCatalogService;
@@ -20,20 +19,18 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
     private final TagRepository tagRepository;
     private final ComicTypeRepository typeRepository;
     private final ComicStatusRepository statusRepository;
-    private final TranslationStatusRepository translationStatusRepository;
     private final AgeRatingRepository ageRatingRepository;
+    private final LanguageRepository languageRepository;
 
     @Override
     public ModelAndView findComics(SearchCriteria criteria) {
         Sort sort = Sort.by(Sort.Direction.fromString(criteria.getSortDirection()), criteria.getSortField());
         Pageable pageable = PageRequest.of(criteria.getPageNumber(), criteria.getPageSize(), sort);
 
-        Page<Comic> comics = comicRepository.findAll(new ComicSearchSpecification(criteria), pageable);
+        Page comics = comicRepository.findAll(new ComicSearchSpecification(criteria), pageable);
 
         int totalPages = comics.getTotalPages();
-
         int currentPage = comics.getNumber() + 1;
-
         int visiblePages = 5;
         int beginPage = Math.max(1, currentPage - 2);
         int endPage = Math.min(beginPage + visiblePages - 1, totalPages);
@@ -59,11 +56,9 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
         mv.addObject("tags", tagRepository.findAll());
         mv.addObject("types", typeRepository.findAll());
         mv.addObject("statuses", statusRepository.findAll());
-        mv.addObject("translationStatuses", translationStatusRepository.findAll());
         mv.addObject("ageRatings", ageRatingRepository.findAll());
+        mv.addObject("languages", languageRepository.findAll());
 
         return mv;
     }
-
-
 }

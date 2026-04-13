@@ -172,21 +172,21 @@
 
             <div class="reader-setting-group reader-setting-inline">
                 <label class="reader-check">
-                    <input id="settingInvertClicks" type="checkbox">
+                    <input id="settingInvertClicks" type="checkbox" class="check-ui">
                     <span>Инвертировать клики</span>
                 </label>
             </div>
 
             <div class="reader-setting-group reader-setting-inline">
                 <label class="reader-check">
-                    <input id="settingTopbarVisible" type="checkbox" checked>
+                    <input id="settingTopbarVisible" type="checkbox" class="check-ui" checked>
                     <span>Показывать верхнюю панель</span>
                 </label>
             </div>
 
             <div class="reader-setting-group reader-setting-inline">
                 <label class="reader-check">
-                    <input id="settingCounterVisible" type="checkbox" checked>
+                    <input id="settingCounterVisible" type="checkbox"  class="check-ui" checked>
                     <span>Показывать счётчик страниц</span>
                 </label>
             </div>

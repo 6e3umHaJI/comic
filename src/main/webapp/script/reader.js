@@ -96,10 +96,10 @@
     function loadSettings() {
         try {
             const raw = localStorage.getItem(SETTINGS_KEY);
-            if (!raw) return { ...defaultSettings };
-            return { ...defaultSettings, ...JSON.parse(raw) };
+            if (!raw) return {...defaultSettings};
+            return {...defaultSettings, ...JSON.parse(raw)};
         } catch (e) {
-            return { ...defaultSettings };
+            return {...defaultSettings};
         }
     }
 
@@ -115,9 +115,10 @@
             body.set('page', String(state.currentPage));
             fetch(`${ctx}/read/${translationId}/progress`, {
                 method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
                 body
-            }).catch(() => {});
+            }).catch(() => {
+            });
         }, 450);
     }
 
@@ -606,8 +607,8 @@
         handleTapAction(e.clientX, e.clientY);
     }
 
-    horizontalBox.addEventListener('pointerdown', onPointerDown, { passive: true });
-    horizontalBox.addEventListener('pointermove', onPointerMove, { passive: true });
+    horizontalBox.addEventListener('pointerdown', onPointerDown, {passive: true});
+    horizontalBox.addEventListener('pointermove', onPointerMove, {passive: true});
     horizontalBox.addEventListener('pointerup', onPointerUp);
     horizontalBox.addEventListener('pointerleave', () => {
         currentImage.style.cursor = 'default';
@@ -617,8 +618,8 @@
             img.style.cursor = 'default';
         });
     });
-    verticalBox.addEventListener('pointerdown', onPointerDown, { passive: true });
-    verticalBox.addEventListener('pointermove', onPointerMove, { passive: true });
+    verticalBox.addEventListener('pointerdown', onPointerDown, {passive: true});
+    verticalBox.addEventListener('pointermove', onPointerMove, {passive: true});
     verticalBox.addEventListener('pointerup', onPointerUp);
 
     settingsBtn.addEventListener('click', () => toggleSettings(true));
@@ -711,8 +712,8 @@
     document.addEventListener('keydown', (e) => {
         if (document.activeElement &&
             (document.activeElement.tagName === 'INPUT' ||
-             document.activeElement.tagName === 'TEXTAREA' ||
-             document.activeElement.tagName === 'SELECT')) {
+                document.activeElement.tagName === 'TEXTAREA' ||
+                document.activeElement.tagName === 'SELECT')) {
             return;
         }
 
@@ -740,7 +741,7 @@
                 updateCurrentVerticalPage();
             });
         }
-    }, { passive: true });
+    }, {passive: true});
 
     window.addEventListener('resize', () => {
         window.requestAnimationFrame(() => {

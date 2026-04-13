@@ -67,7 +67,7 @@
       </table>
     </div>
 
-    <h4 style="margin-top:15px;">Добавлено в избранное:</h4>
+    <h4 style="margin-top:15px;">Добавлено в коллекцию:</h4>
     <ul>
       <c:forEach var="section" items="${favoriteStats}">
         <li><b>${section.key}</b> — ${section.value}</li>

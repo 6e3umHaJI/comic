@@ -13,7 +13,7 @@
     border-radius: 16px;
     padding: 28px 24px;
     box-sizing: border-box;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 
 .auth-card h1 {
@@ -102,7 +102,7 @@
 .auth-google-btn:hover {
     border-color: var(--accent);
     color: var(--text);
-    background: rgba(150,150,150,0.06);
+    background: rgba(150, 150, 150, 0.06);
 }
 
 .auth-google-icon {
@@ -136,7 +136,7 @@
 
 .auth-alert-error {
     border: 1px solid #d46a6a;
-    background: rgba(233,62,67,0.09);
+    background: rgba(233, 62, 67, 0.09);
     color: var(--text);
 }
 
@@ -161,7 +161,7 @@
     padding: 12px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: rgba(150,150,150,0.05);
+    background: rgba(150, 150, 150, 0.05);
 }
 
 .auth-avatar {

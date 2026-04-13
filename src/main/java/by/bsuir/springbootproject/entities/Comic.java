@@ -37,10 +37,6 @@ public class Comic extends BaseEntity {
     private Integer releaseYear;
 
     @ManyToOne
-    @JoinColumn(name = "translation_status_id")
-    private TranslationStatus translationStatus;
-
-    @ManyToOne
     @JoinColumn(name = "comic_status_id")
     private ComicStatus comicStatus;
 

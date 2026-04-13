@@ -68,7 +68,6 @@ public interface SavedComicRepository extends JpaRepository<SavedComic, Integer>
             join fetch sc.comic c
             left join fetch c.type
             left join fetch c.ageRating
-            left join fetch c.translationStatus
             left join fetch c.comicStatus
             where sc.section.id = :sectionId
         """,

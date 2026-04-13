@@ -28,8 +28,7 @@
                                         <c:forEach items="${comic.genres}" var="g" varStatus="st">
                                             ${g.name}<c:if test="${!st.last}">, </c:if>
                                         </c:forEach>
-                                    </span> |
-                                    <span class="status">${comic.translationStatus.name}</span>
+                                    </span>
                                 </p>
                             </div>
                         </div>

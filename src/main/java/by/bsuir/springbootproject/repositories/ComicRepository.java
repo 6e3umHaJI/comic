@@ -110,7 +110,6 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
     from Comic c
     left join fetch c.type
     left join fetch c.ageRating
-    left join fetch c.translationStatus
     left join fetch c.comicStatus
     left join fetch c.genres
     left join fetch c.tags
@@ -118,7 +117,7 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
     """)
     Optional<Comic> findByIdForComicPage(@Param("id") Integer id);
 
-    @EntityGraph(attributePaths = {"genres", "translationStatus"})
+    @EntityGraph(attributePaths = {"genres"})
     Page<Comic> findAll(Specification<Comic> spec, Pageable pageable);
 }
 

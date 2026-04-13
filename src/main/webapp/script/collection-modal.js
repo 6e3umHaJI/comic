@@ -55,7 +55,7 @@
         if (!modal || !body) return;
 
         fetch(`/collections/comic-modal?comicId=${comicId}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
         })
             .then(r => {
                 if (r.status === 401) {
@@ -70,7 +70,8 @@
                 document.body.style.overflow = 'hidden';
                 bindCollectionModalInner();
             })
-            .catch(() => {});
+            .catch(() => {
+            });
     }
 
     function closeCollectionModal() {
@@ -121,7 +122,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: buildParams({ name }).toString()
+                body: buildParams({name}).toString()
             })
                 .then(r => r.json())
                 .then(json => {
@@ -178,7 +179,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: buildParams({ comicId }).toString()
+                body: buildParams({comicId}).toString()
             })
                 .then(r => {
                     if (r.status === 401) {

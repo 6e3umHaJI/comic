@@ -38,9 +38,15 @@
                 <c:if test="${not empty comic.comicStatus.name}">
                     <p><b>Статус:</b> ${comic.comicStatus.name}</p>
                 </c:if>
-                <c:if test="${not empty comic.translationStatus.name}">
-                    <p><b>Перевод:</b> ${comic.translationStatus.name}</p>
+                <c:if test="${not empty approvedLangStats}">
+                    <p>
+                        <b>Языки перевода:</b>
+                        <c:forEach var="row" items="${approvedLangStats}" varStatus="st">
+                            ${row[0]} (${row[1]})<c:if test="${!st.last}">, </c:if>
+                        </c:forEach>
+                    </p>
                 </c:if>
+
                 <c:if test="${not empty comic.genres}">
                     <p><b>Жанры:</b>
                     <c:forEach var="g" items="${comic.genres}" varStatus="st">
