@@ -398,6 +398,7 @@ DELETE FROM comic_genres WHERE comic_id = v_comic_id;
 DELETE FROM comic_tags WHERE comic_id = v_comic_id;
 
 DELETE FROM comic_relations WHERE comic_id = v_comic_id OR related_comic_id = v_comic_id;
+DELETE FROM saved_comics WHERE comic_id = v_comic_id;
 DELETE FROM ratings WHERE comic_id = v_comic_id;
 END$$;
 

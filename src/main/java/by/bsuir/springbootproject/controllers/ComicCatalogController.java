@@ -29,6 +29,16 @@ public class ComicCatalogController {
     private static final String PRESET_PATH = "/preset";
     private static final String MODE_POPULAR = "popular";
     private static final String MODE_NEW = "new";
+    private static final String APPLY_PATH = "/apply";
+
+    private static final String FILTER_TYPE = "type";
+    private static final String FILTER_AGE = "age";
+    private static final String FILTER_STATUS = "status";
+    private static final String FILTER_LANGUAGE = "language";
+    private static final String FILTER_GENRE = "genre";
+    private static final String FILTER_TAG = "tag";
+    private static final String FILTER_YEAR = "year";
+
 
     private final ComicCatalogService catalogService;
 
@@ -83,6 +93,33 @@ public class ComicCatalogController {
         } else {
             redirectAttributes.addAttribute("sortField", "popularityScore");
             redirectAttributes.addAttribute("sortDirection", "desc");
+        }
+
+        return "redirect:" + RoutePaths.CATALOG;
+    }
+
+    @GetMapping(APPLY_PATH)
+    public String applySingleFilter(
+            @RequestParam String filter,
+            @RequestParam String value,
+            SessionStatus sessionStatus,
+            RedirectAttributes redirectAttributes
+    ) {
+        sessionStatus.setComplete();
+
+        switch (filter) {
+            case FILTER_TYPE -> redirectAttributes.addAttribute("selectedTypes", value);
+            case FILTER_AGE -> redirectAttributes.addAttribute("selectedAgeRatings", value);
+            case FILTER_STATUS -> redirectAttributes.addAttribute("selectedComicStatuses", value);
+            case FILTER_LANGUAGE -> redirectAttributes.addAttribute("selectedLanguages", value);
+            case FILTER_GENRE -> redirectAttributes.addAttribute("selectedGenres", value);
+            case FILTER_TAG -> redirectAttributes.addAttribute("selectedTags", value);
+            case FILTER_YEAR -> {
+                redirectAttributes.addAttribute("releaseYearFrom", value);
+                redirectAttributes.addAttribute("releaseYearTo", value);
+            }
+            default -> {
+            }
         }
 
         return "redirect:" + RoutePaths.CATALOG;

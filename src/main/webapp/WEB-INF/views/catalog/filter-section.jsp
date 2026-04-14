@@ -13,7 +13,7 @@
                            type="checkbox"
                            name="selectedTypes"
                            value="${t.name}"
-                           <c:if test="${fn:contains(searchCriteria.selectedTypes, t.name)}">checked</c:if> />
+                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedTypes, ','), t.name)}">checked</c:if> />
                     <span>${t.name}</span>
                 </label>
             </c:forEach>
@@ -29,7 +29,7 @@
                            type="checkbox"
                            name="selectedComicStatuses"
                            value="${s.name}"
-                           <c:if test="${fn:contains(searchCriteria.selectedComicStatuses, s.name)}">checked</c:if> />
+                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedComicStatuses, ','), s.name)}">checked</c:if> />
                     <span>${s.name}</span>
                 </label>
             </c:forEach>
@@ -45,7 +45,7 @@
                            type="checkbox"
                            name="selectedAgeRatings"
                            value="${ar.name}"
-                           <c:if test="${fn:contains(searchCriteria.selectedAgeRatings, ar.name)}">checked</c:if> />
+                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedAgeRatings, ','), ar.name)}">checked</c:if> />
                     <span>${ar.name}</span>
                 </label>
             </c:forEach>
@@ -111,7 +111,7 @@
                            type="checkbox"
                            name="selectedGenres"
                            value="${g.name}"
-                           <c:if test="${fn:contains(searchCriteria.selectedGenres, g.name)}">checked</c:if> />
+                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedGenres, ','), g.name)}">checked</c:if> />
                     <span>${g.name}</span>
                 </label>
             </c:forEach>
@@ -136,7 +136,7 @@
                            type="checkbox"
                            name="selectedTags"
                            value="${t.name}"
-                           <c:if test="${fn:contains(searchCriteria.selectedTags, t.name)}">checked</c:if> />
+                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedTags, ','), t.name)}">checked</c:if> />
                     <span>${t.name}</span>
                 </label>
             </c:forEach>
