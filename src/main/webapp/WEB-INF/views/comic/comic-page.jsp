@@ -94,7 +94,7 @@
                                         <c:if test="${!st.last}">, </c:if>
                                     </c:forEach>
                                 </c:when>
-                                <c:otherwise>—</c:otherwise>
+                                <c:otherwise>-</c:otherwise>
                             </c:choose>
                         </span>
                     </div>
@@ -135,6 +135,22 @@
                         </span>
                     </div>
                 </div>
+                <c:if test="${(isLogged and not empty continueReading) or not empty startReadingTranslationId}">
+                    <c:choose>
+                        <c:when test="${isLogged and not empty continueReading}">
+                            <a class="btn read-action-btn"
+                               href="<c:url value='/read/${continueReading.translationId}'/>">
+                                Продолжить чтение (глава ${continueReading.chapterNumber}, ${continueReading.languageName})
+                            </a>
+                        </c:when>
+                        <c:otherwise>
+                            <a class="btn read-action-btn"
+                               href="<c:url value='/read/${startReadingTranslationId}'/>">
+                                Начать читать
+                            </a>
+                        </c:otherwise>
+                    </c:choose>
+                </c:if>
                 <button type="button"
                         class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
                         data-comic-id="${comic.id}"

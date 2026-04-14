@@ -1,5 +1,6 @@
 package by.bsuir.springbootproject.services.implementation;
 
+import by.bsuir.springbootproject.dto.ContinueReadingInfo;
 import by.bsuir.springbootproject.dto.ReaderData;
 import by.bsuir.springbootproject.entities.ComicPage;
 import by.bsuir.springbootproject.entities.Translation;
@@ -14,7 +15,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -71,6 +77,54 @@ public class ReaderServiceImpl implements ReaderService {
     }
 
     @Override
+    public Integer getFirstAvailableTranslationId(Integer comicId) {
+        return translationRepository.findFirstApprovedByComic(comicId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(Translation::getId)
+                .orElse(null);
+    }
+
+    @Override
+    public ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId) {
+        return securityContextUtils.getUserFromContext()
+                .flatMap(user -> findLastReadTranslationId(user.getId(), comicId))
+                .flatMap(translationRepository::findReaderTranslationById)
+                .map(t -> new ContinueReadingInfo(
+                        t.getId(),
+                        t.getChapter().getChapterNumber(),
+                        t.getLanguage().getName()
+                ))
+                .orElse(null);
+    }
+
+    @Override
+    public Set<Integer> getReadTranslationIdsIfAuthenticated(List<Integer> translationIds) {
+        if (translationIds == null || translationIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return securityContextUtils.getUserFromContext()
+                .<Set<Integer>>map(user -> {
+                    String placeholders = translationIds.stream()
+                            .map(id -> "?")
+                            .collect(Collectors.joining(","));
+
+                    List<Object> params = new ArrayList<>();
+                    params.add(user.getId());
+                    params.addAll(translationIds);
+
+                    return new HashSet<>(jdbcTemplate.query(
+                            "select translation_id from read_progress where user_id = ? and translation_id in (" + placeholders + ")",
+                            (rs, rowNum) -> rs.getInt("translation_id"),
+                            params.toArray()
+                    ));
+                })
+                .orElse(Set.of());
+    }
+
+
+    @Override
     @Transactional
     public void markChapterReadIfAuthenticated(Integer chapterId) {
         securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
@@ -78,6 +132,16 @@ public class ReaderServiceImpl implements ReaderService {
                 values (?, ?)
                 on conflict do nothing
                 """, user.getId(), chapterId));
+    }
+
+    @Override
+    @Transactional
+    public void markTranslationOpenedIfAuthenticated(Integer translationId) {
+        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
+                insert into read_progress(user_id, translation_id, current_page, updated_at)
+                values (?, ?, 1, now())
+                on conflict (user_id, translation_id) do nothing
+                """, user.getId(), translationId));
     }
 
     @Override
@@ -110,5 +174,24 @@ public class ReaderServiceImpl implements ReaderService {
                 do update set current_page = excluded.current_page,
                               updated_at = now()
                 """, user.getId(), translationId, page));
+    }
+
+    private Optional<Integer> findLastReadTranslationId(Integer userId, Integer comicId) {
+        try {
+            Integer translationId = jdbcTemplate.queryForObject("""
+                    select rp.translation_id
+                    from read_progress rp
+                    join translations t on t.translation_id = rp.translation_id
+                    join chapters ch on ch.chapter_id = t.chapter_id
+                    where rp.user_id = ?
+                      and ch.comic_id = ?
+                    order by rp.updated_at desc, rp.translation_id desc
+                    limit 1
+                    """, Integer.class, userId, comicId);
+
+            return Optional.ofNullable(translationId);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
     }
 }

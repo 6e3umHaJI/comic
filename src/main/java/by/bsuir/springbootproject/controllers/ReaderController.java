@@ -26,6 +26,8 @@ public class ReaderController {
                              HttpServletRequest request,
                              Model model) {
         ReaderData data = readerService.getReaderData(translationId);
+
+        readerService.markTranslationOpenedIfAuthenticated(translationId);
         readerService.markChapterReadIfAuthenticated(data.getTranslation().getChapter().getId());
 
         int totalPages = data.getPages().size();

@@ -14,9 +14,18 @@
             </c:when>
             <c:otherwise>
                 <c:forEach var="t" items="${translations}">
+                    <c:set var="isReadTranslation" value="${readTranslationIds.contains(t.id)}"/>
+
                     <li class="translation-item">
-                        <a class="tr-card" href="<c:url value='/read/${t.id}'/>">
-                            <div><b>Язык:</b> ${t.language.name}</div>
+                        <a class="tr-card${isReadTranslation ? ' is-read' : ''}" href="<c:url value='/read/${t.id}'/>">
+                            <div class="tr-card-head">
+                                <div><b>Язык:</b> ${t.language.name}</div>
+
+                                <c:if test="${isReadTranslation}">
+                                    <span class="tr-read-badge">Читали</span>
+                                </c:if>
+                            </div>
+
                             <div><b>Тип перевода:</b> ${t.translationType.name}</div>
 
                             <c:if test="${t.translationType.name == 'Любительский' and not empty t.user}">

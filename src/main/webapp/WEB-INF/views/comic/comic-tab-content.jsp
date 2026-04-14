@@ -70,7 +70,7 @@
     <h4 style="margin-top:15px;">Добавлено в коллекцию:</h4>
     <ul>
       <c:forEach var="section" items="${favoriteStats}">
-        <li><b>${section.key}</b> — ${section.value}</li>
+        <li><b>${section.key}</b> - ${section.value}</li>
       </c:forEach>
     </ul>
   </c:when>

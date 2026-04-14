@@ -20,6 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import by.bsuir.springbootproject.services.ReaderService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ public class ComicController {
     private final ChapterRepository chapterRepository;
     private final TranslationRepository translationRepository;
     private final SecurityContextUtils securityContextUtils;
+    private final ReaderService readerService;
 
     @GetMapping("/{id}")
     public String showComic(@PathVariable Integer id,
@@ -56,6 +58,8 @@ public class ComicController {
         model.addAttribute("isLogged", request.getUserPrincipal() != null);
 
         model.addAttribute("chaptersPageSize", Values.CHAPTERS_PAGE_SIZE);
+        model.addAttribute("startReadingTranslationId", readerService.getFirstAvailableTranslationId(id));
+        model.addAttribute("continueReading", readerService.getContinueReadingInfoIfAuthenticated(id));
 
         if (request.getUserPrincipal() != null) {
             Integer userId = securityContextUtils.getUserFromContext()
@@ -65,11 +69,12 @@ public class ComicController {
             if (userId != null) {
                 boolean inCollections = collectionService.isComicInCollections(userId, id);
                 model.addAttribute("inCollections", inCollections);
+            } else {
+                model.addAttribute("inCollections", false);
             }
         } else {
             model.addAttribute("inCollections", false);
         }
-
 
         if (!TAB_CHAPTERS.equals(tab)) {
             model.addAttribute("relatedComics", comicService.getRelatedComics(id));
@@ -80,10 +85,10 @@ public class ComicController {
             model.addAttribute("approvedLangStats", comicService.getApprovedLangStatsByComic(id));
         }
 
-
         boolean ajax = XML_HTTP_REQUEST.equals(request.getHeader("X-Requested-With"));
         return ajax ? ViewPaths.COMIC_TAB_CONTENT : ViewPaths.COMIC_PAGE;
     }
+
 
     @GetMapping("/{id}/related")
     public String getRelatedPaged(@PathVariable Integer id,
@@ -181,7 +186,12 @@ public class ComicController {
                 ? translationRepository.findApprovedByChapterId(chapterId, pageable)
                 : translationRepository.findApprovedByChapterIdAndLang(chapterId, lang.trim(), pageable);
 
+        List<Integer> translationIds = tPage.getContent().stream()
+                .map(Translation::getId)
+                .toList();
+
         model.addAttribute("translations", tPage.getContent());
+        model.addAttribute("readTranslationIds", readerService.getReadTranslationIdsIfAuthenticated(translationIds));
         model.addAttribute("total", tPage.getTotalElements());
         model.addAttribute("totalPages", tPage.getTotalPages());
         model.addAttribute("page", page);
@@ -191,4 +201,5 @@ public class ComicController {
 
         return ViewPaths.TRANSLATION_ITEMS;
     }
+
 }
