@@ -56,7 +56,6 @@
                    <button class="btn" id="profileMenuToggle" type="button" aria-expanded="false">
                        <span class="btn-icon"
                              style="-webkit-mask-image:url('<c:url value="/assets/icons/user.svg"/>'); mask-image:url('<c:url value="/assets/icons/user.svg"/>');"></span>
-                       Профиль
                    </button>
 
                    <div id="profileDropdown" class="profile-dropdown" hidden>
@@ -83,7 +82,6 @@
                <a href="<c:url value='/auth/logout'/>" class="btn btn-outline">
                    <span class="btn-icon"
                          style="-webkit-mask-image:url('<c:url value="/assets/icons/logout.svg"/>'); mask-image:url('<c:url value="/assets/icons/logout.svg"/>');"></span>
-                   Выйти
                </a>
            </sec:authorize>
 

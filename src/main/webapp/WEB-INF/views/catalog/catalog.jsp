@@ -59,19 +59,19 @@
             <div class="view-toggle">
                 <button type="button"
                         class="btn icon-only-btn"
-                        onclick="switchView('list'); return false;"
-                        title="Списком"
-                        aria-label="Списком">
-                    <span class="btn-icon"
-                          style="-webkit-mask-image:url('<c:url value="/assets/icons/list.svg"/>'); mask-image:url('<c:url value="/assets/icons/list.svg"/>');"></span>
-                </button>
-                <button type="button"
-                        class="btn icon-only-btn"
                         onclick="switchView('card'); return false;"
                         title="Карточками"
                         aria-label="Карточками">
                     <span class="btn-icon"
                           style="-webkit-mask-image:url('<c:url value="/assets/icons/card.svg"/>'); mask-image:url('<c:url value="/assets/icons/card.svg"/>');"></span>
+                </button>
+                <button type="button"
+                        class="btn icon-only-btn"
+                        onclick="switchView('list'); return false;"
+                        title="Списком"
+                        aria-label="Списком">
+                    <span class="btn-icon"
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/list.svg"/>'); mask-image:url('<c:url value="/assets/icons/list.svg"/>');"></span>
                 </button>
             </div>
         </div>

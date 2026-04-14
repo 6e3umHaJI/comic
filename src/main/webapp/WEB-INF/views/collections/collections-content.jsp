@@ -109,7 +109,8 @@
             </div>
         </div>
 
-        <div class="search-section">
+        <c:if test="${hasSavedComics}">
+        <div class="collections-toolbar-row collections-search-row">
             <form class="search-form collections-search-form" id="collectionsSearchForm">
                 <input type="text"
                        id="collectionsSearchInput"
@@ -119,7 +120,7 @@
                 <button type="submit" class="btn">Найти</button>
             </form>
         </div>
-
+        <c:if test="${hasVisibleSavedComics}">
         <div class="top-controls">
             <div class="sort-inline">
                 <form id="collectionsSortForm" class="sort-form">
@@ -159,24 +160,31 @@
                 </button>
             </div>
         </div>
-
-        <c:if test="${hasVisibleSavedComics}">
-            <div class="collections-actions">
+            <div class="collections-actions collections-toolbar-row collections-bulk-row">
                 <button type="button" class="btn btn-outline" id="moveSelectedBtn">Перенести выбранные</button>
                 <button type="button" class="btn btn-outline" id="removeSelectedBtn">Удалить из категории</button>
             </div>
-            <div class="collections-actions">
+            <div class="collections-actions collections-toolbar-row collections-selection-row">
                 <button type="button" class="collections-text-action" id="selectAllBtn">Выбрать все</button>
                 <button type="button" class="collections-text-action" id="clearSelectionBtn">Снять выбор</button>
             </div>
+        </c:if>
         </c:if>
 
         <c:choose>
             <c:when test="${empty savedComics}">
                 <div class="no-results">
-                    <p>В этой категории пока нет тайтлов.</p>
+                    <c:choose>
+                        <c:when test="${not empty q}">
+                            <p>Ничего не найдено по вашему запросу</p>
+                        </c:when>
+                        <c:otherwise>
+                            <p>В этой категории пока нет тайтлов</p>
+                        </c:otherwise>
+                    </c:choose>
                 </div>
             </c:when>
+
 
             <c:otherwise>
                 <div class="comics-container ${viewMode == 'list' ? 'list-view' : 'card-view'}">
