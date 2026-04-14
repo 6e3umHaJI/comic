@@ -39,7 +39,6 @@
   padding: 6px;
   scroll-snap-align: start;
   text-align: center;
-  transition: background .15s, transform .15s, border-color .15s;
 }
 .card-tile:hover {
   background: var(--border);
@@ -70,7 +69,6 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--card);
-  transition: background .15s, border-color .15s;
 }
 .update-row:hover {
   background: var(--border);
@@ -92,7 +90,6 @@
   background: var(--card);
   border-radius: 10px;
   padding: 6px;
-  transition: background .15s, border-color .15s, transform .15s;
 }
 .grid-card:hover {
     background: var(--border);

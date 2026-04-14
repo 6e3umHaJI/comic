@@ -112,7 +112,6 @@
     padding: 6px;
     text-align: center;
     background: var(--card);
-    transition: background 0.2s;
     position: relative;
 }
 
@@ -338,7 +337,6 @@
     border-radius: 8px;
     padding: 10px 12px;
     color: var(--text);
-    transition: background .2s, border-color .2s;
 }
 
 .tr-card:hover {
@@ -402,7 +400,6 @@
 
 .chapter-click {
     cursor: pointer;
-    transition: background .2s;
 }
 
 .chapter-click:hover {
