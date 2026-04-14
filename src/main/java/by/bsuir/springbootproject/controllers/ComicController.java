@@ -22,10 +22,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import by.bsuir.springbootproject.services.ReaderService;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -88,6 +85,21 @@ public class ComicController {
         boolean ajax = XML_HTTP_REQUEST.equals(request.getHeader("X-Requested-With"));
         return ajax ? ViewPaths.COMIC_TAB_CONTENT : ViewPaths.COMIC_PAGE;
     }
+
+    @GetMapping("/{id}/live-stats")
+    @ResponseBody
+    public Map<String, Object> getLiveStats(@PathVariable Integer id) {
+        Comic comic = comicService.getComicById(id);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("avgRating", comic.getAvgRating() != null ? comic.getAvgRating() : 0);
+        response.put("ratingsCount", comic.getRatingsCount() != null ? comic.getRatingsCount() : 0L);
+        response.put("ratingDistribution", comicService.getRatingDistribution(id));
+        response.put("favoriteStats", comicService.getFavoriteStats(id));
+
+        return response;
+    }
+
 
 
     @GetMapping("/{id}/related")

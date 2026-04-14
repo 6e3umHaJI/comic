@@ -10,11 +10,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
+
     @Query("""
-         select c from Chapter c
-         where c.comic.id = :comicId
-           and (:q = '' or str(c.chapterNumber) like concat('%', :q, '%'))
-         """)
+            select c
+            from Chapter c
+            where c.comic.id = :comicId
+              and (:q = '' or str(c.chapterNumber) like concat(:q, '%'))
+            """)
     Page<Chapter> searchByComicIdAndQuery(@Param("comicId") Integer comicId,
                                           @Param("q") String q,
                                           Pageable pageable);

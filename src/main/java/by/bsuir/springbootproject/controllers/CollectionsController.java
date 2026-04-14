@@ -5,6 +5,7 @@ import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.*;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.services.ComicService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -21,6 +22,7 @@ public class CollectionsController {
 
     private final CollectionService collectionService;
     private final SecurityContextUtils securityContextUtils;
+    private final ComicService comicService;
 
     @GetMapping
     public ModelAndView page(@RequestParam(required = false) Integer sectionId,
@@ -62,14 +64,14 @@ public class CollectionsController {
             return Map.of(
                     "success", true,
                     "inCollections", inCollections,
-                    "message", inCollections
-                            ? "Коллекция обновлена"
-                            : "Комикс удалён из всех разделов"
+                    "favoriteStats", comicService.getFavoriteStats(comicId),
+                    "message", inCollections ? "Коллекция обновлена" : "Комикс удалён из всех разделов"
             );
         } catch (Exception e) {
             return Map.of("success", false, "message", e.getMessage());
         }
     }
+
 
     @PostMapping(RoutePaths.COLLECTIONS_CREATE)
     @ResponseBody

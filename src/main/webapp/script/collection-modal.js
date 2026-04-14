@@ -7,7 +7,6 @@
     function showModalNotice(message, type = 'error') {
         const el = document.getElementById('collectionModalNotice');
         if (!el) return;
-
         el.hidden = false;
         el.textContent = message;
         el.className = 'collection-inline-notice ' + (type === 'success'
@@ -35,6 +34,16 @@
                 btn.classList.toggle('is-bookmarked', inCollections);
             }
         });
+    }
+
+    function notifyComicPageCollectionsUpdated(comicId, favoriteStats, inCollections) {
+        document.dispatchEvent(new CustomEvent('comic:collections-updated', {
+            detail: {
+                comicId: Number(comicId),
+                favoriteStats: favoriteStats || {},
+                inCollections: Boolean(inCollections)
+            }
+        }));
     }
 
     function buildParams(obj) {
@@ -70,8 +79,7 @@
                 document.body.style.overflow = 'hidden';
                 bindCollectionModalInner();
             })
-            .catch(() => {
-            });
+            .catch(() => {});
     }
 
     function closeCollectionModal() {
@@ -79,7 +87,6 @@
         const body = document.getElementById('collectionModalBody');
         if (modal) modal.hidden = true;
         if (body) body.innerHTML = '';
-
         document.body.style.overflow = '';
     }
 
@@ -144,10 +151,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: buildParams({
-                    comicId,
-                    sectionIds
-                }).toString()
+                body: buildParams({ comicId, sectionIds }).toString()
             })
                 .then(r => {
                     if (r.status === 401) {
@@ -163,6 +167,7 @@
                     }
 
                     setCollectionButtonsState(comicId, json.inCollections);
+                    notifyComicPageCollectionsUpdated(comicId, json.favoriteStats || {}, json.inCollections);
                     closeCollectionModal();
 
                     if (typeof window.reloadCollectionsIfOpen === 'function') {
@@ -195,6 +200,7 @@
                     }
 
                     setCollectionButtonsState(comicId, false);
+                    notifyComicPageCollectionsUpdated(comicId, json.favoriteStats || {}, false);
                     closeCollectionModal();
 
                     if (typeof window.reloadCollectionsIfOpen === 'function') {
@@ -221,7 +227,6 @@
     });
 
     document.getElementById('collectionModalClose')?.addEventListener('click', closeCollectionModal);
-
     document.getElementById('collectionModal')?.addEventListener('click', (e) => {
         if (e.target.id === 'collectionModal') closeCollectionModal();
     });

@@ -27,9 +27,15 @@
                     <div class="comic-meta-row">
                         <span class="comic-meta-label">Оригинальное название:</span>
                         <span class="comic-meta-value">
-                            <c:out value="${comic.originalTitle}"/>
+                            <c:choose>
+                                <c:when test="${not empty comic.originalTitle}">
+                                    <c:out value="${comic.originalTitle}"/>
+                                </c:when>
+                                <c:otherwise>Отсутствует</c:otherwise>
+                            </c:choose>
                         </span>
                     </div>
+
 
                     <c:url var="typeUrl" value="/catalog/apply">
                         <c:param name="filter" value="type"/>
@@ -90,51 +96,62 @@
                                             <c:out value="${row[0]}"/>
                                         </a>
                                         <span> (<c:out value="${row[1]}"/>)</span>
-
                                         <c:if test="${!st.last}">, </c:if>
                                     </c:forEach>
                                 </c:when>
-                                <c:otherwise>-</c:otherwise>
+                                <c:otherwise>Отсутствуют</c:otherwise>
                             </c:choose>
                         </span>
                     </div>
 
+
                     <div class="comic-meta-row">
                         <span class="comic-meta-label">Жанры:</span>
                         <span class="comic-meta-value">
-                            <c:forEach items="${comic.genres}" var="g" varStatus="st">
-                                <c:url var="genreUrl" value="/catalog/apply">
-                                    <c:param name="filter" value="genre"/>
-                                    <c:param name="value" value="${g.name}"/>
-                                </c:url>
+                            <c:choose>
+                                <c:when test="${not empty comic.genres}">
+                                    <c:forEach items="${comic.genres}" var="g" varStatus="st">
+                                        <c:url var="genreUrl" value="/catalog/apply">
+                                            <c:param name="filter" value="genre"/>
+                                            <c:param name="value" value="${g.name}"/>
+                                        </c:url>
 
-                                <a class="comic-meta-link" href="${genreUrl}">
-                                    <c:out value="${g.name}"/>
-                                </a>
+                                        <a class="comic-meta-link" href="${genreUrl}">
+                                            <c:out value="${g.name}"/>
+                                        </a>
 
-                                <c:if test="${!st.last}">, </c:if>
-                            </c:forEach>
+                                        <c:if test="${!st.last}">, </c:if>
+                                    </c:forEach>
+                                </c:when>
+                                <c:otherwise>Отсутствуют</c:otherwise>
+                            </c:choose>
                         </span>
                     </div>
+
 
                     <div class="comic-meta-row">
                         <span class="comic-meta-label">Теги:</span>
                         <span class="comic-meta-value">
-                            <c:forEach items="${comic.tags}" var="t" varStatus="st">
-                                <c:url var="tagUrl" value="/catalog/apply">
-                                    <c:param name="filter" value="tag"/>
-                                    <c:param name="value" value="${t.name}"/>
-                                </c:url>
+                            <c:choose>
+                                <c:when test="${not empty comic.tags}">
+                                    <c:forEach items="${comic.tags}" var="t" varStatus="st">
+                                        <c:url var="tagUrl" value="/catalog/apply">
+                                            <c:param name="filter" value="tag"/>
+                                            <c:param name="value" value="${t.name}"/>
+                                        </c:url>
 
-                                <a class="comic-meta-link" href="${tagUrl}">
-                                    #<c:out value="${t.name}"/>
-                                </a>
-
-                                <c:if test="${!st.last}">, </c:if>
-                            </c:forEach>
+                                        <a class="comic-meta-link" href="${tagUrl}">
+                                            #<c:out value="${t.name}"/>
+                                        </a>
+                                        <c:if test="${!st.last}">, </c:if>
+                                    </c:forEach>
+                                </c:when>
+                                <c:otherwise>Отсутствуют</c:otherwise>
+                            </c:choose>
                         </span>
                     </div>
                 </div>
+
                 <c:if test="${(isLogged and not empty continueReading) or not empty startReadingTranslationId}">
                     <c:choose>
                         <c:when test="${isLogged and not empty continueReading}">
@@ -167,7 +184,9 @@
 
         <div class="comic-right">
             <div class="comic-title">${comic.title}</div>
-            <div class="comic-rating" title="Оценить">★ <fmt:formatNumber value="${comic.avgRating}" pattern="0.00"/></div>
+           <div class="comic-rating" id="comicRatingBadge" title="Оценить">
+               ★ <span id="comicRatingValue"><fmt:formatNumber value="${comic.avgRating != null ? comic.avgRating : 0}" pattern="0.00"/></span>
+           </div>
 
             <div class="tab-buttons">
                 <button type="button" data-tab="description"
@@ -250,6 +269,106 @@
           })
           .catch(e => console.error("Ошибка при загрузке связанных:", e));
       }
+
+      function formatRatingValue(value) {
+          const num = Number(value);
+          return Number.isFinite(num) ? num.toFixed(2) : "0.00";
+      }
+
+      function renderRatingDistribution(distribution, ratingsCount) {
+          const tbody = tabContent.querySelector("#ratingDistributionBody");
+          if (!tbody) return;
+
+          tbody.innerHTML = "";
+
+          for (let rating = 5; rating >= 1; rating--) {
+              const count = Number(
+                  (distribution && (distribution[rating] ?? distribution[String(rating)])) || 0
+              );
+              const width = ratingsCount > 0 ? (count * 100 / ratingsCount) : 0;
+
+              const tr = document.createElement("tr");
+
+              const tdLeft = document.createElement("td");
+              tdLeft.style.width = "40px";
+              tdLeft.textContent = rating + "★";
+
+              const tdBar = document.createElement("td");
+              tdBar.style.width = "100%";
+
+              const bar = document.createElement("div");
+              bar.className = "bar";
+              bar.style.width = width + "%";
+              tdBar.appendChild(bar);
+
+              const tdCount = document.createElement("td");
+              tdCount.textContent = String(count);
+
+              tr.appendChild(tdLeft);
+              tr.appendChild(tdBar);
+              tr.appendChild(tdCount);
+
+              tbody.appendChild(tr);
+          }
+      }
+
+      function renderFavoriteStats(favoriteStats) {
+          const list = tabContent.querySelector("#favoriteStatsList");
+          if (!list) return;
+
+          list.innerHTML = "";
+
+          const buckets = ["Читаю", "В планах", "Прочитано", "Другие"];
+          const safe = favoriteStats || {};
+
+          buckets.forEach(name => {
+              const li = document.createElement("li");
+              const b = document.createElement("b");
+              b.textContent = name;
+              li.appendChild(b);
+              li.append(" - " + Number(safe[name] || 0));
+              list.appendChild(li);
+          });
+      }
+
+      function renderLiveStats(data) {
+          const avg = formatRatingValue(data.avgRating);
+          const ratingsCount = Number(data.ratingsCount || 0);
+
+          const topValue = document.getElementById("comicRatingValue");
+          if (topValue) {
+              topValue.textContent = avg;
+          }
+
+          const summary = tabContent.querySelector("#ratingSummaryLine");
+          if (summary) {
+              summary.textContent = `Средняя оценка: ★ ${avg} (оценок: ${ratingsCount})`;
+          }
+
+          renderRatingDistribution(data.ratingDistribution || {}, ratingsCount);
+          renderFavoriteStats(data.favoriteStats || {});
+      }
+
+      function refreshComicLiveStats() {
+          return fetch(ctx + "/comics/" + comicId + "/live-stats", {
+              headers: { "X-Requested-With": "XMLHttpRequest" }
+          })
+              .then(r => {
+                  if (!r.ok) throw new Error("HTTP " + r.status);
+                  return r.json();
+              })
+              .then(renderLiveStats)
+              .catch(err => console.error("Ошибка обновления статистики:", err));
+      }
+
+      document.addEventListener("comic:collections-updated", (e) => {
+          const detail = e.detail || {};
+          if (Number(detail.comicId) !== Number(comicId)) return;
+
+          renderFavoriteStats(detail.favoriteStats || {});
+      });
+
+
 
       let chaptersPage = 0;
       let chaptersTotal = 0;
@@ -544,17 +663,60 @@
               stars.forEach(s => s.classList.toggle('hover', +s.dataset.value <= +star.dataset.value));
             });
             star.addEventListener('click', () => {
-              const val = star.dataset.value;
-              fetch(ctx + "/api/ratings/" + comicId + "?value=" + val, { method: 'POST' })
-                .then(r => r.status === 401 ? alert("Авторизуйтесь для оценки") : location.reload());
+                const val = star.dataset.value;
+
+                fetch(ctx + "/api/ratings/" + comicId + "?value=" + val, { method: 'POST' })
+                    .then(async r => {
+                        if (r.status === 401) {
+                            alert("Авторизуйтесь для оценки");
+                            return false;
+                        }
+                        if (!r.ok) {
+                            throw new Error("HTTP " + r.status);
+                        }
+                        return true;
+                    })
+                    .then(ok => {
+                        if (!ok) return;
+                        return refreshComicLiveStats();
+                    })
+                    .then(() => {
+                        modal.classList.remove("visible");
+                    })
+                    .catch(err => {
+                        console.error("Ошибка сохранения оценки:", err);
+                        alert("Не удалось сохранить оценку");
+                    });
             });
+
           });
           if (removeBtn) {
-            removeBtn.addEventListener("click", () => {
-              fetch(ctx + "/api/ratings/" + comicId, { method: "DELETE" })
-                .then(res => res.ok && location.reload());
-            });
+              removeBtn.addEventListener("click", () => {
+                  fetch(ctx + "/api/ratings/" + comicId, { method: "DELETE" })
+                      .then(async r => {
+                          if (r.status === 401) {
+                              alert("Авторизуйтесь для удаления оценки");
+                              return false;
+                          }
+                          if (!r.ok) {
+                              throw new Error("HTTP " + r.status);
+                          }
+                          return true;
+                      })
+                      .then(ok => {
+                          if (!ok) return;
+                          return refreshComicLiveStats();
+                      })
+                      .then(() => {
+                          modal.classList.remove("visible");
+                      })
+                      .catch(err => {
+                          console.error("Ошибка удаления оценки:", err);
+                          alert("Не удалось удалить оценку");
+                      });
+              });
           }
+
         }
       }
 

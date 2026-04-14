@@ -14,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,6 +33,13 @@ public class ComicServiceImpl implements ComicService {
     private static final Sort NEWEST_SORT = Sort.by(
             Sort.Order.desc("createdAt"),
             Sort.Order.desc("id")
+    );
+
+    private static final List<String> COLLECTION_BUCKETS = List.of(
+            "Читаю",
+            "В планах",
+            "Прочитано",
+            "Другие"
     );
 
     private final ComicRepository comicRepository;
@@ -91,20 +100,34 @@ public class ComicServiceImpl implements ComicService {
 
     @Override
     public Map<Integer, Long> getRatingDistribution(int comicId) {
-        return comicRepository.getRatingDistribution(comicId).stream()
-                .collect(Collectors.toMap(
-                        row -> ((Number) row[0]).intValue(),
-                        row -> ((Number) row[1]).longValue()
-                ));
+        Map<Integer, Long> result = new LinkedHashMap<>();
+        result.put(5, 0L);
+        result.put(4, 0L);
+        result.put(3, 0L);
+        result.put(2, 0L);
+        result.put(1, 0L);
+
+        comicRepository.getRatingDistribution(comicId).forEach(row -> {
+            Integer value = ((Number) row[0]).intValue();
+            Long count = ((Number) row[1]).longValue();
+            result.put(value, count);
+        });
+
+        return result;
     }
 
     @Override
     public Map<String, Long> getFavoriteStats(int comicId) {
-        return comicRepository.getFavoriteStats(comicId).stream()
-                .collect(Collectors.toMap(
-                        row -> (String) row[0],
-                        row -> (Long) row[1]
-                ));
+        Map<String, Long> result = new LinkedHashMap<>();
+        COLLECTION_BUCKETS.forEach(name -> result.put(name, 0L));
+
+        comicRepository.getFavoriteStats(comicId).forEach(row -> {
+            String name = (String) row[0];
+            Long count = ((Number) row[1]).longValue();
+            result.put(name, count);
+        });
+
+        return result;
     }
 
     @Override
@@ -130,12 +153,30 @@ public class ComicServiceImpl implements ComicService {
 
     @Override
     public List<RelatedWithType> getRelatedComicsWithTypePaged(int id, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        List<Object[]> rows = comicRepository.findRelatedComicsWithTypes(id);
 
-        return comicRepository.findRelatedComicsWithTypePaged(id, pageable)
-                .getContent()
-                .stream()
-                .map(row -> new RelatedWithType((Comic) row[0], (String) row[1]))
+        Map<Integer, Comic> comicsById = new LinkedHashMap<>();
+        Map<Integer, LinkedHashSet<String>> typesByComicId = new LinkedHashMap<>();
+
+        for (Object[] row : rows) {
+            Comic comic = (Comic) row[0];
+            String relationType = (String) row[1];
+
+            comicsById.putIfAbsent(comic.getId(), comic);
+            typesByComicId.computeIfAbsent(comic.getId(), k -> new LinkedHashSet<>());
+
+            if (relationType != null && !relationType.isBlank()) {
+                typesByComicId.get(comic.getId()).add(relationType);
+            }
+        }
+
+        return comicsById.entrySet().stream()
+                .skip((long) page * size)
+                .limit(size)
+                .map(entry -> new RelatedWithType(
+                        entry.getValue(),
+                        String.join(", ", typesByComicId.getOrDefault(entry.getKey(), new LinkedHashSet<>()))
+                ))
                 .toList();
     }
 }

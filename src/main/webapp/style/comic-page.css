@@ -617,10 +617,27 @@
     box-sizing: border-box;
 }
 
+.pagination li a,
+.pagination li button,
+.pagination-icon-link {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 !important;
+}
+
+.pagination li.disabled > span {
+    min-width: 38px;
+    padding: 0 10px !important;
+}
+
+
 .pagination-icon-link {
     width: 36px;
     min-width: 36px;
-    height: 32px;
+    height: 36px;
+    min-height: 36px;
     padding: 0 !important;
 }
 
@@ -746,3 +763,45 @@
     font-weight: 600;
     line-height: 1.2;
 }
+
+.related-link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+.related-title {
+    margin: 8px 0 6px;
+    line-height: 1.35;
+    min-height: 2.8em;
+    word-break: break-word;
+}
+
+.related-types {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: auto;
+}
+
+.rel-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(150, 150, 150, 0.08);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.related-comic .rel-badge {
+    position: static;
+}
+
