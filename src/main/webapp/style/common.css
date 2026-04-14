@@ -41,6 +41,10 @@ body {
     transition: none;
 }
 
+body {
+    cursor:default;
+}
+
 .container {
     max-width: var(--container-width);
     margin: 0 auto;

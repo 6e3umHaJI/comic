@@ -23,44 +23,118 @@
                  alt="${comic.title}" class="comic-cover">
 
             <div class="comic-meta">
-                <c:if test="${not empty comic.originalTitle}">
-                    <p><b>Оригинальное название:</b> ${comic.originalTitle}</p>
-                </c:if>
-                <c:if test="${not empty comic.type.name}">
-                    <p><b>Тип:</b> ${comic.type.name}</p>
-                </c:if>
-                <c:if test="${not empty comic.releaseYear}">
-                    <p><b>Год:</b> ${comic.releaseYear}</p>
-                </c:if>
-                <c:if test="${not empty comic.ageRating.name}">
-                    <p><b>Возраст:</b> ${comic.ageRating.name}</p>
-                </c:if>
-                <c:if test="${not empty comic.comicStatus.name}">
-                    <p><b>Статус:</b> ${comic.comicStatus.name}</p>
-                </c:if>
-                <c:if test="${not empty approvedLangStats}">
-                    <p>
-                        <b>Языки перевода:</b>
-                        <c:forEach var="row" items="${approvedLangStats}" varStatus="st">
-                            ${row[0]} (${row[1]})<c:if test="${!st.last}">, </c:if>
-                        </c:forEach>
-                    </p>
-                </c:if>
+                <div class="comic-meta-block">
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Оригинальное название:</span>
+                        <span class="comic-meta-value">
+                            <c:out value="${comic.originalTitle}"/>
+                        </span>
+                    </div>
 
-                <c:if test="${not empty comic.genres}">
-                    <p><b>Жанры:</b>
-                    <c:forEach var="g" items="${comic.genres}" varStatus="st">
-                        ${g.name}<c:if test="${!st.last}">, </c:if>
-                    </c:forEach>
-                </p>
-                </c:if>
-                <c:if test="${not empty comic.tags}">
-                <p><b>Теги:</b>
-                    <c:forEach var="t" items="${comic.tags}" varStatus="st">
-                        #${t.name}<c:if test="${!st.last}">, </c:if>
-                    </c:forEach>
-                </p>
-                </c:if>
+                    <c:url var="typeUrl" value="/catalog/apply">
+                        <c:param name="filter" value="type"/>
+                        <c:param name="value" value="${comic.type.name}"/>
+                    </c:url>
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Тип:</span>
+                        <a class="comic-meta-link" href="${typeUrl}">
+                            <c:out value="${comic.type.name}"/>
+                        </a>
+                    </div>
+
+                    <c:url var="yearUrl" value="/catalog/apply">
+                        <c:param name="filter" value="year"/>
+                        <c:param name="value" value="${comic.releaseYear}"/>
+                    </c:url>
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Год:</span>
+                        <a class="comic-meta-link" href="${yearUrl}">
+                            <c:out value="${comic.releaseYear}"/>
+                        </a>
+                    </div>
+
+                    <c:url var="ageUrl" value="/catalog/apply">
+                        <c:param name="filter" value="age"/>
+                        <c:param name="value" value="${comic.ageRating.name}"/>
+                    </c:url>
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Возраст:</span>
+                        <a class="comic-meta-link" href="${ageUrl}">
+                            <c:out value="${comic.ageRating.name}"/>
+                        </a>
+                    </div>
+
+                    <c:url var="statusUrl" value="/catalog/apply">
+                        <c:param name="filter" value="status"/>
+                        <c:param name="value" value="${comic.comicStatus.name}"/>
+                    </c:url>
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Статус:</span>
+                        <a class="comic-meta-link" href="${statusUrl}">
+                            <c:out value="${comic.comicStatus.name}"/>
+                        </a>
+                    </div>
+
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Языки перевода:</span>
+                        <span class="comic-meta-value">
+                            <c:choose>
+                                <c:when test="${not empty approvedLangStats}">
+                                    <c:forEach items="${approvedLangStats}" var="row" varStatus="st">
+                                        <c:url var="langUrl" value="/catalog/apply">
+                                            <c:param name="filter" value="language"/>
+                                            <c:param name="value" value="${row[0]}"/>
+                                        </c:url>
+
+                                        <a class="comic-meta-link" href="${langUrl}">
+                                            <c:out value="${row[0]}"/>
+                                        </a>
+                                        <span> (<c:out value="${row[1]}"/>)</span>
+
+                                        <c:if test="${!st.last}">, </c:if>
+                                    </c:forEach>
+                                </c:when>
+                                <c:otherwise>—</c:otherwise>
+                            </c:choose>
+                        </span>
+                    </div>
+
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Жанры:</span>
+                        <span class="comic-meta-value">
+                            <c:forEach items="${comic.genres}" var="g" varStatus="st">
+                                <c:url var="genreUrl" value="/catalog/apply">
+                                    <c:param name="filter" value="genre"/>
+                                    <c:param name="value" value="${g.name}"/>
+                                </c:url>
+
+                                <a class="comic-meta-link" href="${genreUrl}">
+                                    <c:out value="${g.name}"/>
+                                </a>
+
+                                <c:if test="${!st.last}">, </c:if>
+                            </c:forEach>
+                        </span>
+                    </div>
+
+                    <div class="comic-meta-row">
+                        <span class="comic-meta-label">Теги:</span>
+                        <span class="comic-meta-value">
+                            <c:forEach items="${comic.tags}" var="t" varStatus="st">
+                                <c:url var="tagUrl" value="/catalog/apply">
+                                    <c:param name="filter" value="tag"/>
+                                    <c:param name="value" value="${t.name}"/>
+                                </c:url>
+
+                                <a class="comic-meta-link" href="${tagUrl}">
+                                    #<c:out value="${t.name}"/>
+                                </a>
+
+                                <c:if test="${!st.last}">, </c:if>
+                            </c:forEach>
+                        </span>
+                    </div>
+                </div>
                 <button type="button"
                         class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
                         data-comic-id="${comic.id}"
