@@ -34,10 +34,7 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
 
     @Override
     public ModelAndView findComics(SearchCriteria criteria) {
-        Sort sort = Sort.by(
-                Sort.Direction.fromString(criteria.getSortDirection()),
-                criteria.getSortField()
-        );
+        Sort sort = buildSort(criteria);
 
         Pageable pageable = PageRequest.of(
                 criteria.getPageNumber(),
@@ -78,5 +75,26 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
         mv.addObject("languages", languageRepository.findAll());
 
         return mv;
+    }
+
+    private Sort buildSort(SearchCriteria criteria) {
+        Sort.Direction direction = Sort.Direction.fromString(criteria.getSortDirection());
+        String field = criteria.getSortField();
+
+        if ("popularityScore".equals(field)) {
+            return Sort.by(
+                    new Sort.Order(direction, "popularityScore"),
+                    new Sort.Order(Sort.Direction.DESC, "id")
+            );
+        }
+
+        if ("createdAt".equals(field)) {
+            return Sort.by(
+                    new Sort.Order(direction, "createdAt"),
+                    new Sort.Order(Sort.Direction.DESC, "id")
+            );
+        }
+
+        return Sort.by(direction, field);
     }
 }

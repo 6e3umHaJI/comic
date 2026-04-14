@@ -28,7 +28,7 @@
     <section class="home-section">
       <div class="section-head">
         <h2>Самые популярные</h2>
-        <a class="see-all" href="<c:url value='/catalog?sort=popular'/>">Все популярные →</a>
+        <a class="see-all" href="<c:url value='/catalog/preset?mode=popular'/>">Все популярные →</a>
       </div>
       <div class="card-scroller" tabindex="0">
         <c:forEach var="comic" items="${popularComics}">
@@ -49,7 +49,7 @@
       </div>
       <div class="updates-list">
         <c:forEach var="item" items="${recentUpdates}">
-          <a class="update-row" href="<c:url value='/comics/${item.comicId}'/>">
+          <a class="update-row" href="<c:url value='/read/${item.translationId}'/>">
             <div class="u-cover">
               <img src="<c:url value='/assets/covers/${item.comicCover}'/>" alt="${item.comicTitle}">
             </div>
@@ -69,7 +69,7 @@
     <section class="home-section">
       <div class="section-head">
         <h2>Новинки</h2>
-        <a class="see-all" href="<c:url value='/catalog?sort=new'/>">Все новинки →</a>
+        <a class="see-all" href="<c:url value='/catalog/preset?mode=new'/>">Все новинки →</a>
       </div>
       <div class="grid-tiles">
         <c:forEach var="comic" items="${newComics}">

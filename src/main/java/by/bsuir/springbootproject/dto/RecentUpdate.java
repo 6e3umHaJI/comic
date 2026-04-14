@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class RecentUpdate {
+    private final Integer translationId;
     private final Integer comicId;
     private final String comicTitle;
     private final String comicCover;
@@ -14,4 +15,3 @@ public class RecentUpdate {
     private final String createdAtFormatted;
     private final String createdAtIso;
 }
-

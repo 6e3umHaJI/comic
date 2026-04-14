@@ -26,16 +26,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ComicCatalogController {
 
     private static final String XML_HTTP_REQUEST = "XMLHttpRequest";
-
-    private static final String APPLY_PATH = "/apply";
-
-    private static final String FILTER_TYPE = "type";
-    private static final String FILTER_AGE = "age";
-    private static final String FILTER_STATUS = "status";
-    private static final String FILTER_LANGUAGE = "language";
-    private static final String FILTER_GENRE = "genre";
-    private static final String FILTER_TAG = "tag";
-    private static final String FILTER_YEAR = "year";
+    private static final String PRESET_PATH = "/preset";
+    private static final String MODE_POPULAR = "popular";
+    private static final String MODE_NEW = "new";
 
     private final ComicCatalogService catalogService;
 
@@ -66,32 +59,30 @@ public class ComicCatalogController {
         }
 
         ModelAndView mv = catalogService.findComics(criteria);
-        mv.setViewName(XML_HTTP_REQUEST.equals(requestedWith) ? ViewPaths.CATALOG_CONTENT : ViewPaths.CATALOG);
+        mv.setViewName(XML_HTTP_REQUEST.equals(requestedWith)
+                ? ViewPaths.CATALOG_CONTENT
+                : ViewPaths.CATALOG);
+
         return mv;
     }
 
-    @GetMapping(APPLY_PATH)
-    public String applySingleFilter(
-            @RequestParam String filter,
-            @RequestParam String value,
+    @GetMapping(PRESET_PATH)
+    public String applyHomePreset(
+            @RequestParam String mode,
             SessionStatus sessionStatus,
             RedirectAttributes redirectAttributes
     ) {
         sessionStatus.setComplete();
 
-        switch (filter) {
-            case FILTER_TYPE -> redirectAttributes.addAttribute("selectedTypes", value);
-            case FILTER_AGE -> redirectAttributes.addAttribute("selectedAgeRatings", value);
-            case FILTER_STATUS -> redirectAttributes.addAttribute("selectedComicStatuses", value);
-            case FILTER_LANGUAGE -> redirectAttributes.addAttribute("selectedLanguages", value);
-            case FILTER_GENRE -> redirectAttributes.addAttribute("selectedGenres", value);
-            case FILTER_TAG -> redirectAttributes.addAttribute("selectedTags", value);
-            case FILTER_YEAR -> {
-                redirectAttributes.addAttribute("releaseYearFrom", value);
-                redirectAttributes.addAttribute("releaseYearTo", value);
-            }
-            default -> {
-            }
+        redirectAttributes.addAttribute("pageNumber", Values.DEFAULT_START_PAGE);
+        redirectAttributes.addAttribute("viewMode", "card");
+
+        if (MODE_NEW.equalsIgnoreCase(mode)) {
+            redirectAttributes.addAttribute("sortField", "createdAt");
+            redirectAttributes.addAttribute("sortDirection", "desc");
+        } else {
+            redirectAttributes.addAttribute("sortField", "popularityScore");
+            redirectAttributes.addAttribute("sortDirection", "desc");
         }
 
         return "redirect:" + RoutePaths.CATALOG;
