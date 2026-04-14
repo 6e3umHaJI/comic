@@ -155,13 +155,13 @@
                 <c:if test="${(isLogged and not empty continueReading) or not empty startReadingTranslationId}">
                     <c:choose>
                         <c:when test="${isLogged and not empty continueReading}">
-                            <a class="btn read-action-btn"
+                            <a class="btn btn-outline"
                                href="<c:url value='/read/${continueReading.translationId}'/>">
                                 Продолжить чтение (глава ${continueReading.chapterNumber}, ${continueReading.languageName})
                             </a>
                         </c:when>
                         <c:otherwise>
-                            <a class="btn read-action-btn"
+                            <a class="btn btn-outline"
                                href="<c:url value='/read/${startReadingTranslationId}'/>">
                                 Начать читать
                             </a>
@@ -275,81 +275,8 @@
           return Number.isFinite(num) ? num.toFixed(2) : "0.00";
       }
 
-      function renderRatingDistribution(distribution, ratingsCount) {
-          const tbody = tabContent.querySelector("#ratingDistributionBody");
-          if (!tbody) return;
 
-          tbody.innerHTML = "";
-
-          for (let rating = 5; rating >= 1; rating--) {
-              const count = Number(
-                  (distribution && (distribution[rating] ?? distribution[String(rating)])) || 0
-              );
-              const width = ratingsCount > 0 ? (count * 100 / ratingsCount) : 0;
-
-              const tr = document.createElement("tr");
-
-              const tdLeft = document.createElement("td");
-              tdLeft.style.width = "40px";
-              tdLeft.textContent = rating + "★";
-
-              const tdBar = document.createElement("td");
-              tdBar.style.width = "100%";
-
-              const bar = document.createElement("div");
-              bar.className = "bar";
-              bar.style.width = width + "%";
-              tdBar.appendChild(bar);
-
-              const tdCount = document.createElement("td");
-              tdCount.textContent = String(count);
-
-              tr.appendChild(tdLeft);
-              tr.appendChild(tdBar);
-              tr.appendChild(tdCount);
-
-              tbody.appendChild(tr);
-          }
-      }
-
-      function renderFavoriteStats(favoriteStats) {
-          const list = tabContent.querySelector("#favoriteStatsList");
-          if (!list) return;
-
-          list.innerHTML = "";
-
-          const buckets = ["Читаю", "В планах", "Прочитано", "Другие"];
-          const safe = favoriteStats || {};
-
-          buckets.forEach(name => {
-              const li = document.createElement("li");
-              const b = document.createElement("b");
-              b.textContent = name;
-              li.appendChild(b);
-              li.append(" - " + Number(safe[name] || 0));
-              list.appendChild(li);
-          });
-      }
-
-      function renderLiveStats(data) {
-          const avg = formatRatingValue(data.avgRating);
-          const ratingsCount = Number(data.ratingsCount || 0);
-
-          const topValue = document.getElementById("comicRatingValue");
-          if (topValue) {
-              topValue.textContent = avg;
-          }
-
-          const summary = tabContent.querySelector("#ratingSummaryLine");
-          if (summary) {
-              summary.textContent = `Средняя оценка: ★ ${avg} (оценок: ${ratingsCount})`;
-          }
-
-          renderRatingDistribution(data.ratingDistribution || {}, ratingsCount);
-          renderFavoriteStats(data.favoriteStats || {});
-      }
-
-      function refreshComicLiveStats() {
+      function refreshTopRatingBadge() {
           return fetch(ctx + "/comics/" + comicId + "/live-stats", {
               headers: { "X-Requested-With": "XMLHttpRequest" }
           })
@@ -357,18 +284,80 @@
                   if (!r.ok) throw new Error("HTTP " + r.status);
                   return r.json();
               })
-              .then(renderLiveStats)
-              .catch(err => console.error("Ошибка обновления статистики:", err));
+              .then(data => {
+                  const topValue = document.getElementById("comicRatingValue");
+                  if (topValue) {
+                      topValue.textContent = formatRatingValue(data.avgRating);
+                  }
+              })
+              .catch(err => console.error("Ошибка обновления верхнего рейтинга:", err));
       }
+
+
+      function refreshDescriptionStatsFragment() {
+          const summary = tabContent.querySelector("#ratingSummaryLine");
+          const distributionBody = tabContent.querySelector("#ratingDistributionBody");
+          const favoriteList = tabContent.querySelector("#favoriteStatsList");
+
+
+          if (!summary && !distributionBody && !favoriteList) {
+              return Promise.resolve();
+          }
+
+
+          return fetch(ctx + "/comics/" + comicId + "?tab=description", {
+              headers: { "X-Requested-With": "XMLHttpRequest" }
+          })
+              .then(r => {
+                  if (!r.ok) throw new Error("HTTP " + r.status);
+                  return r.text();
+              })
+              .then(html => {
+                  const tmp = document.createElement("div");
+                  tmp.innerHTML = html;
+
+
+                  const newSummary = tmp.querySelector("#ratingSummaryLine");
+                  const newDistributionBody = tmp.querySelector("#ratingDistributionBody");
+                  const newFavoriteList = tmp.querySelector("#favoriteStatsList");
+
+
+                  const currentSummary = tabContent.querySelector("#ratingSummaryLine");
+                  if (currentSummary && newSummary) {
+                      currentSummary.replaceWith(newSummary);
+                  }
+
+
+                  const currentDistributionBody = tabContent.querySelector("#ratingDistributionBody");
+                  if (currentDistributionBody && newDistributionBody) {
+                      currentDistributionBody.innerHTML = newDistributionBody.innerHTML;
+                  }
+
+
+                  const currentFavoriteList = tabContent.querySelector("#favoriteStatsList");
+                  if (currentFavoriteList && newFavoriteList) {
+                      currentFavoriteList.innerHTML = newFavoriteList.innerHTML;
+                  }
+              })
+              .catch(err => console.error("Ошибка обновления блока статистики:", err));
+      }
+
+
+      function refreshComicStats() {
+          return Promise.all([
+              refreshTopRatingBadge(),
+              refreshDescriptionStatsFragment()
+          ]);
+      }
+
 
       document.addEventListener("comic:collections-updated", (e) => {
           const detail = e.detail || {};
           if (Number(detail.comicId) !== Number(comicId)) return;
 
-          renderFavoriteStats(detail.favoriteStats || {});
+
+          refreshDescriptionStatsFragment();
       });
-
-
 
       let chaptersPage = 0;
       let chaptersTotal = 0;
@@ -665,6 +654,7 @@
             star.addEventListener('click', () => {
                 const val = star.dataset.value;
 
+
                 fetch(ctx + "/api/ratings/" + comicId + "?value=" + val, { method: 'POST' })
                     .then(async r => {
                         if (r.status === 401) {
@@ -678,7 +668,7 @@
                     })
                     .then(ok => {
                         if (!ok) return;
-                        return refreshComicLiveStats();
+                        return refreshComicStats();
                     })
                     .then(() => {
                         modal.classList.remove("visible");
@@ -688,6 +678,7 @@
                         alert("Не удалось сохранить оценку");
                     });
             });
+
 
           });
           if (removeBtn) {
@@ -705,7 +696,7 @@
                       })
                       .then(ok => {
                           if (!ok) return;
-                          return refreshComicLiveStats();
+                          return refreshComicStats();
                       })
                       .then(() => {
                           modal.classList.remove("visible");
@@ -716,7 +707,6 @@
                       });
               });
           }
-
         }
       }
 

@@ -20,64 +20,60 @@
             </c:otherwise>
         </c:choose>
 
-        <c:choose>
-            <c:when test="${relatedCount > 0}">
-                <h3>Связанные тайтлы</h3>
+        <c:if test="${relatedCount > 0}">
+            <h3>Связанные тайтлы</h3>
 
-                <div id="relatedBlock" data-total="${relatedCount}" data-size="5">
-                    <div id="relatedContainer" class="related-carousel"></div>
 
-                    <div class="carousel-controls <c:if test='${relatedCount <= 5}'>hidden</c:if>">
-                        <button id="relatedPrev" class="btn btn-outline icon-only-btn" disabled type="button" aria-label="Назад">
-                            <span class="btn-icon"
-                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>');"></span>
-                        </button>
+            <div id="relatedBlock" data-total="${relatedCount}" data-size="5">
+                <div id="relatedContainer" class="related-carousel"></div>
 
-                        <span id="relatedPageInfo" class="small"></span>
 
-                        <button id="relatedNext" class="btn icon-only-btn" type="button" aria-label="Вперёд">
-                            <span class="btn-icon"
-                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-right.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-right.svg"/>');"></span>
-                        </button>
+                <div class="carousel-controls <c:if test='${relatedCount <= 5}'>hidden</c:if>">
+                    <button id="relatedPrev" class="btn btn-outline icon-only-btn" disabled type="button" aria-label="Назад">
+                        <span class="btn-icon"
+                              style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>');"></span>
+                    </button>
+
+
+                    <span id="relatedPageInfo" class="small"></span>
+
+
+                    <button id="relatedNext" class="btn icon-only-btn" type="button" aria-label="Вперёд">
+                        <span class="btn-icon"
+                              style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-right.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-right.svg"/>');"></span>
+                    </button>
+                </div>
+            </div>
+        </c:if>
+
+        <c:if test="${not empty similarComics}">
+            <h3 style="margin-top:25px;">Похожие комиксы</h3>
+
+
+            <div class="related-carousel">
+                <c:forEach var="s" items="${similarComics}">
+                    <div class="related-comic">
+                        <a href="<c:url value='/comics/${s.id}'/>" style="display:block;">
+                            <div class="cover-wrap">
+                                <img src="${pageContext.request.contextPath}/assets/covers/${s.cover}" alt="${s.title}">
+                                <span class="rating-badge">★ <fmt:formatNumber value="${s.avgRating}" pattern="0.00"/></span>
+                            </div>
+                            <p>${s.title}</p>
+                        </a>
                     </div>
-                </div>
-            </c:when>
-            <c:otherwise>
-                <p class="muted" style="margin-top: 20px;">Связанные тайтлы отсутствуют.</p>
-            </c:otherwise>
-        </c:choose>
+                </c:forEach>
+            </div>
+        </c:if>
 
-        <c:choose>
-            <c:when test="${not empty similarComics}">
-                <h3 style="margin-top:25px;">Похожие комиксы</h3>
-
-                <div class="related-carousel">
-                    <c:forEach var="s" items="${similarComics}">
-                        <div class="related-comic">
-                            <a href="<c:url value='/comics/${s.id}'/>" style="display:block;">
-                                <div class="cover-wrap">
-                                    <img src="${pageContext.request.contextPath}/assets/covers/${s.cover}" alt="${s.title}">
-                                    <span class="rating-badge">★ <fmt:formatNumber value="${s.avgRating}" pattern="0.00"/></span>
-                                </div>
-                                <p>${s.title}</p>
-                            </a>
-                        </div>
-                    </c:forEach>
-                </div>
-            </c:when>
-            <c:otherwise>
-                <p class="muted" style="margin-top:25px;">Похожие тайтлы отсутствуют.</p>
-            </c:otherwise>
-        </c:choose>
 
         <h3 style="margin-top:25px;">Статистика отзывов</h3>
 
         <div class="rating-stats">
             <p id="ratingSummaryLine">
-                Средняя оценка: ★
-                <fmt:formatNumber value="${comic.avgRating != null ? comic.avgRating : 0}" pattern="0.00"/>
+                Средняя оценка: ★ ${comic.avgRating != null ? comic.avgRating : 0}
                 (оценок: ${comic.ratingsCount != null ? comic.ratingsCount : 0})
             </p>
+
 
             <table class="rating-table">
                 <tbody id="ratingDistributionBody">

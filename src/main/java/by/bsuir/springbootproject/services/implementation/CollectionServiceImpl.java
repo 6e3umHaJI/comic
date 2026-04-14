@@ -171,7 +171,7 @@ public class CollectionServiceImpl implements CollectionService {
 
         long currentCount = userSectionRepository.countByUserId(userId);
         if (currentCount >= Values.MAX_USER_COLLECTIONS) {
-            throw new IllegalStateException("Максимальное количество категорий " + Values.MAX_USER_COLLECTIONS);
+            throw new IllegalStateException("Максимальное количество пользовательских категорий " + Values.MAX_USER_COLLECTIONS);
         }
 
         String name = form.getName().trim();
