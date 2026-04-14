@@ -38,6 +38,7 @@ public class ComicCatalogController {
     private static final String FILTER_GENRE = "genre";
     private static final String FILTER_TAG = "tag";
     private static final String FILTER_YEAR = "year";
+    private static final String FILTER_SEARCH = "search";
 
 
     private final ComicCatalogService catalogService;
@@ -114,6 +115,7 @@ public class ComicCatalogController {
             case FILTER_LANGUAGE -> redirectAttributes.addAttribute("selectedLanguages", value);
             case FILTER_GENRE -> redirectAttributes.addAttribute("selectedGenres", value);
             case FILTER_TAG -> redirectAttributes.addAttribute("selectedTags", value);
+            case FILTER_SEARCH -> redirectAttributes.addAttribute("keyWords", value);
             case FILTER_YEAR -> {
                 redirectAttributes.addAttribute("releaseYearFrom", value);
                 redirectAttributes.addAttribute("releaseYearTo", value);

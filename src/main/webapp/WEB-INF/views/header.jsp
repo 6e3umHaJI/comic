@@ -21,7 +21,7 @@
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/catalog.svg"/>'); mask-image:url('<c:url value="/assets/icons/catalog.svg"/>');"></span>
                 Каталог
             </a>
-            <a href="<c:url value='/search'/>">
+            <a href="<c:url value='/search'/>" data-quick-search-open="true">
                 <span class="nav-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/search.svg"/>'); mask-image:url('<c:url value="/assets/icons/search.svg"/>');"></span>
                 Поиск
@@ -94,3 +94,5 @@
 <script src="<c:url value='/script/profile-dropdown.js'/>"></script>
 <jsp:include page="/WEB-INF/views/auth/auth-required-modal.jsp"/>
 <script src="<c:url value='/script/auth-required-modal.js'/>"></script>
+<jsp:include page="/WEB-INF/views/fragments/quick-search-modal.jsp"/>
+<script src="<c:url value='/script/quick-search.js'/>"></script>

@@ -125,4 +125,22 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
     @Override
     @EntityGraph(attributePaths = {"genres"})
     Page<Comic> findAll(Specification<Comic> spec, Pageable pageable);
+
+    @Query(
+            value = """
+                select c
+                from Comic c
+                where lower(c.title) like lower(concat('%', :q, '%'))
+                   or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                order by c.popularityScore desc, c.avgRating desc, c.id desc
+                """,
+            countQuery = """
+                select count(c)
+                from Comic c
+                where lower(c.title) like lower(concat('%', :q, '%'))
+                   or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                """
+    )
+    Page<Comic> findQuickSearchResults(@Param("q") String q, Pageable pageable);
+
 }

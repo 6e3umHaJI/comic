@@ -246,7 +246,8 @@
             <div class="pagination-management">
                 <ul class="pagination">
                     <c:if test="${currentPage > 1}">
-                        <li><a href="#" onclick="loadCollectionSection(${activeSection.id}, ${currentPage - 2}, '${viewMode}'); return false;">&laquo;</a></li>
+                        <li><a href="#" onclick="loadCollectionSection(${activeSection.id}, ${currentPage - 2}, '${viewMode}'); return false;"><span class="nav-icon"
+                                                                                                                                                                             style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>');"></span></a></li>
                     </c:if>
 
                     <c:if test="${beginPage > 1}">
@@ -276,7 +277,8 @@
                     </c:if>
 
                     <c:if test="${currentPage < totalPages}">
-                        <li><a href="#" onclick="loadCollectionSection(${activeSection.id}, ${currentPage}, '${viewMode}'); return false;">&raquo;</a></li>
+                        <li><a href="#" onclick="loadCollectionSection(${activeSection.id}, ${currentPage}, '${viewMode}'); return false;"><span class="nav-icon"
+                                                                                                                                                                         style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-right.svg"/>');"></span></a></li>
                     </c:if>
                 </ul>
             </div>
