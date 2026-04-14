@@ -17,6 +17,8 @@ public interface UserSectionRepository extends JpaRepository<UserSection, Intege
 
     long countByUserId(Integer userId);
 
+    long countByUserIdAndIsDefaultFalse(Integer userId);
+
     List<UserSection> findByUserIdOrderByIsDefaultDescNameAsc(Integer userId);
 
     @Query("""

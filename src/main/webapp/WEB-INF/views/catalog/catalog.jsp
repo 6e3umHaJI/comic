@@ -42,6 +42,7 @@
                     <label for="sortField">Сортировать по:</label>
                     <select name="sortField" id="sortField">
                         <option value="popularityScore" ${searchCriteria.sortField == 'popularityScore' ? 'selected' : ''}>Популярности</option>
+                        <option value="avgRating" ${searchCriteria.sortField == 'avgRating' ? 'selected' : ''}>Рейтингу</option>
                         <option value="title" ${searchCriteria.sortField == 'title' ? 'selected' : ''}>Названию</option>
                         <option value="releaseYear" ${searchCriteria.sortField == 'releaseYear' ? 'selected' : ''}>Году релиза</option>
                         <option value="createdAt" ${searchCriteria.sortField == 'createdAt' ? 'selected' : ''}>Дате добавления</option>

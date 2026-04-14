@@ -8,7 +8,14 @@ import java.util.List;
 
 public interface CollectionService {
 
-    ModelAndView getCollectionsPage(Integer userId, Integer sectionId, int page, String viewMode);
+    ModelAndView getCollectionsPage(Integer userId,
+                                    Integer sectionId,
+                                    int page,
+                                    String viewMode,
+                                    String q,
+                                    String sortField,
+                                    String sortDirection);
+
 
     ModelAndView getComicModal(Integer userId, Integer comicId);
 

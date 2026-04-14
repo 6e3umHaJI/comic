@@ -28,17 +28,30 @@ public class CollectionsController {
     public ModelAndView page(@RequestParam(required = false) Integer sectionId,
                              @RequestParam(defaultValue = "0") int page,
                              @RequestParam(defaultValue = "card") String viewMode,
+                             @RequestParam(defaultValue = "") String q,
+                             @RequestParam(defaultValue = "addedAt") String sortField,
+                             @RequestParam(defaultValue = "desc") String sortDirection,
                              @RequestHeader(value = "X-Requested-With", required = false) String requestedWith) {
-
         User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
-        ModelAndView mv = collectionService.getCollectionsPage(user.getId(), sectionId, page, viewMode);
+        ModelAndView mv = collectionService.getCollectionsPage(
+                user.getId(),
+                sectionId,
+                page,
+                viewMode,
+                q,
+                sortField,
+                sortDirection
+        );
+
         mv.setViewName("XMLHttpRequest".equals(requestedWith)
                 ? ViewPaths.COLLECTIONS_CONTENT
                 : ViewPaths.COLLECTIONS_PAGE);
+
         return mv;
     }
+
 
     @GetMapping(RoutePaths.COLLECTIONS_COMIC_MODAL)
     public ModelAndView comicModal(@RequestParam Integer comicId) {

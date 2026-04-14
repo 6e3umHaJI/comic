@@ -39,24 +39,38 @@ function postFormUrlEncoded(url, data) {
     }).then(async r => await r.json());
 }
 
-function loadCollectionSection(sectionId = null, page = 0, viewMode = 'card') {
+function loadCollectionSection(sectionId = null, page = 0, viewMode = null, q = null, sortField = null, sortDirection = null) {
+    const root = document.getElementById('collectionsRoot');
+    const main = root?.querySelector('.collections-main');
+
+    const resolvedViewMode = viewMode || main?.dataset.viewMode || 'card';
+    const resolvedQuery = q !== null ? q : (main?.dataset.searchQuery || '');
+    const resolvedSortField = sortField || main?.dataset.sortField || 'addedAt';
+    const resolvedSortDirection = sortDirection || main?.dataset.sortDirection || 'desc';
+
     const params = new URLSearchParams();
     params.append('page', page);
-    params.append('viewMode', viewMode);
+    params.append('viewMode', resolvedViewMode);
+    params.append('q', resolvedQuery);
+    params.append('sortField', resolvedSortField);
+    params.append('sortDirection', resolvedSortDirection);
 
     if (sectionId !== null && sectionId !== undefined && sectionId !== '') {
         params.append('sectionId', sectionId);
     }
 
-    fetch(`/collections?${params.toString()}`, {
+    const url = `/collections?${params.toString()}`;
+    window.history.replaceState({}, '', url);
+
+    fetch(url, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
         .then(r => r.text())
         .then(html => {
-            const root = document.getElementById('collectionsRoot');
-            if (!root) return;
+            const rootNode = document.getElementById('collectionsRoot');
+            if (!rootNode) return;
 
-            root.innerHTML = html;
+            rootNode.innerHTML = html;
             bindCollectionsPageEvents();
         });
 }
@@ -67,10 +81,14 @@ function reloadCollectionsIfOpen(sectionId = null) {
 
     const main = root.querySelector('.collections-main');
     const viewMode = main?.dataset.viewMode || 'card';
+    const q = main?.dataset.searchQuery || '';
+    const sortField = main?.dataset.sortField || 'addedAt';
+    const sortDirection = main?.dataset.sortDirection || 'desc';
     const resolvedSectionId = sectionId ?? main?.dataset.activeSectionId ?? null;
 
-    loadCollectionSection(resolvedSectionId, 0, viewMode);
+    loadCollectionSection(resolvedSectionId, 0, viewMode, q, sortField, sortDirection);
 }
+
 
 window.reloadCollectionsIfOpen = reloadCollectionsIfOpen;
 window.loadCollectionSection = loadCollectionSection;
@@ -265,9 +283,38 @@ function bindCollectionsPageEvents() {
 
     document.querySelectorAll('.collection-tab').forEach(btn => {
         btn.addEventListener('click', () => {
-            loadCollectionSection(btn.dataset.sectionId, 0, 'card');
+            loadCollectionSection(btn.dataset.sectionId, 0);
         });
     });
+
+    const collectionsSearchForm = document.getElementById('collectionsSearchForm');
+    const collectionsSearchInput = document.getElementById('collectionsSearchInput');
+    const collectionsSortField = document.getElementById('collectionsSortField');
+    const collectionsSortDirection = document.getElementById('collectionsSortDirection');
+
+    function applyCollectionsFilters() {
+        const main = document.querySelector('.collections-main');
+        const activeSectionId = main?.dataset.activeSectionId ?? null;
+        const currentViewMode = main?.dataset.viewMode || 'card';
+
+        loadCollectionSection(
+            activeSectionId,
+            0,
+            currentViewMode,
+            collectionsSearchInput?.value?.trim() || '',
+            collectionsSortField?.value || 'addedAt',
+            collectionsSortDirection?.value || 'desc'
+        );
+    }
+
+    collectionsSearchForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        applyCollectionsFilters();
+    });
+
+    collectionsSortField?.addEventListener('change', applyCollectionsFilters);
+    collectionsSortDirection?.addEventListener('change', applyCollectionsFilters);
+
 
     const createBtn = document.getElementById('createSectionBtn');
     const createInline = document.getElementById('createSectionInline');

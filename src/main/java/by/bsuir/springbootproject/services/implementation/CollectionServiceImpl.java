@@ -39,7 +39,13 @@ public class CollectionServiceImpl implements CollectionService {
 
     @Override
     @Transactional(readOnly = true)
-    public ModelAndView getCollectionsPage(Integer userId, Integer sectionId, int page, String viewMode) {
+    public ModelAndView getCollectionsPage(Integer userId,
+                                           Integer sectionId,
+                                           int page,
+                                           String viewMode,
+                                           String q,
+                                           String sortField,
+                                           String sortDirection) {
         List<CollectionSidebarItem> sections = userSectionRepository.findAllWithCountsByUserId(userId)
                 .stream()
                 .map(row -> {
@@ -66,41 +72,135 @@ public class CollectionServiceImpl implements CollectionService {
                         .orElseThrow(() -> new IllegalArgumentException("Категория не найдена")));
 
         String actualViewMode = "list".equalsIgnoreCase(viewMode) ? "list" : "card";
-        Pageable pageable = PageRequest.of(
-                Math.max(0, page),
-                Values.COLLECTIONS_PAGE_SIZE,
-                Sort.by(Sort.Direction.DESC, "addedAt")
-        );
+        String actualQuery = q == null ? "" : q.trim();
+        String actualSortField = normalizeCollectionsSortField(sortField);
+        String actualSortDirection = "asc".equalsIgnoreCase(sortDirection) ? "asc" : "desc";
 
-        Page<SavedComic> savedPage = savedComicRepository.findPageBySectionId(activeSection.getId(), pageable);
+        List<SavedComic> allSavedComics = savedComicRepository.findAllBySectionId(activeSection.getId());
 
-        int totalPages = savedPage.getTotalPages();
-        int currentPage = savedPage.getNumber() + 1;
+        List<SavedComic> filteredComics = allSavedComics.stream()
+                .filter(savedComic -> matchesCollectionsQuery(savedComic.getComic(), actualQuery))
+                .sorted(buildCollectionsComparator(actualSortField, actualSortDirection))
+                .toList();
+
+        int totalItems = filteredComics.size();
+        int pageSize = Values.COLLECTIONS_PAGE_SIZE;
+        int totalPages = totalItems == 0 ? 0 : (int) Math.ceil((double) totalItems / pageSize);
+
+        int safePage = totalPages == 0
+                ? 0
+                : Math.min(Math.max(0, page), totalPages - 1);
+
+        int fromIndex = totalPages == 0 ? 0 : safePage * pageSize;
+        int toIndex = totalPages == 0 ? 0 : Math.min(fromIndex + pageSize, totalItems);
+
+        List<SavedComic> pageItems = totalPages == 0
+                ? List.of()
+                : filteredComics.subList(fromIndex, toIndex);
+
+        int currentPage = totalPages == 0 ? 0 : safePage + 1;
         int visiblePages = 5;
-        int beginPage = Math.max(1, currentPage - 2);
-        int endPage = Math.min(beginPage + visiblePages - 1, Math.max(totalPages, 1));
+        int beginPage = totalPages == 0 ? 0 : Math.max(1, currentPage - 2);
+        int endPage = totalPages == 0 ? 0 : Math.min(beginPage + visiblePages - 1, totalPages);
 
-        if (endPage - beginPage < visiblePages - 1) {
+        if (totalPages > 0 && endPage - beginPage < visiblePages - 1) {
             beginPage = Math.max(1, endPage - visiblePages + 1);
         }
 
-        boolean showLeftDots = beginPage > 2;
-        boolean showRightDots = endPage < totalPages - 1;
+        boolean showLeftDots = totalPages > 0 && beginPage > 2;
+        boolean showRightDots = totalPages > 0 && endPage < totalPages - 1;
 
         ModelAndView mv = new ModelAndView();
         mv.addObject("sections", sections);
         mv.addObject("activeSection", activeSection);
-        mv.addObject("savedComics", savedPage.getContent());
+        mv.addObject("savedComics", pageItems);
         mv.addObject("viewMode", actualViewMode);
+        mv.addObject("q", actualQuery);
+        mv.addObject("sortField", actualSortField);
+        mv.addObject("sortDirection", actualSortDirection);
         mv.addObject("currentPage", currentPage);
         mv.addObject("totalPages", totalPages);
         mv.addObject("beginPage", beginPage);
         mv.addObject("endPage", endPage);
         mv.addObject("showLeftDots", showLeftDots);
         mv.addObject("showRightDots", showRightDots);
-        mv.addObject("hasSavedComics", !savedPage.getContent().isEmpty());
+        mv.addObject("hasSavedComics", !allSavedComics.isEmpty());
+        mv.addObject("hasVisibleSavedComics", !pageItems.isEmpty());
         return mv;
     }
+
+    private String normalizeCollectionsSortField(String sortField) {
+        if (sortField == null) {
+            return "addedAt";
+        }
+
+        return switch (sortField) {
+            case "addedAt", "popularityScore", "avgRating", "title", "releaseYear", "createdAt", "updatedAt" -> sortField;
+            default -> "addedAt";
+        };
+    }
+
+    private boolean matchesCollectionsQuery(Comic comic, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+
+        String normalizedQuery = query.toLowerCase(Locale.ROOT);
+
+        return containsIgnoreCase(comic.getTitle(), normalizedQuery)
+                || containsIgnoreCase(comic.getOriginalTitle(), normalizedQuery);
+    }
+
+    private boolean containsIgnoreCase(String source, String query) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(query);
+    }
+
+    private Comparator<SavedComic> buildCollectionsComparator(String sortField, String sortDirection) {
+        Comparator<SavedComic> comparator = switch (sortField) {
+            case "title" -> Comparator.comparing(
+                    saved -> normalizeString(saved.getComic().getTitle())
+            );
+            case "releaseYear" -> Comparator.comparing(
+                    saved -> saved.getComic().getReleaseYear(),
+                    Comparator.nullsLast(Integer::compareTo)
+            );
+            case "createdAt" -> Comparator.comparing(
+                    saved -> saved.getComic().getCreatedAt(),
+                    Comparator.nullsLast(LocalDateTime::compareTo)
+            );
+            case "updatedAt" -> Comparator.comparing(
+                    saved -> saved.getComic().getUpdatedAt(),
+                    Comparator.nullsLast(LocalDateTime::compareTo)
+            );
+            case "popularityScore" -> Comparator.comparingLong(
+                    saved -> saved.getComic().getPopularityScore() == null ? Long.MIN_VALUE : saved.getComic().getPopularityScore()
+            );
+            case "avgRating" -> Comparator.comparingDouble(
+                    saved -> saved.getComic().getAvgRating() == null ? Double.NEGATIVE_INFINITY : saved.getComic().getAvgRating().doubleValue()
+            );
+            case "addedAt" -> Comparator.comparing(
+                    SavedComic::getAddedAt,
+                    Comparator.nullsLast(LocalDateTime::compareTo)
+            );
+            default -> Comparator.comparing(
+                    SavedComic::getAddedAt,
+                    Comparator.nullsLast(LocalDateTime::compareTo)
+            );
+        };
+
+        comparator = comparator.thenComparing(
+                saved -> saved.getComic().getId(),
+                Comparator.nullsLast(Integer::compareTo)
+        );
+
+        return "asc".equalsIgnoreCase(sortDirection) ? comparator : comparator.reversed();
+    }
+
+    private String normalizeString(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -169,10 +269,12 @@ public class CollectionServiceImpl implements CollectionService {
             throw new IllegalArgumentException("Введите название категории");
         }
 
-        long currentCount = userSectionRepository.countByUserId(userId);
+        long currentCount = userSectionRepository.countByUserIdAndIsDefaultFalse(userId);
+
         if (currentCount >= Values.MAX_USER_COLLECTIONS) {
             throw new IllegalStateException("Максимальное количество пользовательских категорий " + Values.MAX_USER_COLLECTIONS);
         }
+
 
         String name = form.getName().trim();
         if (name.length() < 2 || name.length() > 100) {

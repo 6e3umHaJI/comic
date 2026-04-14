@@ -49,7 +49,10 @@
 
     <section class="collections-main"
              data-active-section-id="${activeSection.id}"
-             data-view-mode="${viewMode}">
+             data-view-mode="${viewMode}"
+             data-search-query="${q}"
+             data-sort-field="${sortField}"
+             data-sort-direction="${sortDirection}">
 
         <div class="collections-main-head">
             <div class="collections-main-title-wrap">
@@ -104,6 +107,40 @@
                     </div>
                 </c:if>
             </div>
+        </div>
+
+        <div class="search-section">
+            <form class="search-form collections-search-form" id="collectionsSearchForm">
+                <input type="text"
+                       id="collectionsSearchInput"
+                       name="q"
+                       placeholder="Поиск по названию или оригиналу"
+                       value="${q}">
+                <button type="submit" class="btn">Найти</button>
+            </form>
+        </div>
+
+        <div class="top-controls">
+            <div class="sort-inline">
+                <form id="collectionsSortForm" class="sort-form">
+                    <label for="collectionsSortField">Сортировать по:</label>
+
+                    <select name="sortField" id="collectionsSortField">
+                        <option value="addedAt" ${sortField == 'addedAt' ? 'selected' : ''}>Добавлению в коллекцию</option>
+                        <option value="popularityScore" ${sortField == 'popularityScore' ? 'selected' : ''}>Популярности</option>
+                        <option value="avgRating" ${sortField == 'avgRating' ? 'selected' : ''}>Рейтингу</option>
+                        <option value="title" ${sortField == 'title' ? 'selected' : ''}>Названию</option>
+                        <option value="releaseYear" ${sortField == 'releaseYear' ? 'selected' : ''}>Году релиза</option>
+                        <option value="createdAt" ${sortField == 'createdAt' ? 'selected' : ''}>Дате добавления</option>
+                        <option value="updatedAt" ${sortField == 'updatedAt' ? 'selected' : ''}>Обновлению</option>
+                    </select>
+
+                    <select name="sortDirection" id="collectionsSortDirection">
+                        <option value="asc" ${sortDirection == 'asc' ? 'selected' : ''}>По возрастанию</option>
+                        <option value="desc" ${sortDirection == 'desc' ? 'selected' : ''}>По убыванию</option>
+                    </select>
+                </form>
+            </div>
 
             <div class="view-toggle">
                 <button type="button"
@@ -123,7 +160,7 @@
             </div>
         </div>
 
-        <c:if test="${hasSavedComics}">
+        <c:if test="${hasVisibleSavedComics}">
             <div class="collections-actions">
                 <button type="button" class="btn btn-outline" id="moveSelectedBtn">Перенести выбранные</button>
                 <button type="button" class="btn btn-outline" id="removeSelectedBtn">Удалить из категории</button>
