@@ -47,10 +47,10 @@
     <div class="filter-group">
       <div class="filter-label">Средний рейтинг:</div>
       <div class="filter-range">
-        <input type="number" name="avgRatingFrom" step="0.01" min="0" max="5" placeholder="От"
+        <input type="number" name="avgRatingFrom" step="0.01" min="0" max="5" placeholder="От (0.00)"
                value="${searchCriteria.avgRatingFrom}" oninput="if(this.value>5)this.value=5;if(this.value<0)this.value=0">
         <span>–</span>
-        <input type="number" name="avgRatingTo" step="0.01" min="0" max="5" placeholder="До"
+        <input type="number" name="avgRatingTo" step="0.01" min="0" max="5" placeholder="До (5.00)"
                value="${searchCriteria.avgRatingTo}" oninput="if(this.value>5)this.value=5;if(this.value<0)this.value=0">
       </div>
     </div>
