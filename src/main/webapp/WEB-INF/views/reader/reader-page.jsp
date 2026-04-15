@@ -23,10 +23,10 @@
      data-is-logged="${isLogged}"
      data-prev-translation-id="${prevTranslation != null ? prevTranslation.id : ''}"
      data-next-translation-id="${nextTranslation != null ? nextTranslation.id : ''}"
+     data-prev-chapter-id="${prevTranslation != null ? prevTranslation.chapter.id : ''}"
+     data-next-chapter-id="${nextTranslation != null ? nextTranslation.chapter.id : ''}"
      data-prev-language-name="${prevTranslation != null ? prevTranslation.language.name : ''}"
      data-next-language-name="${nextTranslation != null ? nextTranslation.language.name : ''}"
-     data-prev-chapter-number="${prevTranslation != null ? prevTranslation.chapter.chapterNumber : ''}"
-     data-next-chapter-number="${nextTranslation != null ? nextTranslation.chapter.chapterNumber : ''}"
      data-comic-url="<c:url value='/comics/${comic.id}'/>"
      data-back-url="<c:url value='/comics/${comic.id}?tab=chapters'/>">
 
@@ -233,17 +233,26 @@
         </div>
     </aside>
 
-    <div id="readerLanguageWarning" class="modal">
-        <div class="modal-content reader-warning-modal">
-            <button type="button" class="tr-close" id="readerLanguageWarningClose" aria-label="Закрыть">&times;</button>
-            <h3 id="readerLanguageWarningTitle">Язык перевода изменится</h3>
-            <p id="readerLanguageWarningText" class="reader-warning-text"></p>
-            <div class="reader-warning-actions">
-                <button type="button" class="btn" id="readerLanguageWarningContinue">Перейти</button>
-                <a class="btn btn-outline" id="readerLanguageWarningComicLink" href="<c:url value='/comics/${comic.id}?tab=chapters'/>">На страницу комикса</a>
+    <div id="translationsModal" class="modal" hidden aria-modal="true" role="dialog">
+        <div class="modal-content tr-modal">
+            <button type="button" class="tr-close" id="trClose" aria-label="Закрыть">&times;</button>
+
+            <h3 id="trTitle" class="tr-title">Переводы главы</h3>
+            <p id="trNotice" class="reader-translation-notice hidden"></p>
+
+            <div class="tr-controls">
+                <label for="trLangSelect">Язык:</label>
+                <select id="trLangSelect" class="tr-select"></select>
+            </div>
+
+            <ul id="trList" class="translation-list"></ul>
+
+            <div class="tr-footer">
+                <button id="trMore" type="button" class="btn">Показать ещё</button>
             </div>
         </div>
     </div>
+
 
     <script>
         window.readerBootstrap = {

@@ -598,3 +598,271 @@
     height: var(--reader-surface-height, 100%);
 }
 
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.modal.visible {
+    display: flex;
+}
+
+.modal[hidden] {
+    display: none !important;
+}
+
+.modal-content {
+    background: var(--card);
+    color: var(--text);
+    padding: 25px;
+    border-radius: 8px;
+    text-align: center;
+    width: 300px;
+    border: 1px solid var(--border);
+    box-shadow: 0 0 14px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.modal.collection-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+}
+
+.modal.collection-modal .modal-content.collection-modal-content {
+    width: min(460px, 92vw);
+    max-width: 460px;
+    max-height: 82vh;
+    overflow: hidden;
+    padding: 20px 18px 18px;
+    border-radius: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+.tr-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.tr-close:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(150, 150, 150, 0.06);
+}
+
+
+#authRequiredModal,
+#collectionModal,
+#readerLanguageWarning {
+    z-index: 4000 !important;
+}
+
+#authRequiredModal .modal-content,
+#collectionModal .modal-content,
+#readerLanguageWarning .modal-content {
+    position: relative;
+    z-index: 4001;
+}
+
+reader-vertical.fit-height .reader-vertical-image {
+    height: var(--reader-surface-height, 100%);
+    min-height: var(--reader-surface-height, 100%);
+    max-height: var(--reader-surface-height, 100%);
+    width: auto;
+    max-width: none;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+.reader-horizontal.fit-width {
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+}
+
+.reader-horizontal.fit-width .reader-horizontal-stage {
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start !important;
+}
+
+.reader-horizontal.fit-width .reader-current-image {
+    margin: 0 auto;
+    align-self: flex-start;
+}
+
+
+.modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 4000;
+}
+
+.modal.visible {
+    display: flex;
+}
+
+.modal[hidden] {
+    display: none !important;
+}
+
+.modal-content {
+    position: relative;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: 0 0 14px rgba(0, 0, 0, 0.3);
+}
+
+#authRequiredModal,
+#collectionModal,
+#translationsModal {
+    z-index: 4000 !important;
+}
+
+#authRequiredModal .modal-content,
+#collectionModal .modal-content,
+#translationsModal .modal-content {
+    z-index: 4001;
+}
+
+.tr-modal {
+    width: min(560px, 92vw);
+    max-width: 560px;
+    max-height: 82vh;
+    overflow: hidden;
+    padding: 20px 18px 18px;
+    border-radius: 14px;
+    box-sizing: border-box;
+}
+
+.tr-title {
+    margin: 0 36px 12px 0;
+    text-align: left;
+}
+
+.reader-translation-notice {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(217, 71, 71, 0.25);
+    background: rgba(217, 71, 71, 0.10);
+    color: var(--text);
+    text-align: left;
+    line-height: 1.45;
+}
+
+.tr-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.tr-controls label {
+    white-space: nowrap;
+}
+
+.tr-select {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.translation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 48vh;
+    overflow-y: auto;
+}
+
+.tr-footer {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+}
+
+.reader-collection-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.reader-collection-btn:hover {
+    border-color: var(--accent);
+    background: rgba(150,150,150,0.08);
+}
+
+.reader-collection-btn.is-bookmarked {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: #d94747;
+}
+
+.reader-horizontal.fit-width {
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+}
+
+.reader-horizontal.fit-width .reader-horizontal-stage {
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start !important;
+}
+
+.reader-horizontal.fit-width .reader-current-image {
+    margin: 0 auto;
+    align-self: flex-start;
+}
+
+.reader-vertical.fit-height .reader-vertical-image {
+    height: var(--reader-surface-height, 100%);
+    min-height: var(--reader-surface-height, 100%);
+    max-height: var(--reader-surface-height, 100%);
+    width: auto;
+    max-width: none;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+

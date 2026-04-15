@@ -12,7 +12,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import by.bsuir.springbootproject.services.CollectionService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
+import by.bsuir.springbootproject.repositories.TranslationRepository;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 
 @Controller
@@ -23,6 +26,7 @@ public class ReaderController {
     private final ReaderService readerService;
     private final CollectionService collectionService;
     private final SecurityContextUtils securityContextUtils;
+    private final TranslationRepository translationRepository;
 
     @GetMapping("/{translationId}")
     public String openReader(@PathVariable Integer translationId,
@@ -73,4 +77,21 @@ public class ReaderController {
         readerService.saveProgressIfAuthenticated(translationId, page);
         return ResponseEntity.ok(Map.of("status", "ok", "page", page));
     }
+
+    @GetMapping("/chapters/{chapterId}/languages")
+    @ResponseBody
+    public Map<String, Object> getChapterLanguages(@PathVariable Integer chapterId) {
+        List<String> languages = translationRepository.findApprovedLangsByChapterIds(List.of(chapterId)).stream()
+                .filter(row -> row[0] != null && ((Number) row[0]).intValue() == chapterId)
+                .map(row -> (String) row[1])
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        return Map.of(
+                "chapterId", chapterId,
+                "languages", languages
+        );
+    }
+
 }

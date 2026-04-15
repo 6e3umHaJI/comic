@@ -1,3 +1,5 @@
+
+
 (function () {
     const app = document.getElementById('readerApp');
     if (!app || !window.readerBootstrap) return;
@@ -26,6 +28,7 @@
     const readerSurface = document.getElementById('readerSurface');
     const imageWidthGroup = document.getElementById('imageWidthGroup');
     const settingsNotice = document.getElementById('readerSettingsNotice');
+
     const settingReadingMode = document.getElementById('settingReadingMode');
     const settingFitMode = document.getElementById('settingFitMode');
     const settingImageWidth = document.getElementById('settingImageWidth');
@@ -43,12 +46,17 @@
 
     const prevChapterBtn = document.getElementById('readerPrevChapterBtn');
     const nextChapterBtn = document.getElementById('readerNextChapterBtn');
+    const readerZonePrev = document.getElementById('readerZonePrev');
+    const readerZoneNext = document.getElementById('readerZoneNext');
 
-    const warningModal = document.getElementById('readerLanguageWarning');
-    const warningClose = document.getElementById('readerLanguageWarningClose');
-    const warningTitle = document.getElementById('readerLanguageWarningTitle');
-    const warningText = document.getElementById('readerLanguageWarningText');
-    const warningContinue = document.getElementById('readerLanguageWarningContinue');
+    const trModal = document.getElementById('translationsModal');
+    const trClose = document.getElementById('trClose');
+    const trTitle = document.getElementById('trTitle');
+    const trNotice = document.getElementById('trNotice');
+    const trLangSelect = document.getElementById('trLangSelect');
+    const trList = document.getElementById('trList');
+    const trMore = document.getElementById('trMore');
+
     const toast = document.getElementById('readerToast');
 
     const pages = window.readerBootstrap.pages || [];
@@ -75,10 +83,12 @@
         activeVerticalImage: null,
         intersectionMap: new Map(),
         progressTimer: null,
-        pendingChapterUrl: null,
         toastTimer: null,
         suppressVerticalAutoPageSync: false,
-        verticalScrollEndTimer: null
+        verticalScrollEndTimer: null,
+        trChapterId: null,
+        trPage: 0,
+        trTotal: 0
     };
 
     function showToast(message) {
@@ -113,7 +123,18 @@
         settingsNotice.className = 'reader-settings-notice';
     }
 
+    function openAuthRequiredModalFallback() {
+        if (typeof window.openAuthRequiredModal === 'function') {
+            window.openAuthRequiredModal();
+            return;
+        }
 
+        const modal = document.getElementById('authRequiredModal');
+        if (modal) {
+            modal.classList.add('visible');
+            modal.hidden = false;
+        }
+    }
 
     function showReaderLoading(text = 'Загрузка страниц…') {
         if (loadingText) {
@@ -164,7 +185,6 @@
         });
     }
 
-
     function waitForCurrentReaderImage() {
         if (settings.readingMode === 'horizontal') {
             return waitForImageReady(currentImage);
@@ -177,10 +197,10 @@
     function loadSettings() {
         try {
             const raw = localStorage.getItem(SETTINGS_KEY);
-            if (!raw) return {...defaultSettings};
-            return {...defaultSettings, ...JSON.parse(raw)};
+            if (!raw) return { ...defaultSettings };
+            return { ...defaultSettings, ...JSON.parse(raw) };
         } catch (e) {
-            return {...defaultSettings};
+            return { ...defaultSettings };
         }
     }
 
@@ -190,17 +210,40 @@
 
     function queueProgressSave() {
         if (!isLogged) return;
+
         clearTimeout(state.progressTimer);
         state.progressTimer = setTimeout(() => {
             const body = new URLSearchParams();
             body.set('page', String(state.currentPage));
+
             fetch(`${ctx}/read/${translationId}/progress`, {
                 method: 'POST',
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body
-            }).catch(() => {
-            });
+            }).catch(() => {});
         }, 450);
+    }
+
+    function saveProgressNow() {
+        if (!isLogged) return;
+
+        const body = new URLSearchParams();
+        body.set('page', String(state.currentPage));
+
+        if (navigator.sendBeacon) {
+            const blob = new Blob([body.toString()], {
+                type: 'application/x-www-form-urlencoded; charset=UTF-8'
+            });
+            navigator.sendBeacon(`${ctx}/read/${translationId}/progress`, blob);
+            return;
+        }
+
+        fetch(`${ctx}/read/${translationId}/progress`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body,
+            keepalive: true
+        }).catch(() => {});
     }
 
     function resolveImageUrl(rawPath) {
@@ -208,6 +251,15 @@
         if (/^https?:\/\//i.test(rawPath)) return rawPath;
         if (rawPath.startsWith('/')) return ctx + rawPath;
         return `${ctx}/assets/pages/${rawPath}`;
+    }
+
+    function syncReaderZones() {
+        if (!readerZonePrev || !readerZoneNext) return;
+
+        const topBottom = settings.clickZones === 'top-bottom';
+
+        readerZonePrev.classList.toggle('zone-top-bottom-prev', topBottom);
+        readerZoneNext.classList.toggle('zone-top-bottom-next', topBottom);
     }
 
     function syncSettingsInputs() {
@@ -232,8 +284,9 @@
         if (imageWidthGroup) {
             imageWidthGroup.style.display = settings.fitMode === 'width' ? 'block' : 'none';
         }
-    }
 
+        syncReaderZones();
+    }
 
     function getTopbarHeight() {
         return topbar && settings.topbarVisible ? Math.round(topbar.getBoundingClientRect().height) : 0;
@@ -244,15 +297,10 @@
         app.style.setProperty('--reader-surface-height', `${readerSurface.clientHeight}px`);
     }
 
-
     function syncTopbarOffset() {
         const topbarOffset = settings.topbarVisible ? `${getTopbarHeight()}px` : '0px';
         app.style.setProperty('--reader-topbar-offset', topbarOffset);
         syncReaderSurfaceHeight();
-    }
-
-    function getCounterHeight() {
-        return settings.counterVisible ? pageCounter.getBoundingClientRect().height : 0;
     }
 
     function updatePageIndicator() {
@@ -281,7 +329,6 @@
             updateCurrentVerticalPage();
         });
     }
-
 
     function getBestVisibleImage() {
         const images = Array.from(verticalBox.querySelectorAll('.reader-vertical-image'));
@@ -342,7 +389,6 @@
         const targetRect = target.getBoundingClientRect();
 
         let nextScrollTop;
-
         if (settings.fitMode === 'height') {
             const offsetInsideBox = (targetRect.top - boxRect.top) + verticalBox.scrollTop;
             nextScrollTop = offsetInsideBox - ((verticalBox.clientHeight - target.offsetHeight) / 2);
@@ -357,6 +403,7 @@
             cancelAnimationFrame(state.verticalScrollEndTimer);
             state.verticalScrollEndTimer = null;
         }
+
         state.suppressVerticalAutoPageSync = true;
         state.activeVerticalImage = target;
         state.currentPage = page;
@@ -410,33 +457,158 @@
         applyReaderLayout(anchorPage);
     }
 
+    function closeTranslationsModal() {
+        state.trChapterId = null;
+        state.trPage = 0;
+        state.trTotal = 0;
 
-    function showLanguageWarning(targetUrl, targetLang, targetChapter) {
-        state.pendingChapterUrl = targetUrl;
-        warningTitle.textContent = 'Язык перевода изменится';
-        warningText.textContent = `Для главы ${targetChapter} доступен перевод на языке «${targetLang}». Если нужен другой перевод, вернитесь на страницу комикса и выберите его вручную.`;
-        warningModal.classList.add('visible');
+        if (trList) trList.innerHTML = '';
+        if (trLangSelect) trLangSelect.innerHTML = '';
+        if (trMore) trMore.style.display = 'none';
+
+        if (trNotice) {
+            trNotice.textContent = '';
+            trNotice.classList.add('hidden');
+        }
+
+        if (trModal) {
+            trModal.hidden = true;
+            trModal.classList.remove('visible');
+        }
+
+        document.body.style.overflow = '';
     }
 
-    function closeLanguageWarning() {
-        state.pendingChapterUrl = null;
-        warningModal.classList.remove('visible');
+    function loadTranslations(append) {
+        if (!state.trChapterId) return;
+
+        const lang = trLangSelect?.value || '';
+        const params = new URLSearchParams({
+            page: String(state.trPage),
+            size: '10',
+            lang
+        });
+
+        fetch(`${ctx}/comics/chapters/${state.trChapterId}/translations?${params.toString()}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.text();
+            })
+            .then(html => {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = html;
+
+                const chunk = tmp.querySelector('#translationsChunk');
+                if (!chunk) {
+                    if (!append && trList) {
+                        trList.innerHTML = '<li class="translation-empty"><em>Не удалось загрузить переводы.</em></li>';
+                    }
+                    if (trMore) trMore.style.display = 'none';
+                    return;
+                }
+
+                const total = parseInt(chunk.dataset.total || '0', 10);
+                if (state.trPage === 0) state.trTotal = total;
+
+                const listNode = chunk.querySelector('.translation-list');
+                if (!append && trList) trList.innerHTML = '';
+
+                if (listNode && trList) {
+                    Array.from(listNode.children).forEach((li) => trList.appendChild(li));
+                }
+
+                const loaded = trList ? trList.querySelectorAll('.translation-item').length : 0;
+                if (trMore) {
+                    trMore.style.display = loaded < state.trTotal ? 'inline-flex' : 'none';
+                }
+            })
+            .catch(() => {
+                if (!append && trList) {
+                    trList.innerHTML = '<li class="translation-empty"><em>Ошибка загрузки.</em></li>';
+                }
+                if (trMore) trMore.style.display = 'none';
+            });
     }
 
-    function openChapterLink(targetUrl, targetLang, targetChapter) {
+    function openChapterTranslationsModal(chapterId, chapterNumber, currentLang, fallbackLang) {
+        state.trChapterId = chapterId;
+        state.trPage = 0;
+        state.trTotal = 0;
+
+        if (trTitle) {
+            trTitle.textContent = `Переводы главы ${chapterNumber}`;
+        }
+
+        if (trNotice) {
+            trNotice.textContent = `Для главы ${chapterNumber} перевод на языке «${currentLang}» не найден.${fallbackLang ? ` Доступен перевод на языке «${fallbackLang}».` : ''} Выберите доступный перевод ниже.`;
+            trNotice.classList.remove('hidden');
+        }
+
+        fetch(`${ctx}/read/chapters/${chapterId}/languages`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                if (!trLangSelect) return;
+
+                trLangSelect.innerHTML = '';
+
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = 'Все языки';
+                trLangSelect.appendChild(allOption);
+
+                (data.languages || []).forEach((lang) => {
+                    const option = document.createElement('option');
+                    option.value = lang;
+                    option.textContent = lang;
+                    trLangSelect.appendChild(option);
+                });
+
+                if (fallbackLang && (data.languages || []).includes(fallbackLang)) {
+                    trLangSelect.value = fallbackLang;
+                }
+
+                if (trModal) {
+                    trModal.hidden = false;
+                    trModal.classList.add('visible');
+                }
+
+                document.body.style.overflow = 'hidden';
+                loadTranslations(false);
+            })
+            .catch(() => {
+                showToast('Не удалось загрузить переводы главы.');
+            });
+    }
+
+    function openChapterLink(targetUrl, targetChapterId, targetLang, targetChapter) {
         const currentLang = app.dataset.languageName || '';
-        if (targetLang && currentLang && targetLang !== currentLang) {
-            showLanguageWarning(targetUrl, targetLang, targetChapter);
+
+        if (targetChapterId && targetLang && currentLang && targetLang !== currentLang) {
+            openChapterTranslationsModal(targetChapterId, targetChapter, currentLang, targetLang);
             return;
         }
+
+        saveProgressNow();
         window.location.href = targetUrl;
     }
 
     function goPrevChapter() {
         const prevId = app.dataset.prevTranslationId;
-        if (!prevId) return;
+        if (!prevId) {
+            showToast('Вы уже на первой главе.');
+            return;
+        }
+
         openChapterLink(
             `${ctx}/read/${prevId}`,
+            app.dataset.prevChapterId || '',
             app.dataset.prevLanguageName || '',
             app.dataset.prevChapterNumber || ''
         );
@@ -444,9 +616,14 @@
 
     function goNextChapter() {
         const nextId = app.dataset.nextTranslationId;
-        if (!nextId) return;
+        if (!nextId) {
+            showToast('Переводов для следующей главы нет.');
+            return;
+        }
+
         openChapterLink(
             `${ctx}/read/${nextId}`,
+            app.dataset.nextChapterId || '',
             app.dataset.nextLanguageName || '',
             app.dataset.nextChapterNumber || ''
         );
@@ -481,9 +658,9 @@
             }
         } else {
             if (state.currentPage < totalPages) {
-                const nextPage = state.currentPage + 1;
-                state.currentPage = nextPage;
-                scrollVerticalToPage(nextPage, true);
+                const nextPageNumber = state.currentPage + 1;
+                state.currentPage = nextPageNumber;
+                scrollVerticalToPage(nextPageNumber, true);
             } else {
                 goNextChapter();
             }
@@ -500,8 +677,39 @@
         return active.getBoundingClientRect();
     }
 
+    function getClickedVerticalImage(clientX, clientY) {
+        const hit = document.elementFromPoint(clientX, clientY);
+        if (!hit) return null;
+
+        const direct = hit.closest('.reader-vertical-image');
+        if (direct && verticalBox.contains(direct)) {
+            return direct;
+        }
+
+        const images = Array.from(verticalBox.querySelectorAll('.reader-vertical-image'));
+        return images.find((img) => {
+            const rect = img.getBoundingClientRect();
+            return clientX >= rect.left &&
+                clientX <= rect.right &&
+                clientY >= rect.top &&
+                clientY <= rect.bottom;
+        }) || null;
+    }
+
     function handleTapAction(clientX, clientY) {
-        const rect = getActiveImageRect();
+        let rect = null;
+
+        if (settings.readingMode === 'vertical') {
+            const clickedImage = getClickedVerticalImage(clientX, clientY);
+            if (!clickedImage) return;
+
+            state.activeVerticalImage = clickedImage;
+            state.currentPage = Number(clickedImage.dataset.pageNumber || state.currentPage);
+            rect = clickedImage.getBoundingClientRect();
+        } else {
+            rect = getActiveImageRect();
+        }
+
         if (!rect || rect.width <= 0 || rect.height <= 0) return;
 
         if (
@@ -516,13 +724,9 @@
         const relX = (clientX - rect.left) / rect.width;
         const relY = (clientY - rect.top) / rect.height;
 
-        let goPrev = false;
-
-        if (settings.clickZones === 'top-bottom') {
-            goPrev = relY < 0.5;
-        } else {
-            goPrev = relX < 0.5;
-        }
+        let goPrev = settings.clickZones === 'top-bottom'
+            ? relY < 0.5
+            : relX < 0.5;
 
         if (settings.invertClicks) {
             goPrev = !goPrev;
@@ -673,7 +877,6 @@
         });
     }
 
-
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') || 'light';
         const next = current === 'light' ? 'dark' : 'light';
@@ -685,7 +888,6 @@
     showReaderLoading('Загрузка страниц…');
     syncSettingsInputs();
     applyReaderLayout(state.currentPage);
-
 
     const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
@@ -735,23 +937,49 @@
         handleTapAction(e.clientX, e.clientY);
     }
 
-    horizontalBox.addEventListener('pointerdown', onPointerDown, {passive: true});
-    horizontalBox.addEventListener('pointermove', onPointerMove, {passive: true});
+    horizontalBox.addEventListener('pointerdown', onPointerDown, { passive: true });
+    horizontalBox.addEventListener('pointermove', onPointerMove, { passive: true });
     horizontalBox.addEventListener('pointerup', onPointerUp);
+
     horizontalBox.addEventListener('pointerleave', () => {
         currentImage.style.cursor = 'default';
     });
+
     verticalBox.addEventListener('pointerleave', () => {
         verticalBox.querySelectorAll('.reader-vertical-image').forEach((img) => {
             img.style.cursor = 'default';
         });
     });
-    verticalBox.addEventListener('pointerdown', onPointerDown, {passive: true});
-    verticalBox.addEventListener('pointermove', onPointerMove, {passive: true});
+
+    verticalBox.addEventListener('pointerdown', onPointerDown, { passive: true });
+    verticalBox.addEventListener('pointermove', onPointerMove, { passive: true });
     verticalBox.addEventListener('pointerup', onPointerUp);
+
+    if (readerZonePrev) {
+        readerZonePrev.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (settings.invertClicks) {
+                nextPage();
+            } else {
+                prevPage();
+            }
+        });
+    }
+
+    if (readerZoneNext) {
+        readerZoneNext.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (settings.invertClicks) {
+                prevPage();
+            } else {
+                nextPage();
+            }
+        });
+    }
 
     settingsBtn.addEventListener('click', () => toggleSettings(true));
     settingsClose.addEventListener('click', () => toggleSettings(false));
+
     settingsPanel.addEventListener('click', (e) => {
         if (e.target === settingsPanel) toggleSettings(false);
     });
@@ -767,18 +995,22 @@
         }
     });
 
+    if (collectionBtn && !isLogged) {
+        collectionBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openAuthRequiredModalFallback();
+        });
+    }
 
     complaintBtn.addEventListener('click', () => {
         if (!isLogged) {
-            if (window.openAuthRequiredModal) {
-                window.openAuthRequiredModal();
-            }
+            openAuthRequiredModalFallback();
             return;
         }
 
         showToast('Функция жалобы будет подключена отдельно.');
     });
-
 
     if (prevChapterBtn) {
         prevChapterBtn.addEventListener('click', (e) => {
@@ -794,20 +1026,35 @@
         });
     }
 
-    warningClose.addEventListener('click', closeLanguageWarning);
-    warningModal.addEventListener('click', (e) => {
-        if (e.target === warningModal) closeLanguageWarning();
-    });
-    warningContinue.addEventListener('click', () => {
-        if (state.pendingChapterUrl) {
-            window.location.href = state.pendingChapterUrl;
-        }
-    });
+    if (trClose) {
+        trClose.addEventListener('click', closeTranslationsModal);
+    }
+
+    if (trModal) {
+        trModal.addEventListener('click', (e) => {
+            if (e.target === trModal) {
+                closeTranslationsModal();
+            }
+        });
+    }
+
+    if (trLangSelect) {
+        trLangSelect.addEventListener('change', () => {
+            state.trPage = 0;
+            loadTranslations(false);
+        });
+    }
+
+    if (trMore) {
+        trMore.addEventListener('click', () => {
+            state.trPage++;
+            loadTranslations(true);
+        });
+    }
 
     settingReadingMode.addEventListener('change', () => {
         switchReadingMode(settingReadingMode.value);
     });
-
 
     settingFitMode.addEventListener('change', () => {
         settings.fitMode = settingFitMode.value;
@@ -832,6 +1079,7 @@
         settings.clickZones = settingClickZones.value;
         saveSettings();
         hideSettingsNotice();
+        syncReaderZones();
     });
 
     settingInvertClicks.addEventListener('change', () => {
@@ -839,7 +1087,6 @@
         saveSettings();
         hideSettingsNotice();
     });
-
 
     settingTopbarVisible.addEventListener('change', () => {
         settings.topbarVisible = settingTopbarVisible.checked;
@@ -853,12 +1100,16 @@
         applyReaderLayout(state.currentPage);
     });
 
-
     bindKeyCapture(settingPrevKey, 'prevKey');
     bindKeyCapture(settingNextKey, 'nextKey');
     bindKeyCapture(settingSettingsKey, 'settingsKey');
 
     document.addEventListener('keydown', (e) => {
+        if (e.code === 'Escape' && trModal && !trModal.hidden) {
+            closeTranslationsModal();
+            return;
+        }
+
         if (document.activeElement &&
             (document.activeElement.tagName === 'INPUT' ||
                 document.activeElement.tagName === 'TEXTAREA' ||
@@ -890,13 +1141,13 @@
                 updateCurrentVerticalPage();
             });
         }
-    }, {passive: true});
+    }, { passive: true });
 
     window.addEventListener('resize', () => {
         window.requestAnimationFrame(() => {
             syncTopbarOffset();
 
-            if (settings.readingMode === 'vertical' || settings.fitMode === 'height') {
+            if (settings.fitMode === 'height' || settings.readingMode === 'vertical') {
                 applyReaderLayout(state.currentPage);
                 return;
             }
@@ -912,6 +1163,13 @@
             applyHorizontalWidthModeSize();
         } else {
             clearInlineImageSize();
+        }
+    });
+
+    window.addEventListener('pagehide', saveProgressNow);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            saveProgressNow();
         }
     });
 

@@ -76,6 +76,7 @@
             .then(html => {
                 body.innerHTML = html;
                 modal.hidden = false;
+                modal.classList.add('visible');
                 document.body.style.overflow = 'hidden';
                 bindCollectionModalInner();
             })
@@ -85,10 +86,19 @@
     function closeCollectionModal() {
         const modal = document.getElementById('collectionModal');
         const body = document.getElementById('collectionModalBody');
-        if (modal) modal.hidden = true;
-        if (body) body.innerHTML = '';
+
+        if (modal) {
+            modal.classList.remove('visible');
+            modal.hidden = true;
+        }
+
+        if (body) {
+            body.innerHTML = '';
+        }
+
         document.body.style.overflow = '';
     }
+
 
     function updateSelectedState(button) {
         button.classList.toggle('selected');
