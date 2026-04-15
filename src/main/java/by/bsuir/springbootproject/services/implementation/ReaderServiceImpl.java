@@ -6,6 +6,7 @@ import by.bsuir.springbootproject.entities.ComicPage;
 import by.bsuir.springbootproject.entities.Translation;
 import by.bsuir.springbootproject.repositories.ComicPageRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
+import by.bsuir.springbootproject.repositories.ChapterRepository;
 import by.bsuir.springbootproject.services.ReaderService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ReaderServiceImpl implements ReaderService {
     private final ComicPageRepository comicPageRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SecurityContextUtils securityContextUtils;
+    private final ChapterRepository chapterRepository;
 
     @Override
     public ReaderData getReaderData(Integer translationId) {
@@ -47,25 +49,11 @@ public class ReaderServiceImpl implements ReaderService {
         Integer chapterNumber = translation.getChapter().getChapterNumber();
         Integer languageId = translation.getLanguage().getId();
 
-        Translation prev = translationRepository.findPrevApprovedSameLanguage(
-                        comicId, chapterNumber, languageId, PageRequest.of(0, 1))
-                .stream()
-                .findFirst()
-                .orElseGet(() -> translationRepository.findPrevApprovedAnyLanguage(
-                                comicId, chapterNumber, PageRequest.of(0, 1))
-                        .stream()
-                        .findFirst()
-                        .orElse(null));
+        Integer prevChapterNumber = chapterRepository.findPrevChapterNumber(comicId, chapterNumber).orElse(null);
+        Integer nextChapterNumber = chapterRepository.findNextChapterNumber(comicId, chapterNumber).orElse(null);
 
-        Translation next = translationRepository.findNextApprovedSameLanguage(
-                        comicId, chapterNumber, languageId, PageRequest.of(0, 1))
-                .stream()
-                .findFirst()
-                .orElseGet(() -> translationRepository.findNextApprovedAnyLanguage(
-                                comicId, chapterNumber, PageRequest.of(0, 1))
-                        .stream()
-                        .findFirst()
-                        .orElse(null));
+        Translation prev = resolveAdjacentTranslation(comicId, prevChapterNumber, languageId);
+        Translation next = resolveAdjacentTranslation(comicId, nextChapterNumber, languageId);
 
         return new ReaderData(
                 translation.getChapter().getComic(),
@@ -75,6 +63,26 @@ public class ReaderServiceImpl implements ReaderService {
                 next
         );
     }
+
+    private Translation resolveAdjacentTranslation(Integer comicId, Integer targetChapterNumber, Integer languageId) {
+        if (targetChapterNumber == null) {
+            return null;
+        }
+
+        return translationRepository.findApprovedSameLanguageByComicAndChapterNumber(
+                        comicId,
+                        targetChapterNumber,
+                        languageId
+                ).stream()
+                .findFirst()
+                .orElseGet(() -> translationRepository.findApprovedAnyLanguageByComicAndChapterNumber(
+                                comicId,
+                                targetChapterNumber
+                        ).stream()
+                        .findFirst()
+                        .orElse(null));
+    }
+
 
     @Override
     public Integer getFirstAvailableTranslationId(Integer comicId) {

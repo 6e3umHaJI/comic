@@ -80,7 +80,6 @@
     border-radius: 10px;
     color: var(--text);
     cursor: pointer;
-    transition: background .2s ease, border-color .2s ease, transform .2s ease;
     box-sizing: border-box;
     padding: 0;
     line-height: 1;
@@ -486,3 +485,116 @@
         max-width: 52vw;
     }
 }
+
+.reader-collection-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.reader-collection-btn:hover {
+    border-color: var(--accent);
+    background: rgba(150,150,150,0.08);
+}
+
+.reader-collection-btn.is-bookmarked {
+    color: #d94747;
+    background: var(--card);
+    border-color: var(--border);
+}
+
+
+.reader-loading-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 8, 8, 0.38);
+    backdrop-filter: blur(2px);
+    z-index: 1200;
+}
+
+.reader-loading-overlay.visible {
+    display: flex;
+}
+
+.reader-loading-box {
+    min-width: 220px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: rgba(24, 24, 24, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+    text-align: center;
+    color: #fff;
+}
+
+.reader-loading-spinner {
+    width: 30px;
+    height: 30px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: #fff;
+    animation: reader-spin 0.8s linear infinite;
+}
+
+.reader-loading-text {
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+@keyframes reader-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.reader-settings-notice {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(150,150,150,0.08);
+    color: var(--text);
+    line-height: 1.4;
+    font-size: 0.94rem;
+}
+
+.reader-settings-notice.error {
+    border-color: rgba(217, 71, 71, 0.35);
+    background: rgba(217, 71, 71, 0.10);
+}
+
+.reader-vertical {
+    scrollbar-gutter: stable both-edges;
+}
+
+.reader-horizontal.fit-width {
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+}
+
+.reader-horizontal.fit-width .reader-horizontal-stage {
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.reader-horizontal.fit-width .reader-current-image {
+    margin: 0 auto;
+    align-self: flex-start;
+}
+
+.reader-horizontal.fit-height .reader-current-image,
+.reader-vertical.fit-height .reader-vertical-image {
+    max-height: var(--reader-surface-height, 100%);
+}
+
+.reader-vertical.fit-height .reader-vertical-image {
+    height: var(--reader-surface-height, 100%);
+}
+

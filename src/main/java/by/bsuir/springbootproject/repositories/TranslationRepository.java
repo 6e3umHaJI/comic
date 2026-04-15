@@ -176,4 +176,35 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     """)
     List<Translation> findFirstApprovedByComic(@Param("comicId") Integer comicId, Pageable pageable);
 
+    @Query("""
+        select t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join t.reviewStatus rs
+        where c.id = :comicId
+          and ch.chapterNumber = :chapterNumber
+          and l.id = :languageId
+          and rs.name = 'Одобрено'
+        order by t.createdAt desc, t.id desc
+        """)
+    List<Translation> findApprovedSameLanguageByComicAndChapterNumber(@Param("comicId") Integer comicId,
+                                                                      @Param("chapterNumber") Integer chapterNumber,
+                                                                      @Param("languageId") Integer languageId);
+
+    @Query("""
+        select t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join t.reviewStatus rs
+        where c.id = :comicId
+          and ch.chapterNumber = :chapterNumber
+          and rs.name = 'Одобрено'
+        order by t.createdAt desc, t.id desc
+        """)
+    List<Translation> findApprovedAnyLanguageByComicAndChapterNumber(@Param("comicId") Integer comicId,
+                                                                     @Param("chapterNumber") Integer chapterNumber);
 }

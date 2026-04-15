@@ -20,7 +20,12 @@
     const settingsClose = document.getElementById('readerSettingsClose');
     const themeBtn = document.getElementById('readerThemeBtn');
     const complaintBtn = document.getElementById('readerComplaintBtn');
-
+    const collectionBtn = document.getElementById('readerCollectionBtn');
+    const loadingOverlay = document.getElementById('readerLoadingOverlay');
+    const loadingText = document.getElementById('readerLoadingText');
+    const readerSurface = document.getElementById('readerSurface');
+    const imageWidthGroup = document.getElementById('imageWidthGroup');
+    const settingsNotice = document.getElementById('readerSettingsNotice');
     const settingReadingMode = document.getElementById('settingReadingMode');
     const settingFitMode = document.getElementById('settingFitMode');
     const settingImageWidth = document.getElementById('settingImageWidth');
@@ -77,10 +82,7 @@
     };
 
     function showToast(message) {
-        if (!toast) {
-            alert(message);
-            return;
-        }
+        if (!toast) return;
 
         clearTimeout(state.toastTimer);
         toast.textContent = message;
@@ -91,6 +93,85 @@
         state.toastTimer = setTimeout(() => {
             toast.classList.remove('visible');
         }, 2600);
+    }
+
+    function showSettingsNotice(message) {
+        if (!settingsNotice) {
+            showToast(message);
+            return;
+        }
+
+        settingsNotice.hidden = false;
+        settingsNotice.textContent = message;
+        settingsNotice.className = 'reader-settings-notice error';
+    }
+
+    function hideSettingsNotice() {
+        if (!settingsNotice) return;
+        settingsNotice.hidden = true;
+        settingsNotice.textContent = '';
+        settingsNotice.className = 'reader-settings-notice';
+    }
+
+
+
+    function showReaderLoading(text = 'Загрузка страниц…') {
+        if (loadingText) {
+            loadingText.textContent = text;
+        }
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('visible');
+            loadingOverlay.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    function hideReaderLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('visible');
+            loadingOverlay.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    function waitForImageReady(img, timeout = 3500) {
+        return new Promise((resolve) => {
+            if (!img) {
+                resolve();
+                return;
+            }
+
+            if (img.loading === 'lazy') {
+                img.loading = 'eager';
+            }
+
+            if (img.complete) {
+                resolve();
+                return;
+            }
+
+            let finished = false;
+
+            const done = () => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+                resolve();
+            };
+
+            const timer = setTimeout(done, timeout);
+
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+        });
+    }
+
+
+    function waitForCurrentReaderImage() {
+        if (settings.readingMode === 'horizontal') {
+            return waitForImageReady(currentImage);
+        }
+
+        const target = verticalBox.querySelector(`.reader-vertical-image[data-page-number="${state.currentPage}"]`);
+        return waitForImageReady(target);
     }
 
     function loadSettings() {
@@ -143,16 +224,31 @@
         settingSettingsKey.value = settings.settingsKey;
         settingImageWidthValue.textContent = `${settings.imageWidth}%`;
         settingVerticalGapValue.textContent = `${settings.verticalGap}px`;
-        verticalGapGroup.style.display = settings.readingMode === 'vertical' ? 'block' : 'none';
+
+        if (verticalGapGroup) {
+            verticalGapGroup.style.display = settings.readingMode === 'vertical' ? 'block' : 'none';
+        }
+
+        if (imageWidthGroup) {
+            imageWidthGroup.style.display = settings.fitMode === 'width' ? 'block' : 'none';
+        }
     }
+
 
     function getTopbarHeight() {
         return topbar && settings.topbarVisible ? Math.round(topbar.getBoundingClientRect().height) : 0;
     }
 
+    function syncReaderSurfaceHeight() {
+        if (!readerSurface) return;
+        app.style.setProperty('--reader-surface-height', `${readerSurface.clientHeight}px`);
+    }
+
+
     function syncTopbarOffset() {
         const topbarOffset = settings.topbarVisible ? `${getTopbarHeight()}px` : '0px';
         app.style.setProperty('--reader-topbar-offset', topbarOffset);
+        syncReaderSurfaceHeight();
     }
 
     function getCounterHeight() {
@@ -181,15 +277,11 @@
     }
 
     function renderVerticalPages() {
-        verticalBox.querySelectorAll('.reader-vertical-image').forEach((img) => {
-            if (!img.getAttribute('src')) {
-                img.setAttribute('src', resolveImageUrl(img.dataset.imagePath));
-            }
-        });
         requestAnimationFrame(() => {
             updateCurrentVerticalPage();
         });
     }
+
 
     function getBestVisibleImage() {
         const images = Array.from(verticalBox.querySelectorAll('.reader-vertical-image'));
@@ -261,7 +353,10 @@
 
         nextScrollTop = Math.max(0, Math.round(nextScrollTop));
 
-        clearTimeout(state.verticalScrollEndTimer);
+        if (state.verticalScrollEndTimer) {
+            cancelAnimationFrame(state.verticalScrollEndTimer);
+            state.verticalScrollEndTimer = null;
+        }
         state.suppressVerticalAutoPageSync = true;
         state.activeVerticalImage = target;
         state.currentPage = page;
@@ -303,6 +398,18 @@
 
         state.verticalScrollEndTimer = requestAnimationFrame(watchScrollEnd);
     }
+
+    function switchReadingMode(nextMode) {
+        if (settings.readingMode === nextMode) return;
+
+        const anchorPage = state.currentPage;
+        settings.readingMode = nextMode;
+        saveSettings();
+
+        showReaderLoading('Переключаем режим чтения…');
+        applyReaderLayout(anchorPage);
+    }
+
 
     function showLanguageWarning(targetUrl, targetLang, targetChapter) {
         state.pendingChapterUrl = targetUrl;
@@ -482,9 +589,14 @@
         }
     }
 
-    function applyReaderLayout() {
-        clearTimeout(state.verticalScrollEndTimer);
-        state.suppressVerticalAutoPageSync = false;
+    function applyReaderLayout(anchorPage = state.currentPage) {
+        if (state.verticalScrollEndTimer) {
+            cancelAnimationFrame(state.verticalScrollEndTimer);
+            state.verticalScrollEndTimer = null;
+        }
+
+        state.suppressVerticalAutoPageSync = true;
+        state.currentPage = Math.min(Math.max(anchorPage, 1), totalPages);
 
         app.style.setProperty('--reader-image-scale', `${settings.imageWidth}vw`);
         app.style.setProperty('--reader-vertical-gap', `${settings.verticalGap}px`);
@@ -497,32 +609,42 @@
 
         topbar.style.display = settings.topbarVisible ? 'flex' : 'none';
         syncTopbarOffset();
+        syncSettingsInputs();
+        updatePageIndicator();
 
         if (settings.readingMode === 'horizontal') {
             horizontalBox.classList.remove('hidden');
             verticalBox.classList.add('hidden');
+
             renderHorizontalPage();
+
+            if (settings.fitMode === 'width') {
+                applyHorizontalWidthModeSize();
+            } else {
+                clearInlineImageSize();
+            }
+
+            waitForCurrentReaderImage().finally(() => {
+                state.suppressVerticalAutoPageSync = false;
+                hideReaderLoading();
+            });
         } else {
             verticalBox.classList.remove('hidden');
             horizontalBox.classList.add('hidden');
-            renderVerticalPages();
-            scrollVerticalToPage(state.currentPage, false);
-        }
-
-        syncSettingsInputs();
-        updatePageIndicator();
-
-        if (settings.readingMode === 'horizontal' && settings.fitMode === 'width') {
-            applyHorizontalWidthModeSize();
-        } else {
             clearInlineImageSize();
-        }
 
-        requestAnimationFrame(() => {
-            if (settings.readingMode === 'vertical') {
-                updateCurrentVerticalPage();
-            }
-        });
+            renderVerticalPages();
+
+            requestAnimationFrame(() => {
+                scrollVerticalToPage(state.currentPage, false);
+
+                waitForCurrentReaderImage().finally(() => {
+                    state.suppressVerticalAutoPageSync = false;
+                    updateCurrentVerticalPage();
+                    hideReaderLoading();
+                });
+            });
+        }
     }
 
     function hasDuplicateKey(settingName, code) {
@@ -538,15 +660,19 @@
     function bindKeyCapture(input, settingName) {
         input.addEventListener('keydown', (e) => {
             e.preventDefault();
+
             if (hasDuplicateKey(settingName, e.code)) {
-                showToast('Эта горячая клавиша уже используется.');
+                showSettingsNotice('Эта горячая клавиша уже используется.');
                 return;
             }
+
+            hideSettingsNotice();
             settings[settingName] = e.code;
             input.value = e.code;
             saveSettings();
         });
     }
+
 
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') || 'light';
@@ -556,8 +682,10 @@
     }
 
     const settings = loadSettings();
+    showReaderLoading('Загрузка страниц…');
     syncSettingsInputs();
-    applyReaderLayout();
+    applyReaderLayout(state.currentPage);
+
 
     const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
@@ -630,9 +758,27 @@
 
     themeBtn.addEventListener('click', toggleTheme);
 
+    document.addEventListener('comic:collections-updated', (e) => {
+        const detail = e.detail || {};
+        if (Number(detail.comicId) !== Number(app.dataset.comicId)) return;
+
+        if (collectionBtn) {
+            collectionBtn.classList.toggle('is-bookmarked', !!detail.inCollections);
+        }
+    });
+
+
     complaintBtn.addEventListener('click', () => {
+        if (!isLogged) {
+            if (window.openAuthRequiredModal) {
+                window.openAuthRequiredModal();
+            }
+            return;
+        }
+
         showToast('Функция жалобы будет подключена отдельно.');
     });
+
 
     if (prevChapterBtn) {
         prevChapterBtn.addEventListener('click', (e) => {
@@ -659,51 +805,54 @@
     });
 
     settingReadingMode.addEventListener('change', () => {
-        settings.readingMode = settingReadingMode.value;
-        saveSettings();
-        applyReaderLayout();
+        switchReadingMode(settingReadingMode.value);
     });
+
 
     settingFitMode.addEventListener('change', () => {
         settings.fitMode = settingFitMode.value;
         saveSettings();
-        applyReaderLayout();
+        showReaderLoading('Применяем настройки…');
+        applyReaderLayout(state.currentPage);
     });
 
     settingImageWidth.addEventListener('input', () => {
         settings.imageWidth = Number(settingImageWidth.value);
         saveSettings();
-        applyReaderLayout();
+        applyReaderLayout(state.currentPage);
     });
 
     settingVerticalGap.addEventListener('input', () => {
         settings.verticalGap = Number(settingVerticalGap.value);
         saveSettings();
-        applyReaderLayout();
+        applyReaderLayout(state.currentPage);
     });
 
     settingClickZones.addEventListener('change', () => {
         settings.clickZones = settingClickZones.value;
         saveSettings();
-        applyReaderLayout();
+        hideSettingsNotice();
     });
 
     settingInvertClicks.addEventListener('change', () => {
         settings.invertClicks = settingInvertClicks.checked;
         saveSettings();
+        hideSettingsNotice();
     });
+
 
     settingTopbarVisible.addEventListener('change', () => {
         settings.topbarVisible = settingTopbarVisible.checked;
         saveSettings();
-        applyReaderLayout();
+        applyReaderLayout(state.currentPage);
     });
 
     settingCounterVisible.addEventListener('change', () => {
         settings.counterVisible = settingCounterVisible.checked;
         saveSettings();
-        applyReaderLayout();
+        applyReaderLayout(state.currentPage);
     });
+
 
     bindKeyCapture(settingPrevKey, 'prevKey');
     bindKeyCapture(settingNextKey, 'nextKey');
@@ -746,9 +895,12 @@
     window.addEventListener('resize', () => {
         window.requestAnimationFrame(() => {
             syncTopbarOffset();
-            if (settings.readingMode === 'vertical') {
-                updateCurrentVerticalPage();
+
+            if (settings.readingMode === 'vertical' || settings.fitMode === 'height') {
+                applyReaderLayout(state.currentPage);
+                return;
             }
+
             if (settings.readingMode === 'horizontal' && settings.fitMode === 'width') {
                 applyHorizontalWidthModeSize();
             }

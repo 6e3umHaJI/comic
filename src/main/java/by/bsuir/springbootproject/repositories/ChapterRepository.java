@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
 
@@ -20,4 +22,23 @@ public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
     Page<Chapter> searchByComicIdAndQuery(@Param("comicId") Integer comicId,
                                           @Param("q") String q,
                                           Pageable pageable);
+
+    @Query("""
+        select max(c.chapterNumber)
+        from Chapter c
+        where c.comic.id = :comicId
+          and c.chapterNumber < :chapterNumber
+        """)
+    Optional<Integer> findPrevChapterNumber(@Param("comicId") Integer comicId,
+                                            @Param("chapterNumber") Integer chapterNumber);
+
+    @Query("""
+        select min(c.chapterNumber)
+        from Chapter c
+        where c.comic.id = :comicId
+          and c.chapterNumber > :chapterNumber
+        """)
+    Optional<Integer> findNextChapterNumber(@Param("comicId") Integer comicId,
+                                            @Param("chapterNumber") Integer chapterNumber);
+
 }

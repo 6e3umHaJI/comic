@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.utils.SecurityContextUtils;
 
 import java.util.Map;
 
@@ -19,6 +21,8 @@ import java.util.Map;
 public class ReaderController {
 
     private final ReaderService readerService;
+    private final CollectionService collectionService;
+    private final SecurityContextUtils securityContextUtils;
 
     @GetMapping("/{translationId}")
     public String openReader(@PathVariable Integer translationId,
@@ -35,6 +39,19 @@ public class ReaderController {
                 ? Math.min(Math.max(page, 1), totalPages)
                 : Math.min(Math.max(readerService.getSavedPageIfAuthenticated(translationId), 1), totalPages);
 
+        boolean isLogged = request.getUserPrincipal() != null;
+        boolean inCollections = false;
+
+        if (isLogged) {
+            Integer userId = securityContextUtils.getUserFromContext()
+                    .map(by.bsuir.springbootproject.entities.User::getId)
+                    .orElse(null);
+
+            if (userId != null) {
+                inCollections = collectionService.isComicInCollections(userId, data.getComic().getId());
+            }
+        }
+
         model.addAttribute("comic", data.getComic());
         model.addAttribute("translation", data.getTranslation());
         model.addAttribute("pages", data.getPages());
@@ -42,10 +59,12 @@ public class ReaderController {
         model.addAttribute("nextTranslation", data.getNextTranslation());
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("initialPage", initialPage);
-        model.addAttribute("isLogged", request.getUserPrincipal() != null);
+        model.addAttribute("isLogged", isLogged);
+        model.addAttribute("inCollections", inCollections);
 
         return ViewPaths.READER_PAGE;
     }
+
 
     @PostMapping("/{translationId}/progress")
     @ResponseBody

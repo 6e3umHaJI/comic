@@ -78,6 +78,18 @@
         </div>
 
         <div class="reader-topbar-right">
+            <button type="button"
+                    id="readerCollectionBtn"
+                    class="reader-icon-btn reader-collection-btn js-collection-toggle ${inCollections ? 'is-bookmarked' : ''}"
+                    data-comic-id="${comic.id}"
+                    data-authenticated="${isLogged}"
+                    data-icon-only="true"
+                    title="Коллекция"
+                    aria-label="Коллекция">
+                <span class="reader-file-icon"
+                      style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
+            </button>
+
             <button type="button" id="readerComplaintBtn" class="reader-icon-btn" title="Жалоба">
                 <span class="reader-file-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
@@ -95,6 +107,14 @@
         </div>
     </header>
 
+    <div id="readerLoadingOverlay" class="reader-loading-overlay" aria-hidden="true">
+        <div class="reader-loading-box">
+            <div class="reader-loading-spinner"></div>
+            <div id="readerLoadingText" class="reader-loading-text">Загрузка страниц…</div>
+        </div>
+    </div>
+
+
     <div id="readerSurface" class="reader-surface">
         <div id="readerHorizontal" class="reader-horizontal">
             <div id="readerHorizontalStage" class="reader-horizontal-stage">
@@ -107,6 +127,9 @@
                 <img class="reader-vertical-image"
                      data-page-number="${p.pageNumber}"
                      data-image-path="${p.imagePath}"
+                     src="${pageContext.request.contextPath}/assets/pages/${p.imagePath}"
+                     loading="lazy"
+                     decoding="async"
                      alt="Страница ${p.pageNumber}">
             </c:forEach>
         </div>
@@ -130,6 +153,8 @@
                 </button>
             </div>
 
+            <div id="readerSettingsNotice" class="reader-settings-notice" hidden></div>
+
             <div class="reader-setting-group">
                 <label class="reader-setting-label">Режим чтения</label>
                 <select id="settingReadingMode" class="reader-select">
@@ -146,7 +171,7 @@
                 </select>
             </div>
 
-            <div class="reader-setting-group">
+            <div class="reader-setting-group" id="imageWidthGroup">
                 <label class="reader-setting-label">
                     Ширина изображения
                     <span id="settingImageWidthValue">100%</span>
@@ -232,8 +257,13 @@
             ]
         };
     </script>
-    <script src="<c:url value='/script/reader.js'/>"></script>
     <div id="readerToast" class="reader-toast" role="status" aria-live="polite"></div>
+    <script src="<c:url value='/script/reader.js'/>"></script>
 </div>
+<jsp:include page="/WEB-INF/views/auth/auth-required-modal.jsp"/>
+<jsp:include page="/WEB-INF/views/collections/collection-global-modal.jsp"/>
+
+<script src="<c:url value='/script/auth-required-modal.js'/>"></script>
+<script src="<c:url value='/script/collection-modal.js'/>"></script>
 </body>
 </html>
