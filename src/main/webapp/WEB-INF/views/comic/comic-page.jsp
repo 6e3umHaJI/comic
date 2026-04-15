@@ -13,6 +13,28 @@
     <style>.hidden{display:none;}</style>
 </head>
 
+<div id="readerApp"
+     class="reader-app"
+     data-context-path="${pageContext.request.contextPath}"
+     data-translation-id="${translation.id}"
+     data-comic-id="${comic.id}"
+     data-comic-title="${comic.title}"
+     data-chapter-number="${translation.chapter.chapterNumber}"
+     data-language-name="${translation.language.name}"
+     data-total-pages="${totalPages}"
+     data-initial-page="${initialPage}"
+     data-is-logged="${isLogged}"
+     data-prev-translation-id="${prevTranslation != null ? prevTranslation.id : ''}"
+     data-next-translation-id="${nextTranslation != null ? nextTranslation.id : ''}"
+     data-prev-chapter-id="${prevTranslation != null ? prevTranslation.chapter.id : ''}"
+     data-next-chapter-id="${nextTranslation != null ? nextTranslation.chapter.id : ''}"
+     data-prev-chapter-number="${prevTranslation != null ? prevTranslation.chapter.chapterNumber : ''}"
+     data-next-chapter-number="${nextTranslation != null ? nextTranslation.chapter.chapterNumber : ''}"
+     data-prev-language-name="${prevTranslation != null ? prevTranslation.language.name : ''}"
+     data-next-language-name="${nextTranslation != null ? nextTranslation.language.name : ''}"
+     data-comic-url="<c:url value='/comics/${comic.id}'/>"
+     data-back-url="<c:url value='/comics/${comic.id}?tab=chapters'/>">
+
 <body data-authenticated="${pageContext.request.userPrincipal != null}">
 <div class="wrapper">
     <jsp:include page="/WEB-INF/views/header.jsp"/>
@@ -221,18 +243,24 @@
     </c:if>
 
     <div id="translationsModal" class="modal hidden" aria-modal="true" role="dialog">
-      <div class="modal-content tr-modal">
-        <button class="close-button tr-close" id="trClose" aria-label="Закрыть">&times;</button>
-        <h3 id="trTitle" class="tr-title">Переводы главы</h3>
-        <div class="tr-controls">
-          <label for="trLangSelect">Язык:</label>
-          <select id="trLangSelect" class="tr-select"></select>
+        <div class="modal-content tr-modal">
+            <button type="button" class="close-button tr-close" id="trClose" aria-label="Закрыть">&times;</button>
+
+            <h3 id="trTitle" class="tr-title">Переводы главы</h3>
+
+            <p id="trNotice" class="reader-translation-notice hidden"></p>
+
+            <div class="tr-controls">
+                <label for="trLangSelect">Язык:</label>
+                <select id="trLangSelect" class="tr-select"></select>
+            </div>
+
+            <ul id="trList" class="translation-list"></ul>
+
+            <div class="tr-footer">
+                <button id="trMore" type="button" class="btn">Показать ещё</button>
+            </div>
         </div>
-        <ul id="trList" class="translation-list"></ul>
-        <div class="tr-footer">
-          <button id="trMore" class="btn">Показать ещё</button>
-        </div>
-      </div>
     </div>
 
     <script>

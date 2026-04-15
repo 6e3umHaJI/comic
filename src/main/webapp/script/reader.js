@@ -46,8 +46,6 @@
 
     const prevChapterBtn = document.getElementById('readerPrevChapterBtn');
     const nextChapterBtn = document.getElementById('readerNextChapterBtn');
-    const readerZonePrev = document.getElementById('readerZonePrev');
-    const readerZoneNext = document.getElementById('readerZoneNext');
 
     const trModal = document.getElementById('translationsModal');
     const trClose = document.getElementById('trClose');
@@ -457,6 +455,43 @@
         applyReaderLayout(anchorPage);
     }
 
+    function showTranslationsModal() {
+        if (!trModal) return;
+
+        trModal.classList.remove('hidden');
+        trModal.classList.add('visible');
+        trModal.style.display = 'flex';
+
+        document.body.style.overflow = 'hidden';
+    }
+
+    function fillTranslationLanguageOptions(languages, selectedLanguage) {
+        if (!trLangSelect) return;
+
+        trLangSelect.innerHTML = '';
+
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = 'Все языки';
+        trLangSelect.appendChild(allOption);
+
+        (languages || [])
+            .map((lang) => String(lang || '').trim())
+            .filter(Boolean)
+            .forEach((lang) => {
+                const option = document.createElement('option');
+                option.value = lang;
+                option.textContent = lang;
+                trLangSelect.appendChild(option);
+            });
+
+        if (selectedLanguage && (languages || []).includes(selectedLanguage)) {
+            trLangSelect.value = selectedLanguage;
+        } else {
+            trLangSelect.value = '';
+        }
+    }
+
     function closeTranslationsModal() {
         state.trChapterId = null;
         state.trPage = 0;
@@ -472,8 +507,9 @@
         }
 
         if (trModal) {
-            trModal.hidden = true;
+            trModal.classList.add('hidden');
             trModal.classList.remove('visible');
+            trModal.style.display = 'none';
         }
 
         document.body.style.overflow = '';
@@ -492,11 +528,11 @@
         fetch(`${ctx}/comics/chapters/${state.trChapterId}/translations?${params.toString()}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-            .then(r => {
+            .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.text();
             })
-            .then(html => {
+            .then((html) => {
                 const tmp = document.createElement('div');
                 tmp.innerHTML = html;
 
@@ -510,10 +546,14 @@
                 }
 
                 const total = parseInt(chunk.dataset.total || '0', 10);
-                if (state.trPage === 0) state.trTotal = total;
+                if (state.trPage === 0) {
+                    state.trTotal = total;
+                }
 
                 const listNode = chunk.querySelector('.translation-list');
-                if (!append && trList) trList.innerHTML = '';
+                if (!append && trList) {
+                    trList.innerHTML = '';
+                }
 
                 if (listNode && trList) {
                     Array.from(listNode.children).forEach((li) => trList.appendChild(li));
@@ -537,49 +577,32 @@
         state.trPage = 0;
         state.trTotal = 0;
 
+        if (trList) {
+            trList.innerHTML = '';
+        }
+
         if (trTitle) {
             trTitle.textContent = `Переводы главы ${chapterNumber}`;
         }
 
         if (trNotice) {
-            trNotice.textContent = `Для главы ${chapterNumber} перевод на языке «${currentLang}» не найден.${fallbackLang ? ` Доступен перевод на языке «${fallbackLang}».` : ''} Выберите доступный перевод ниже.`;
+            trNotice.textContent =
+                `Для главы ${chapterNumber} перевод на языке «${currentLang}» не найден.` +
+                `${fallbackLang ? ` Доступен перевод на языке «${fallbackLang}».` : ''} ` +
+                'Выберите доступный перевод ниже.';
             trNotice.classList.remove('hidden');
         }
 
         fetch(`${ctx}/read/chapters/${chapterId}/languages`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-            .then(r => {
+            .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
             })
-            .then(data => {
-                if (!trLangSelect) return;
-
-                trLangSelect.innerHTML = '';
-
-                const allOption = document.createElement('option');
-                allOption.value = '';
-                allOption.textContent = 'Все языки';
-                trLangSelect.appendChild(allOption);
-
-                (data.languages || []).forEach((lang) => {
-                    const option = document.createElement('option');
-                    option.value = lang;
-                    option.textContent = lang;
-                    trLangSelect.appendChild(option);
-                });
-
-                if (fallbackLang && (data.languages || []).includes(fallbackLang)) {
-                    trLangSelect.value = fallbackLang;
-                }
-
-                if (trModal) {
-                    trModal.hidden = false;
-                    trModal.classList.add('visible');
-                }
-
-                document.body.style.overflow = 'hidden';
+            .then((data) => {
+                fillTranslationLanguageOptions(data.languages || [], fallbackLang);
+                showTranslationsModal();
                 loadTranslations(false);
             })
             .catch(() => {
@@ -955,27 +978,58 @@
     verticalBox.addEventListener('pointermove', onPointerMove, { passive: true });
     verticalBox.addEventListener('pointerup', onPointerUp);
 
-    if (readerZonePrev) {
-        readerZonePrev.addEventListener('click', (e) => {
+    if (prevChapterBtn) {
+        prevChapterBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (settings.invertClicks) {
-                nextPage();
-            } else {
-                prevPage();
+            goPrevChapter();
+        });
+    }
+
+    if (nextChapterBtn) {
+        nextChapterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            goNextChapter();
+        });
+    }
+
+    if (trClose) {
+        trClose.addEventListener('click', closeTranslationsModal);
+    }
+
+    if (trModal) {
+        trModal.addEventListener('click', (e) => {
+            if (e.target === trModal) {
+                closeTranslationsModal();
             }
         });
     }
 
-    if (readerZoneNext) {
-        readerZoneNext.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (settings.invertClicks) {
-                prevPage();
-            } else {
-                nextPage();
-            }
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && trModal && trModal.style.display === 'flex') {
+            closeTranslationsModal();
+        }
+    });
+
+    if (trLangSelect) {
+        trLangSelect.addEventListener('change', () => {
+            state.trPage = 0;
+            loadTranslations(false);
         });
     }
+
+    if (trMore) {
+        trMore.addEventListener('click', () => {
+            state.trPage += 1;
+            loadTranslations(true);
+        });
+    }
+
+    settingsBtn.addEventListener('click', () => toggleSettings(true));
+    settingsClose.addEventListener('click', () => toggleSettings(false));
+    settingsPanel.addEventListener('click', (e) => {
+        if (e.target === settingsPanel) toggleSettings(false);
+    });
+    themeBtn.addEventListener('click', toggleTheme);
 
     settingsBtn.addEventListener('click', () => toggleSettings(true));
     settingsClose.addEventListener('click', () => toggleSettings(false));

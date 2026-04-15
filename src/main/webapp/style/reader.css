@@ -198,8 +198,8 @@
     position: absolute;
     border: none;
     background: transparent;
-    cursor: pointer;
-    pointer-events: auto;
+    cursor: default;
+    pointer-events: none;
     touch-action: manipulation;
 }
 
@@ -865,4 +865,16 @@ reader-vertical.fit-height .reader-vertical-image {
     flex: 0 0 auto;
 }
 
+.reader-comic-link,
+.reader-select,
+.tr-select,
+.reader-key-input,
+.check-ui {
+    cursor: pointer;
+}
 
+.reader-range,
+.reader-range::-webkit-slider-thumb,
+.reader-range::-moz-range-thumb {
+    cursor: pointer;
+}

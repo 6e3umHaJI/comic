@@ -233,11 +233,11 @@
         </div>
     </aside>
 
-    <div id="translationsModal" class="modal" hidden aria-modal="true" role="dialog">
+    <div id="translationsModal" class="modal hidden" aria-modal="true" role="dialog">
         <div class="modal-content tr-modal">
-            <button type="button" class="tr-close" id="trClose" aria-label="Закрыть">&times;</button>
-
+            <button type="button" class="close-button tr-close" id="trClose" aria-label="Закрыть">&times;</button>
             <h3 id="trTitle" class="tr-title">Переводы главы</h3>
+
             <p id="trNotice" class="reader-translation-notice hidden"></p>
 
             <div class="tr-controls">
