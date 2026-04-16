@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
 
@@ -27,6 +28,7 @@ public class ReaderController {
     private final CollectionService collectionService;
     private final SecurityContextUtils securityContextUtils;
     private final TranslationRepository translationRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/{translationId}")
     public String openReader(@PathVariable Integer translationId,
@@ -45,6 +47,7 @@ public class ReaderController {
 
         boolean isLogged = request.getUserPrincipal() != null;
         boolean inCollections = false;
+        boolean isNotificationsEnabled = false;
 
         if (isLogged) {
             Integer userId = securityContextUtils.getUserFromContext()
@@ -53,6 +56,7 @@ public class ReaderController {
 
             if (userId != null) {
                 inCollections = collectionService.isComicInCollections(userId, data.getComic().getId());
+                isNotificationsEnabled = notificationService.isComicSubscribed(userId, data.getComic().getId());
             }
         }
 
@@ -65,6 +69,7 @@ public class ReaderController {
         model.addAttribute("initialPage", initialPage);
         model.addAttribute("isLogged", isLogged);
         model.addAttribute("inCollections", inCollections);
+        model.addAttribute("isNotificationsEnabled", isNotificationsEnabled);
 
         return ViewPaths.READER_PAGE;
     }

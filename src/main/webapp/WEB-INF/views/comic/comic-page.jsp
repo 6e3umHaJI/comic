@@ -190,16 +190,42 @@
                         </c:otherwise>
                     </c:choose>
                 </c:if>
-                <button type="button"
-                        class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
-                        data-comic-id="${comic.id}"
-                        data-authenticated="${isLogged}">
-                    <span class="btn-icon"
-                          style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
-                    <span class="js-collection-toggle-text">
-                        ${inCollections ? 'В коллекции' : 'Добавить в коллекцию'}
-                    </span>
-                </button>
+                <c:choose>
+                    <c:when test="${isNotificationsEnabled}">
+                        <c:url var="comicNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
+                    </c:when>
+                    <c:otherwise>
+                        <c:url var="comicNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
+                    </c:otherwise>
+                </c:choose>
+
+                <div class="comic-primary-actions">
+                    <button type="button"
+                            class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
+                            data-comic-id="${comic.id}"
+                            data-authenticated="${isLogged}">
+                        <span class="btn-icon"
+                              style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
+                        <span class="js-collection-toggle-text">
+                            ${inCollections ? 'В коллекции' : 'Добавить в коллекцию'}
+                        </span>
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline icon-only-btn notification-action-btn js-notification-toggle ${isNotificationsEnabled ? 'is-active' : ''}"
+                            data-comic-id="${comic.id}"
+                            data-authenticated="${isLogged}"
+                            data-icon-only="true"
+                            data-toggle-url="<c:url value='/notifications/toggle'/>"
+                            data-icon-on-url="<c:url value='/assets/icons/notification-on.svg'/>"
+                            data-icon-off-url="<c:url value='/assets/icons/notification-off.svg'/>"
+                            title="${isNotificationsEnabled ? 'Отключить оповещения' : 'Включить оповещения'}"
+                            aria-label="${isNotificationsEnabled ? 'Отключить оповещения' : 'Включить оповещения'}">
+                        <span class="btn-icon js-notification-toggle-icon"
+                              style="-webkit-mask-image:url('${comicNotificationIconUrl}'); mask-image:url('${comicNotificationIconUrl}');"></span>
+                    </button>
+                </div>
+
                 <button class="btn add-chapter-btn">Добавить главу</button>
             </div>
         </div>

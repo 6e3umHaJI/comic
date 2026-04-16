@@ -65,9 +65,20 @@
                            <span>Коллекция</span>
                        </a>
 
+                       <c:choose>
+                           <c:when test="${hasUnreadNotifications}">
+                               <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
+                           </c:when>
+                           <c:otherwise>
+                               <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
+                           </c:otherwise>
+                       </c:choose>
+
                        <a href="<c:url value='/notifications'/>" class="profile-dropdown-item">
-                           <span class="profile-menu-icon"
-                                 style="-webkit-mask-image:url('<c:url value="/assets/icons/notification.svg"/>'); mask-image:url('<c:url value="/assets/icons/notification.svg"/>');"></span>
+                           <span class="profile-menu-icon js-header-notification-icon"
+                                 data-on-icon-url="<c:url value='/assets/icons/notification-on.svg'/>"
+                                 data-off-icon-url="<c:url value='/assets/icons/notification-off.svg'/>"
+                                 style="-webkit-mask-image:url('${profileNotificationIconUrl}'); mask-image:url('${profileNotificationIconUrl}');"></span>
                            <span>Оповещения</span>
                        </a>
 
@@ -94,5 +105,6 @@
 <script src="<c:url value='/script/profile-dropdown.js'/>"></script>
 <jsp:include page="/WEB-INF/views/auth/auth-required-modal.jsp"/>
 <script src="<c:url value='/script/auth-required-modal.js'/>"></script>
+<script src="<c:url value='/script/notifications.js'/>"></script>
 <jsp:include page="/WEB-INF/views/fragments/quick-search-modal.jsp"/>
 <script src="<c:url value='/script/quick-search.js'/>"></script>

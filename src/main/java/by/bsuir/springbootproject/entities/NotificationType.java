@@ -20,6 +20,6 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class NotificationType extends BaseEntity {
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 100)
     private String name;
 }

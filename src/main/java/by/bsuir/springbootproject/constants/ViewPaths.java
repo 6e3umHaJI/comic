@@ -30,5 +30,5 @@ public final class ViewPaths {
     public static final String PROFILE_DROPDOWN = "fragments/profile-dropdown";
     public static final String COLLECTIONS_COMIC_MODAL = "collections/collection-comic-modal-content";
     public static final String NOTIFICATIONS_PAGE = "notifications/notifications-page";
-
+    public static final String NOTIFICATIONS_CONTENT = "notifications/notifications-content";
 }

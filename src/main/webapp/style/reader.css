@@ -97,6 +97,12 @@
     transform: translateY(-1px);
 }
 
+.reader-notification-btn.is-active {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--accent);
+}
+
 .reader-icon-btn.is-disabled {
     opacity: 0.45;
     cursor: default;

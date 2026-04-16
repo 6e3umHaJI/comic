@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS languages (
 
 CREATE TABLE IF NOT EXISTS notification_types (
                                                   type_id SERIAL PRIMARY KEY,
-                                                  name VARCHAR(50) NOT NULL
+                                                  name VARCHAR(100) NOT NULL
     );
 
 CREATE TABLE IF NOT EXISTS rating_scores (
@@ -173,7 +173,26 @@ CREATE TABLE IF NOT EXISTS notifications (
                                              user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
     type_id INT REFERENCES notification_types(type_id),
     message TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    comic_id INT REFERENCES comics(comic_id) ON DELETE SET NULL,
+    chapter_id INT REFERENCES chapters(chapter_id) ON DELETE SET NULL,
+    translation_id INT REFERENCES translations(translation_id) ON DELETE SET NULL,
+    actor_user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+    link_path VARCHAR(255),
+    is_clickable BOOLEAN NOT NULL DEFAULT FALSE,
+    comic_title_snapshot VARCHAR(255),
+    chapter_number_snapshot INT,
+    language_name_snapshot VARCHAR(100),
+    actor_username_snapshot VARCHAR(100)
+    );
+
+CREATE TABLE IF NOT EXISTS comic_notification_subscriptions (
+                                                                subscription_id SERIAL PRIMARY KEY,
+                                                                user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    comic_id INT NOT NULL REFERENCES comics(comic_id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_comic_notification_subscriptions_user_comic UNIQUE (user_id, comic_id)
     );
 
 CREATE TABLE IF NOT EXISTS relation_types (
@@ -371,6 +390,29 @@ CREATE INDEX IF NOT EXISTS idx_ratings_comic_id ON ratings(comic_id);
 CREATE INDEX IF NOT EXISTS idx_saved_comics_user_section ON saved_comics(section_id);
 CREATE INDEX IF NOT EXISTS idx_complaints_user_id ON complaints(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_is_read ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_comic_id ON notifications(comic_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_translation_id ON notifications(translation_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_type_created_at
+    ON notifications(user_id, type_id, created_at DESC);
+
+
+CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_user_created_at
+    ON comic_notification_subscriptions(user_id, created_at DESC);
+
+
+
+CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_user_id
+    ON comic_notification_subscriptions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_comic_id
+    ON comic_notification_subscriptions(comic_id);
+
+CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_created_at
+    ON comic_notification_subscriptions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comics_created_at ON comics(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comics_updated_at ON comics(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comics_popularity ON comics(popularity_score DESC);
@@ -382,6 +424,8 @@ CREATE INDEX IF NOT EXISTS idx_read_progress_translation_id ON read_progress(tra
 CREATE INDEX IF NOT EXISTS idx_read_progress_updated_at ON read_progress(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_id ON password_reset_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_codes_expires_at ON password_reset_codes(expires_at);
+
+
 
 ALTER TABLE user_sections
     ADD CONSTRAINT uq_user_sections_user_name UNIQUE (user_id, name);

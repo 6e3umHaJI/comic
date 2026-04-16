@@ -10,6 +10,7 @@ import by.bsuir.springbootproject.repositories.ChapterRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
 import by.bsuir.springbootproject.services.CollectionService;
 import by.bsuir.springbootproject.services.ComicService;
+import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class ComicController {
     private final TranslationRepository translationRepository;
     private final SecurityContextUtils securityContextUtils;
     private final ReaderService readerService;
+    private final NotificationService notificationService;
 
     @GetMapping("/{id}")
     public String showComic(@PathVariable Integer id,
@@ -65,12 +67,17 @@ public class ComicController {
 
             if (userId != null) {
                 boolean inCollections = collectionService.isComicInCollections(userId, id);
+                boolean isNotificationsEnabled = notificationService.isComicSubscribed(userId, id);
+
                 model.addAttribute("inCollections", inCollections);
+                model.addAttribute("isNotificationsEnabled", isNotificationsEnabled);
             } else {
                 model.addAttribute("inCollections", false);
+                model.addAttribute("isNotificationsEnabled", false);
             }
         } else {
             model.addAttribute("inCollections", false);
+            model.addAttribute("isNotificationsEnabled", false);
         }
 
         if (!TAB_CHAPTERS.equals(tab)) {

@@ -55,6 +55,9 @@ public final class RoutePaths {
     public static final String API_COLLECTIONS = API + COLLECTIONS;
 
     public static final String NOTIFICATIONS = "/notifications";
+    public static final String NOTIFICATIONS_TOGGLE = "/toggle";
+    public static final String NOTIFICATIONS_DELETE = "/delete";
+
 
     public static final String COLLECTIONS_COMIC_MODAL = "/comic-modal";
     public static final String COLLECTIONS_COMIC_SYNC = "/comic-sync";

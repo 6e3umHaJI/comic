@@ -60,6 +60,28 @@
     width: 100%;
 }
 
+.comic-primary-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.notification-action-btn {
+    margin-left: 0;
+    margin-top: 0;
+    width: 42px;
+    min-width: 42px;
+    height: 38px;
+    padding: 0 !important;
+}
+
+.notification-action-btn.is-active {
+    border-color: var(--border);
+    background: var(--card);
+    color: var(--accent);
+}
+
+
 .comic-right {
     flex: 1;
     min-width: 0;
@@ -728,8 +750,10 @@
 }
 
 .collection-action-btn {
-    margin-top: 10px;
-    width: 100%;
+    margin-top: 0;
+    margin-left: 0;
+    width: auto;
+    flex: 1 1 auto;
 }
 
 .tr-card-head {

@@ -78,6 +78,14 @@
         </div>
 
         <div class="reader-topbar-right">
+            <c:choose>
+                <c:when test="${isNotificationsEnabled}">
+                    <c:url var="readerNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
+                </c:when>
+                <c:otherwise>
+                    <c:url var="readerNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
+                </c:otherwise>
+            </c:choose>
             <button type="button"
                     id="readerCollectionBtn"
                     class="reader-icon-btn reader-collection-btn js-collection-toggle ${inCollections ? 'is-bookmarked' : ''}"
@@ -88,6 +96,21 @@
                     aria-label="Коллекция">
                 <span class="reader-file-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
+            </button>
+
+            <button type="button"
+                    id="readerNotificationBtn"
+                    class="reader-icon-btn reader-notification-btn js-notification-toggle ${isNotificationsEnabled ? 'is-active' : ''}"
+                    data-comic-id="${comic.id}"
+                    data-authenticated="${isLogged}"
+                    data-icon-only="true"
+                    data-toggle-url="<c:url value='/notifications/toggle'/>"
+                    data-icon-on-url="<c:url value='/assets/icons/notification-on.svg'/>"
+                    data-icon-off-url="<c:url value='/assets/icons/notification-off.svg'/>"
+                    title="${isNotificationsEnabled ? 'Отключить оповещения' : 'Включить оповещения'}"
+                    aria-label="${isNotificationsEnabled ? 'Отключить оповещения' : 'Включить оповещения'}">
+                <span class="reader-file-icon js-notification-toggle-icon"
+                      style="-webkit-mask-image:url('${readerNotificationIconUrl}'); mask-image:url('${readerNotificationIconUrl}');"></span>
             </button>
 
             <button type="button" id="readerComplaintBtn" class="reader-icon-btn" title="Жалоба">
@@ -274,5 +297,6 @@
 
 <script src="<c:url value='/script/auth-required-modal.js'/>"></script>
 <script src="<c:url value='/script/collection-modal.js'/>"></script>
+<script src="<c:url value='/script/notifications.js'/>"></script>
 </body>
 </html>
