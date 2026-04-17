@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.config;
 
-import by.bsuir.springbootproject.constants.ViewPaths;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.autoconfigure.web.servlet.error.ErrorViewResolver;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +36,7 @@ public class MvcErrorConfig {
                 message = "Мы уже зафиксировали проблему. Попробуйте обновить страницу или вернуться позже.";
             }
 
-            ModelAndView mv = new ModelAndView(ViewPaths.ERROR);
+            ModelAndView mv = new ModelAndView("error/error-page");
             mv.addObject("statusCode", status.value());
             mv.addObject("title", title);
             mv.addObject("message", message);

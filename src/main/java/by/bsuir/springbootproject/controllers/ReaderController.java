@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.ReaderData;
 import by.bsuir.springbootproject.services.ReaderService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +19,7 @@ import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.READ)
+@RequestMapping("/read")
 public class ReaderController {
 
     private final ReaderService readerService;
@@ -71,7 +69,7 @@ public class ReaderController {
         model.addAttribute("inCollections", inCollections);
         model.addAttribute("isNotificationsEnabled", isNotificationsEnabled);
 
-        return ViewPaths.READER_PAGE;
+        return "reader/reader-page";
     }
 
 

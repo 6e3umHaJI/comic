@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.NotificationToggleResult;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.services.NotificationService;
@@ -19,7 +17,7 @@ import org.springframework.web.servlet.ModelAndView;
 import java.util.Map;
 
 @Controller
-@RequestMapping(RoutePaths.NOTIFICATIONS)
+@RequestMapping("/notifications")
 @RequiredArgsConstructor
 public class NotificationsController {
 
@@ -48,13 +46,13 @@ public class NotificationsController {
         );
 
         mv.setViewName(XML_HTTP_REQUEST.equals(requestedWith)
-                ? ViewPaths.NOTIFICATIONS_CONTENT
-                : ViewPaths.NOTIFICATIONS_PAGE);
+                ? "notifications/notifications-content"
+                : "notifications/notifications-page");
 
         return mv;
     }
 
-    @PostMapping(RoutePaths.NOTIFICATIONS_TOGGLE)
+    @PostMapping("/toggle")
     @ResponseBody
     public Map<String, Object> toggleComicNotifications(@RequestParam Integer comicId) {
         User user = securityContextUtils.getUserFromContext()
@@ -77,7 +75,7 @@ public class NotificationsController {
         }
     }
 
-    @PostMapping(RoutePaths.NOTIFICATIONS_DELETE)
+    @PostMapping("/delete")
     @ResponseBody
     public Map<String, Object> deleteNotification(@RequestParam Integer notificationId) {
         User user = securityContextUtils.getUserFromContext()

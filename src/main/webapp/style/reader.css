@@ -99,7 +99,6 @@
 
 .reader-notification-btn.is-active {
     border-color: var(--border);
-    background: transparent;
     color: var(--accent);
 }
 

@@ -1,8 +1,6 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
 import by.bsuir.springbootproject.constants.Values;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.entities.Chapter;
 import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.Translation;
@@ -27,7 +25,7 @@ import java.util.*;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.COMICS)
+@RequestMapping("/comics")
 public class ComicController {
 
     private static final String TAB_DESCRIPTION = "description";
@@ -90,7 +88,7 @@ public class ComicController {
         }
 
         boolean ajax = XML_HTTP_REQUEST.equals(request.getHeader("X-Requested-With"));
-        return ajax ? ViewPaths.COMIC_TAB_CONTENT : ViewPaths.COMIC_PAGE;
+        return ajax ? "comic/comic-tab-content" : "comic/comic-page";
     }
 
     @GetMapping("/{id}/live-stats")
@@ -114,7 +112,7 @@ public class ComicController {
                                   @RequestParam(defaultValue = "0") int page,
                                   Model model) {
         model.addAttribute("related", comicService.getRelatedComicsWithTypePaged(id, page, Values.RELATED_PAGE_SIZE));
-        return ViewPaths.RELATED_LIST;
+        return "comic/related-list";
     }
 
     @GetMapping("/{comicId}/chapters")
@@ -172,7 +170,7 @@ public class ComicController {
         model.addAttribute("showLeftDots", showLeftDots);
         model.addAttribute("showRightDots", showRightDots);
 
-        return ViewPaths.CHAPTER_LIST;
+        return "comic/chapter-list";
     }
 
     private Map<Integer, List<String>> fetchApprovedLangsByChapterIds(List<Integer> ids) {
@@ -218,7 +216,7 @@ public class ComicController {
         model.addAttribute("lang", lang);
         model.addAttribute("chapterId", chapterId);
 
-        return ViewPaths.TRANSLATION_ITEMS;
+        return "comic/translation-items";
     }
 
 }

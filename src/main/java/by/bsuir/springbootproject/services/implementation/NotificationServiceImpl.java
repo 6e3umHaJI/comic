@@ -1,7 +1,6 @@
 package by.bsuir.springbootproject.services.implementation;
 
 import by.bsuir.springbootproject.constants.Values;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.NotificationFeedItem;
 import by.bsuir.springbootproject.dto.NotificationSubscriptionItem;
 import by.bsuir.springbootproject.dto.NotificationToggleResult;
@@ -69,7 +68,7 @@ public class NotificationServiceImpl implements NotificationService {
         String actualSortField = SORT_TYPE.equalsIgnoreCase(sortField) ? SORT_TYPE : SORT_CREATED_AT;
         String actualSortDirection = "asc".equalsIgnoreCase(sortDirection) ? "asc" : "desc";
 
-        ModelAndView mv = new ModelAndView(ViewPaths.NOTIFICATIONS_PAGE);
+        ModelAndView mv = new ModelAndView("notifications/notifications-page");
         mv.addObject("tab", actualTab);
         mv.addObject("q", actualQuery);
         mv.addObject("sortField", actualSortField);

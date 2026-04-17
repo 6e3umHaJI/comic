@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import by.bsuir.springbootproject.services.ComicService;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +14,9 @@ public class HomeController {
     private final ComicService comicService;
     private final SecurityContextUtils securityContextUtils;
 
-    @GetMapping({RoutePaths.ROOT, RoutePaths.HOME})
+    @GetMapping({"/", "/home"})
     public ModelAndView openHomePage() {
-        ModelAndView modelAndView = new ModelAndView(ViewPaths.HOME);
+        ModelAndView modelAndView = new ModelAndView("home/home");
 
         modelAndView.addObject("user", securityContextUtils.getUserFromContext().orElse(null));
         modelAndView.addObject("popularComics", comicService.getMostPopularComics());

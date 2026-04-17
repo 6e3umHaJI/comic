@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.config;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
 import by.bsuir.springbootproject.security.GoogleOAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,45 +26,45 @@ public class WebSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                RoutePaths.ROOT,
-                                RoutePaths.HOME,
-                                RoutePaths.ERROR,
-                                RoutePaths.ERROR + "/**",
-                                RoutePaths.AUTH + "/**",
+                                "/",
+                                "/home",
+                                "/error",
+                                "/error" + "/**",
+                                "/auth" + "/**",
                                 "/oauth2/**",
                                 "/style/**",
                                 "/script/**",
                                 "/assets/**",
-                                RoutePaths.CATALOG + "/**",
-                                RoutePaths.COMICS + "/**",
-                                RoutePaths.READ + "/**",
-                                RoutePaths.PASSWORD_RESET + "/**"
+                                "/catalog" + "/**",
+                                "/comics" + "/**",
+                                "/read" + "/**",
+                                "/reset" + "/**"
                         ).permitAll()
                         .requestMatchers(
-                                RoutePaths.PROFILE + "/**",
-                                RoutePaths.COLLECTIONS + "/**",
-                                RoutePaths.NOTIFICATIONS + "/**"
+                                "/profile" + "/**",
+                                "/collections" + "/**",
+                                "/notifications" + "/**"
                         ).authenticated()
-                        .requestMatchers(RoutePaths.ADMIN + "/**").hasRole("ADMIN")
+                        .requestMatchers("/admin" + "/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
                 .formLogin(form -> form
-                        .loginPage(RoutePaths.LOGIN)
-                        .loginProcessingUrl(RoutePaths.LOGIN)
-                        .defaultSuccessUrl(RoutePaths.HOME, true)
-                        .failureUrl(RoutePaths.LOGIN + "?error=true")
+                        .loginPage("/auth" + "/login")
+                        .loginProcessingUrl("/auth" + "/login")
+                        .defaultSuccessUrl("/home", true)
+                        .failureUrl("/auth" + "/login" + "?error=true")
                         .usernameParameter("login")
                         .passwordParameter("password")
                         .permitAll()
                 )
                 .oauth2Login(oauth -> oauth
-                        .loginPage(RoutePaths.LOGIN)
+                        .loginPage("/auth/login")
                         .successHandler(googleOAuth2SuccessHandler)
-                        .failureUrl(RoutePaths.LOGIN + "?oauthError=true")
+                        .failureUrl("/auth" + "/login" + "?oauthError=true")
                 )
                 .logout(logout -> logout
-                        .logoutUrl(RoutePaths.LOGOUT)
-                        .logoutSuccessUrl(RoutePaths.LOGOUT_SUCCESS)
+                        .logoutUrl("/auth/logout")
+                        .logoutSuccessUrl("/auth/logout-success")
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
@@ -78,7 +77,7 @@ public class WebSecurityConfig {
                                 response.setStatus(401);
                                 return;
                             }
-                            response.sendRedirect(request.getContextPath() + RoutePaths.LOGIN);
+                            response.sendRedirect(request.getContextPath() + "/auth" + "/login");
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             String requestedWith = request.getHeader("X-Requested-With");
@@ -86,7 +85,7 @@ public class WebSecurityConfig {
                                 response.setStatus(403);
                                 return;
                             }
-                            response.sendRedirect(request.getContextPath() + RoutePaths.LOGIN);
+                            response.sendRedirect(request.getContextPath() + "/auth" + "/login");
                         })
                 );
 

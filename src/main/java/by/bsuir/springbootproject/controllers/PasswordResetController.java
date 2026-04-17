@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.PasswordResetRequestForm;
 import by.bsuir.springbootproject.dto.PasswordResetVerifyForm;
 import by.bsuir.springbootproject.services.PasswordResetService;
@@ -14,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.PASSWORD_RESET)
+@RequestMapping("/reset")
 public class PasswordResetController {
 
     private static final String STEP_REQUEST = "request";
@@ -38,17 +36,17 @@ public class PasswordResetController {
         }
 
         model.addAttribute("step", STEP_REQUEST);
-        return ViewPaths.PASSWORD_RESET;
+        return "auth/password-reset";
     }
 
-    @PostMapping(RoutePaths.PASSWORD_RESET_SEND_CODE_PART)
+    @PostMapping("/send-code")
     public String sendCode(@Valid @ModelAttribute("requestForm") PasswordResetRequestForm requestForm,
                            BindingResult bindingResult,
                            Model model) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("verifyForm", new PasswordResetVerifyForm());
             model.addAttribute("step", STEP_REQUEST);
-            return ViewPaths.PASSWORD_RESET;
+            return "auth/password-reset";
         }
 
         try {
@@ -59,17 +57,17 @@ public class PasswordResetController {
             model.addAttribute("maskedEmail", maskedEmail);
             model.addAttribute("status", "Код отправлен на " + maskedEmail);
             model.addAttribute("statusColor", STATUS_COLOR_GREEN);
-            return ViewPaths.PASSWORD_RESET;
+            return "auth/password-reset";
         } catch (RuntimeException e) {
             model.addAttribute("verifyForm", new PasswordResetVerifyForm());
             model.addAttribute("step", STEP_REQUEST);
             model.addAttribute("status", e.getMessage());
             model.addAttribute("statusColor", STATUS_COLOR_RED);
-            return ViewPaths.PASSWORD_RESET;
+            return "auth/password-reset";
         }
     }
 
-    @PostMapping(RoutePaths.PASSWORD_RESET_CONFIRM_PART)
+    @PostMapping("/confirm")
     public String confirm(@RequestParam String login,
                           @Valid @ModelAttribute("verifyForm") PasswordResetVerifyForm verifyForm,
                           BindingResult bindingResult,
@@ -79,7 +77,7 @@ public class PasswordResetController {
             model.addAttribute("step", STEP_VERIFY);
             model.addAttribute("login", login);
             model.addAttribute("maskedEmail", passwordResetService.maskEmail(login));
-            return ViewPaths.PASSWORD_RESET;
+            return "auth/password-reset";
         }
 
         try {
@@ -90,7 +88,7 @@ public class PasswordResetController {
                     verifyForm.getRepeatPassword()
             );
 
-            return "redirect:" + RoutePaths.LOGIN + "?resetSuccess=true";
+            return "redirect:" + "/auth" + "/login" + "?resetSuccess=true";
         } catch (RuntimeException e) {
             model.addAttribute("requestForm", new PasswordResetRequestForm());
             model.addAttribute("step", STEP_VERIFY);
@@ -98,7 +96,7 @@ public class PasswordResetController {
             model.addAttribute("maskedEmail", passwordResetService.maskEmail(login));
             model.addAttribute("status", e.getMessage());
             model.addAttribute("statusColor", STATUS_COLOR_RED);
-            return ViewPaths.PASSWORD_RESET;
+            return "auth/password-reset";
         }
     }
 }

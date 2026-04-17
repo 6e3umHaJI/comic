@@ -1,9 +1,7 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
 import by.bsuir.springbootproject.constants.SessionAttributesNames;
 import by.bsuir.springbootproject.constants.Values;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.entities.SearchCriteria;
 import by.bsuir.springbootproject.services.ComicCatalogService;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +18,14 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequestMapping(RoutePaths.CATALOG)
+@RequestMapping("/catalog")
 @SessionAttributes(SessionAttributesNames.SEARCH_CRITERIA)
 @RequiredArgsConstructor
 public class ComicCatalogController {
 
     private static final String XML_HTTP_REQUEST = "XMLHttpRequest";
-    private static final String PRESET_PATH = "/preset";
     private static final String MODE_POPULAR = "popular";
     private static final String MODE_NEW = "new";
-    private static final String APPLY_PATH = "/apply";
 
     private static final String FILTER_TYPE = "type";
     private static final String FILTER_AGE = "age";
@@ -51,9 +47,9 @@ public class ComicCatalogController {
         ModelAndView mv = catalogService.findComics(criteria);
 
         if (XML_HTTP_REQUEST.equals(requestedWith)) {
-            mv.setViewName(ViewPaths.CATALOG_CONTENT);
+            mv.setViewName("catalog/catalog-content");
         } else {
-            mv.setViewName(ViewPaths.CATALOG);
+            mv.setViewName("catalog/catalog");
         }
 
         return mv;
@@ -71,13 +67,13 @@ public class ComicCatalogController {
 
         ModelAndView mv = catalogService.findComics(criteria);
         mv.setViewName(XML_HTTP_REQUEST.equals(requestedWith)
-                ? ViewPaths.CATALOG_CONTENT
-                : ViewPaths.CATALOG);
+                ? "catalog/catalog-content"
+                : "catalog/catalog");
 
         return mv;
     }
 
-    @GetMapping(PRESET_PATH)
+    @GetMapping("/preset")
     public String applyHomePreset(
             @RequestParam String mode,
             SessionStatus sessionStatus,
@@ -96,10 +92,10 @@ public class ComicCatalogController {
             redirectAttributes.addAttribute("sortDirection", "desc");
         }
 
-        return "redirect:" + RoutePaths.CATALOG;
+        return "redirect:" + "/catalog";
     }
 
-    @GetMapping(APPLY_PATH)
+    @GetMapping("/apply")
     public String applySingleFilter(
             @RequestParam String filter,
             @RequestParam String value,
@@ -124,7 +120,7 @@ public class ComicCatalogController {
             }
         }
 
-        return "redirect:" + RoutePaths.CATALOG;
+        return "redirect:" + "/catalog";
     }
 
     @ModelAttribute(SessionAttributesNames.SEARCH_CRITERIA)

@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.*;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.services.CollectionService;
@@ -17,7 +15,7 @@ import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.COLLECTIONS)
+@RequestMapping("/collections")
 public class CollectionsController {
 
     private final CollectionService collectionService;
@@ -46,24 +44,24 @@ public class CollectionsController {
         );
 
         mv.setViewName("XMLHttpRequest".equals(requestedWith)
-                ? ViewPaths.COLLECTIONS_CONTENT
-                : ViewPaths.COLLECTIONS_PAGE);
+                ? "collections/collections-content"
+                : "collections/collections-page");
 
         return mv;
     }
 
 
-    @GetMapping(RoutePaths.COLLECTIONS_COMIC_MODAL)
+    @GetMapping("/comic-modal")
     public ModelAndView comicModal(@RequestParam Integer comicId) {
         User user = securityContextUtils.getUserFromContext()
                 .orElseThrow(() -> new RuntimeException("Пользователь не авторизован"));
 
         ModelAndView mv = collectionService.getComicModal(user.getId(), comicId);
-        mv.setViewName(ViewPaths.COLLECTIONS_COMIC_MODAL);
+        mv.setViewName("collections/collection-comic-modal-content");
         return mv;
     }
 
-    @PostMapping(RoutePaths.COLLECTIONS_COMIC_SYNC)
+    @PostMapping("/comic-sync")
     @ResponseBody
     public Map<String, Object> syncComicCollections(@RequestParam Integer comicId,
                                                     @RequestParam(required = false) List<Integer> sectionIds) {
@@ -86,7 +84,7 @@ public class CollectionsController {
     }
 
 
-    @PostMapping(RoutePaths.COLLECTIONS_CREATE)
+    @PostMapping("/create")
     @ResponseBody
     public Map<String, Object> create(@ModelAttribute CollectionCreateForm form) {
         User user = securityContextUtils.getUserFromContext()
@@ -100,7 +98,7 @@ public class CollectionsController {
         }
     }
 
-    @PostMapping(RoutePaths.COLLECTIONS_RENAME)
+    @PostMapping("/rename")
     @ResponseBody
     public Map<String, Object> rename(@ModelAttribute CollectionRenameForm form) {
         try {
@@ -114,7 +112,7 @@ public class CollectionsController {
         }
     }
 
-    @PostMapping(RoutePaths.COLLECTIONS_DELETE)
+    @PostMapping("/delete")
     @ResponseBody
     public Map<String, Object> delete(@ModelAttribute CollectionDeleteForm form) {
         try {
@@ -128,7 +126,7 @@ public class CollectionsController {
         }
     }
 
-    @PostMapping(RoutePaths.COLLECTIONS_MOVE)
+    @PostMapping("/move")
     @ResponseBody
     public Map<String, Object> move(@ModelAttribute CollectionMoveForm form) {
         try {
@@ -142,7 +140,7 @@ public class CollectionsController {
         }
     }
 
-    @PostMapping(RoutePaths.COLLECTIONS_REMOVE)
+    @PostMapping("/remove")
     @ResponseBody
     public Map<String, Object> remove(@ModelAttribute CollectionRemoveForm form) {
         try {

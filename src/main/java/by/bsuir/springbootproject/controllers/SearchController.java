@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
 import by.bsuir.springbootproject.dto.QuickSearchComicItem;
 import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.repositories.ComicRepository;
@@ -21,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
-@RequestMapping(RoutePaths.SEARCH)
+@RequestMapping("/search")
 @RequiredArgsConstructor
 public class SearchController {
 
@@ -37,10 +36,10 @@ public class SearchController {
         if (StringUtils.hasText(query)) {
             redirectAttributes.addAttribute("filter", "search");
             redirectAttributes.addAttribute("value", query);
-            return "redirect:" + RoutePaths.CATALOG + "/apply";
+            return "redirect:" + "/catalog" + "/apply";
         }
 
-        return "redirect:" + RoutePaths.CATALOG;
+        return "redirect:" + "/catalog";
     }
 
     @GetMapping("/quick")

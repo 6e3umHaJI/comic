@@ -1,7 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
-import by.bsuir.springbootproject.constants.ViewPaths;
 import by.bsuir.springbootproject.dto.GoogleRegistrationForm;
 import by.bsuir.springbootproject.dto.PendingGoogleRegistration;
 import by.bsuir.springbootproject.security.GoogleOAuth2SuccessHandler;
@@ -22,34 +20,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.AUTH)
+@RequestMapping("/auth")
 public class AuthController {
 
     private final AuthService authService;
 
-    @GetMapping(RoutePaths.AUTH_LOGIN)
+    @GetMapping("/login")
     public String loginPage(HttpServletRequest request, Model model) {
         model.addAttribute("isLogged", request.getUserPrincipal() != null);
-        return ViewPaths.LOGIN;
+        return "auth/login";
     }
 
-    @GetMapping(RoutePaths.AUTH_REGISTER_GOOGLE)
+    @GetMapping("/register-google")
     public String registerGooglePage(HttpSession session, Model model) {
         PendingGoogleRegistration pending = (PendingGoogleRegistration)
                 session.getAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
 
         if (pending == null) {
-            return "redirect:" + RoutePaths.LOGIN;
+            return "redirect:" + "/auth/login";
         }
 
         model.addAttribute("pendingGoogle", pending);
         if (!model.containsAttribute("form")) {
             model.addAttribute("form", new GoogleRegistrationForm());
         }
-        return ViewPaths.REGISTER_GOOGLE;
+        return "auth/register-google";
     }
 
-    @PostMapping(RoutePaths.AUTH_REGISTER_GOOGLE)
+    @PostMapping("/register-google")
     public String registerGoogleSubmit(@Valid @ModelAttribute("form") GoogleRegistrationForm form,
                                        BindingResult bindingResult,
                                        HttpSession session,
@@ -58,34 +56,34 @@ public class AuthController {
                 session.getAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
 
         if (pending == null) {
-            return "redirect:" + RoutePaths.LOGIN;
+            return "redirect:" + "/auth/login";
         }
 
         if (bindingResult.hasErrors()) {
             model.addAttribute("pendingGoogle", pending);
-            return ViewPaths.REGISTER_GOOGLE;
+            return "auth/register-google";
         }
 
         try {
             authService.completeGoogleRegistration(pending, form);
             session.removeAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
             session.setAttribute("authSuccessMessage", "Аккаунт создан. Теперь войдите по логину и паролю.");
-            return "redirect:" + RoutePaths.LOGIN + "?registered=true";
+            return "redirect:" + "/auth/login" + "?registered=true";
         } catch (IllegalArgumentException | IllegalStateException e) {
             model.addAttribute("pendingGoogle", pending);
             model.addAttribute("registerError", e.getMessage());
-            return ViewPaths.REGISTER_GOOGLE;
+            return "auth/register-google";
         }
     }
 
-    @GetMapping(RoutePaths.AUTH_LOGOUT_SUCCESS)
+    @GetMapping("/logout-success")
     public String logoutSuccess() {
-        return "redirect:" + RoutePaths.HOME;
+        return "redirect:" + "/home";
     }
 
-    @GetMapping(RoutePaths.AUTH_ACCESS_REQUIRED)
+    @GetMapping("/access-required")
     public String accessRequiredModalPage() {
-        return ViewPaths.ACCESS_REQUIRED;
+        return "auth/auth-required-modal";
     }
 
     @ModelAttribute("authPrincipal")

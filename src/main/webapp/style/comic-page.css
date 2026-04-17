@@ -33,7 +33,7 @@
 .comic-meta-link {
     color: inherit;
     text-decoration: none;
-    border-bottom: 1px dashed transparent;
+    border-bottom: 1px transparent;
     cursor: pointer;
 }
 
@@ -239,10 +239,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.chapter-header:hover {
-    color: var(--accent);
 }
 
 .translation-list {
@@ -451,6 +447,7 @@
 
 .chapter-click:hover {
     background: rgba(150, 150, 150, 0.08);
+    color: var(--accent);
 }
 
 .cover-wrap {
@@ -801,6 +798,7 @@
     line-height: 1.35;
     min-height: 2.8em;
     word-break: break-word;
+    color: var(--color-accent);
 }
 
 .related-types {
@@ -816,10 +814,9 @@
     align-items: center;
     max-width: 100%;
     padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: rgba(150, 150, 150, 0.08);
-    color: var(--text);
+    border-radius: 12px;
+    background: var(--color-accent);
+    color: white;
     font-size: 12px;
     line-height: 1.2;
     word-break: break-word;

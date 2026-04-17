@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.controllers;
 
-import by.bsuir.springbootproject.constants.RoutePaths;
 import by.bsuir.springbootproject.services.RatingService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,7 @@ import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping(RoutePaths.API_RATINGS)
+@RequestMapping("/api" + "/ratings")
 public class RatingController {
 
     private final RatingService ratingService;

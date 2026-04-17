@@ -4,7 +4,7 @@
 
 <c:url var="notificationIconOnUrl" value="/assets/icons/notification-on.svg"/>
 <c:url var="notificationIconOffUrl" value="/assets/icons/notification-off.svg"/>
-<c:url var="deleteIconUrl" value="/assets/icons/delete.svg"/>
+<c:url var="deleteIconUrl" value="/assets/icons/trash.svg"/>
 
 <div class="notifications-panel js-notifications-state"
      data-tab="${tab}"
