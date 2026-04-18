@@ -41,6 +41,7 @@ INSERT INTO complaint_types (name, scope) VALUES
 
 INSERT INTO complaint_statuses (name) VALUES
                                           ('Ожидание'),
+                                          ('На рассмотрении'),
                                           ('Решена'),
                                           ('Отклонена');
 

@@ -16,11 +16,13 @@
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/home.svg"/>'); mask-image:url('<c:url value="/assets/icons/home.svg"/>');"></span>
                 Главная
             </a>
+
             <a href="<c:url value='/catalog'/>">
                 <span class="nav-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/catalog.svg"/>'); mask-image:url('<c:url value="/assets/icons/catalog.svg"/>');"></span>
                 Каталог
             </a>
+
             <a href="<c:url value='/search'/>" data-quick-search-open="true">
                 <span class="nav-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/search.svg"/>'); mask-image:url('<c:url value="/assets/icons/search.svg"/>');"></span>
@@ -28,11 +30,6 @@
             </a>
 
             <sec:authorize access="hasRole('ADMIN')">
-                <a href="<c:url value='/complaints'/>">
-                    <span class="nav-icon"
-                          style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
-                    Жалобы
-                </a>
                 <a href="<c:url value='/admin/uploads'/>">
                     <span class="nav-icon"
                           style="-webkit-mask-image:url('<c:url value="/assets/icons/admin.svg"/>'); mask-image:url('<c:url value="/assets/icons/admin.svg"/>');"></span>
@@ -91,11 +88,21 @@
 
                         <a href="#" class="profile-dropdown-item">
                             <span class="profile-menu-icon"
-                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/upload.svg"/>'); mask-image:url('<c:url value="/assets/icons/upload.svg"/>');"></span>
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/chapter.svg"/>'); mask-image:url('<c:url value="/assets/icons/chapter.svg"/>');"></span>
                             <span class="profile-dropdown-item-main">
                                 <span>Мои главы</span>
                             </span>
                         </a>
+
+                        <sec:authorize access="hasRole('ADMIN')">
+                            <a href="<c:url value='/admin/complaints'/>" class="profile-dropdown-item">
+                                <span class="profile-menu-icon"
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/warning.svg"/>'); mask-image:url('<c:url value="/assets/icons/warning.svg"/>');"></span>
+                                <span class="profile-dropdown-item-main">
+                                    <span>Жалобы</span>
+                                </span>
+                            </a>
+                        </sec:authorize>
                     </div>
                 </div>
 

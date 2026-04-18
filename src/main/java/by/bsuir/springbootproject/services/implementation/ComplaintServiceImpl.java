@@ -25,6 +25,7 @@ public class ComplaintServiceImpl implements ComplaintService {
     private static final String SCOPE_COMIC = "COMIC";
     private static final String SCOPE_TRANSLATION = "TRANSLATION";
     private static final String STATUS_PENDING = "Ожидание";
+    private static final String STATUS_IN_REVIEW = "На рассмотрении";
     private static final int MAX_ACTIVE_COMPLAINTS = 20;
 
     private final ComplaintRepository complaintRepository;
@@ -59,9 +60,13 @@ public class ComplaintServiceImpl implements ComplaintService {
             throw new IllegalArgumentException("Описание жалобы обязательно к заполнению.");
         }
 
-        long activeComplaints = complaintRepository.countByUser_IdAndStatus_Name(userId, STATUS_PENDING);
+        long activeComplaints = complaintRepository.countByUser_IdAndStatus_NameIn(
+                userId,
+                List.of(STATUS_PENDING, STATUS_IN_REVIEW)
+        );
+
         if (activeComplaints >= MAX_ACTIVE_COMPLAINTS) {
-            throw new IllegalStateException("У вас уже есть 20 жалоб в ожидании. Дождитесь рассмотрения хотя бы одной.");
+            throw new IllegalStateException("У вас уже есть 20 активных жалоб. Дождитесь рассмотрения хотя бы одной.");
         }
 
         ComplaintType type = complaintTypeRepository.findById(complaintTypeId)

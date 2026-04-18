@@ -1,0 +1,370 @@
+.admin-complaints-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.admin-complaints-head {
+    margin-bottom: 18px;
+}
+
+.admin-complaints-head h1 {
+    margin: 0 0 6px 0;
+}
+
+.admin-complaints-head p {
+    margin: 0;
+    color: var(--text);
+    opacity: 0.78;
+}
+
+.admin-complaints-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: -1px;
+}
+
+.admin-complaints-tabs a {
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font: inherit;
+    text-decoration: none;
+}
+
+.admin-complaints-tabs a.active {
+    background: var(--card);
+    color: var(--accent);
+    border-color: var(--border);
+    border-bottom-color: var(--card);
+    position: relative;
+    z-index: 2;
+}
+
+.admin-complaints-panel {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 20px;
+    background: var(--card);
+    box-sizing: border-box;
+}
+
+.admin-complaints-filters {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.admin-complaints-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-complaints-filter-group label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.admin-complaints-filter-group select {
+    height: 42px;
+    min-width: 230px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+.admin-complaints-filter-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.admin-complaints-empty {
+    padding: 26px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    text-align: center;
+    color: var(--text);
+    opacity: 0.8;
+    background: var(--card);
+}
+
+.admin-complaints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.admin-complaint-card {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+.admin-complaint-main,
+.admin-complaint-main-static {
+    display: flex;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.admin-complaint-main:hover .admin-complaint-title {
+    color: var(--accent);
+}
+
+.admin-complaint-cover-wrap {
+    width: 72px;
+    min-width: 72px;
+}
+
+.admin-complaint-cover {
+    width: 72px;
+    height: 102px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: block;
+}
+
+.admin-complaint-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.admin-complaint-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.admin-complaint-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-complaint-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.admin-complaint-type-badge {
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(150, 150, 150, 0.12);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.admin-complaint-date {
+    white-space: nowrap;
+    color: var(--text);
+    opacity: 0.68;
+    font-size: 0.9rem;
+}
+
+.admin-complaint-subtitle {
+    margin-top: 6px;
+    color: var(--text);
+    opacity: 0.8;
+    font-weight: 600;
+}
+
+.admin-complaint-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    color: var(--text);
+    opacity: 0.72;
+    font-size: 0.92rem;
+}
+
+.admin-complaint-description {
+    margin-top: 10px;
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.admin-complaint-side {
+    width: 240px;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-complaint-status-badge {
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    color: var(--text);
+    font-weight: 600;
+    box-sizing: border-box;
+}
+
+.admin-complaint-status-badge.is-pending {
+    border-color: #c58a34;
+    color: #c58a34;
+    background: rgba(197, 138, 52, 0.08);
+}
+
+.admin-complaint-status-badge.is-review {
+    border-color: #4b73c5;
+    color: #4b73c5;
+    background: rgba(75, 115, 197, 0.08);
+}
+
+.admin-complaint-status-badge.is-success {
+    border-color: #3b8b4f;
+    color: #3b8b4f;
+    background: rgba(59, 139, 79, 0.08);
+}
+
+.admin-complaint-status-badge.is-rejected {
+    border-color: #c54040;
+    color: #c54040;
+    background: rgba(197, 64, 64, 0.08);
+}
+
+.admin-complaint-status-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-complaint-status-label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.admin-complaint-status-select {
+    height: 42px;
+    width: 100%;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+.admin-complaint-status-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.pagination-management {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pagination li a,
+.pagination li > * {
+    min-width: 36px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.pagination li a:hover {
+    border-color: var(--accent);
+}
+
+.pagination li a.active-page {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.pagination li.disabled > span {
+    opacity: 0.55;
+}
+
+@media (max-width: 900px) {
+    .admin-complaint-card {
+        flex-direction: column;
+    }
+
+    .admin-complaint-side {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-complaint-main,
+    .admin-complaint-main-static {
+        flex-direction: column;
+    }
+
+    .admin-complaint-cover-wrap {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .admin-complaint-cover {
+        width: 92px;
+        height: 128px;
+    }
+
+    .admin-complaint-top {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .admin-complaint-date {
+        white-space: normal;
+    }
+}
