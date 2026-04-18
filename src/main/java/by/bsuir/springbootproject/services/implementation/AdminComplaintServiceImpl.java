@@ -33,8 +33,6 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
     private static final String SCOPE_TRANSLATION = "TRANSLATION";
     private static final String STATUS_PENDING = "Ожидание";
     private static final String STATUS_IN_REVIEW = "На рассмотрении";
-    private static final String STATUS_RESOLVED = "Решена";
-    private static final String STATUS_REJECTED = "Отклонена";
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
@@ -47,19 +45,32 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
     @Override
     public ModelAndView getComplaintsPage(String scope,
                                           String typeId,
+                                          String q,
                                           String sortDirection,
                                           int page) {
         String actualScope = SCOPE_COMIC.equalsIgnoreCase(scope) ? SCOPE_COMIC : SCOPE_TRANSLATION;
         String actualSortDirection = "asc".equalsIgnoreCase(sortDirection) ? "asc" : "desc";
+        String actualQuery = q == null ? "" : q.trim();
         int safePage = Math.max(page, 0);
 
         List<ComplaintType> complaintTypes = complaintTypeRepository.findByScopeOrderByIdAsc(actualScope);
         Integer selectedTypeId = parseTypeId(typeId, complaintTypes);
 
         Sort.Direction direction = "asc".equals(actualSortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Page<Complaint> complaintPage = complaintRepository.findAdminComplaints(
-                actualScope,
+        Page<Complaint> complaintPage = SCOPE_COMIC.equals(actualScope)
+                ? complaintRepository.findAdminComicComplaints(
                 selectedTypeId,
+                actualQuery,
+                List.of(STATUS_PENDING, STATUS_IN_REVIEW),
+                PageRequest.of(
+                        safePage,
+                        Values.COMPLAINTS_PAGE_SIZE,
+                        Sort.by(direction, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+                )
+        )
+                : complaintRepository.findAdminTranslationComplaints(
+                selectedTypeId,
+                actualQuery,
                 List.of(STATUS_PENDING, STATUS_IN_REVIEW),
                 PageRequest.of(
                         safePage,
@@ -75,6 +86,7 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
         ModelAndView mv = new ModelAndView("admin/complaints-page");
         mv.addObject("scope", actualScope);
         mv.addObject("selectedTypeId", selectedTypeId);
+        mv.addObject("q", actualQuery);
         mv.addObject("sortDirection", actualSortDirection);
         mv.addObject("complaintTypes", complaintTypes);
         mv.addObject("statusOptions", complaintStatusRepository.findAllByOrderByIdAsc());

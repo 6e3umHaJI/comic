@@ -5,6 +5,7 @@ import org.springframework.web.servlet.ModelAndView;
 public interface AdminComplaintService {
     ModelAndView getComplaintsPage(String scope,
                                    String typeId,
+                                   String q,
                                    String sortDirection,
                                    int page);
 

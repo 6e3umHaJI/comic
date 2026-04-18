@@ -22,22 +22,100 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                     from Complaint c
                     join c.type t
                     join c.status s
-                    where t.scope = :scope
+                    where t.scope = 'COMIC'
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
+                      and (
+                          :q = ''
+                          or exists (
+                              select 1
+                              from Comic cm
+                              where cm.id = c.targetId
+                                and (
+                                    lower(cm.title) like lower(concat('%', :q, '%'))
+                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                )
+                          )
+                      )
                     """,
             countQuery = """
                     select count(c)
                     from Complaint c
                     join c.type t
                     join c.status s
-                    where t.scope = :scope
+                    where t.scope = 'COMIC'
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
+                      and (
+                          :q = ''
+                          or exists (
+                              select 1
+                              from Comic cm
+                              where cm.id = c.targetId
+                                and (
+                                    lower(cm.title) like lower(concat('%', :q, '%'))
+                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                )
+                          )
+                      )
                     """
     )
-    Page<Complaint> findAdminComplaints(String scope,
-                                        Integer typeId,
-                                        Collection<String> visibleStatuses,
-                                        Pageable pageable);
+    Page<Complaint> findAdminComicComplaints(Integer typeId,
+                                             String q,
+                                             Collection<String> visibleStatuses,
+                                             Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "type", "status"})
+    @Query(
+            value = """
+                    select c
+                    from Complaint c
+                    join c.type t
+                    join c.status s
+                    where t.scope = 'TRANSLATION'
+                      and s.name in :visibleStatuses
+                      and (:typeId is null or t.id = :typeId)
+                      and (
+                          :q = ''
+                          or exists (
+                              select 1
+                              from Translation tr
+                              join tr.chapter ch
+                              join ch.comic cm
+                              where tr.id = c.targetId
+                                and (
+                                    lower(cm.title) like lower(concat('%', :q, '%'))
+                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                )
+                          )
+                      )
+                    """,
+            countQuery = """
+                    select count(c)
+                    from Complaint c
+                    join c.type t
+                    join c.status s
+                    where t.scope = 'TRANSLATION'
+                      and s.name in :visibleStatuses
+                      and (:typeId is null or t.id = :typeId)
+                      and (
+                          :q = ''
+                          or exists (
+                              select 1
+                              from Translation tr
+                              join tr.chapter ch
+                              join ch.comic cm
+                              where tr.id = c.targetId
+                                and (
+                                    lower(cm.title) like lower(concat('%', :q, '%'))
+                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                )
+                          )
+                      )
+                    """
+    )
+    Page<Complaint> findAdminTranslationComplaints(Integer typeId,
+                                                   String q,
+                                                   Collection<String> visibleStatuses,
+                                                   Pageable pageable);
 }

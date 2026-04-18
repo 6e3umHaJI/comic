@@ -33,7 +33,7 @@
 
     <header id="readerTopbar" class="reader-topbar">
         <div class="reader-topbar-left">
-            <a href="<c:url value='/comics/${comic.id}?tab=chapters'/>" class="reader-icon-btn" title="Назад">
+            <a href="<c:url value='/comics/${comic.id}?tab=chapters'/>" class="reader-icon-btn" title="На страницу комикса">
                <span class="reader-file-icon"
                  style="-webkit-mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>'); mask-image:url('<c:url value="/assets/icons/arrow-left.svg"/>');"></span>
             </a>

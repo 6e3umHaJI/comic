@@ -416,4 +416,164 @@ DELETE FROM saved_comics WHERE comic_id = v_comic_id;
 DELETE FROM ratings WHERE comic_id = v_comic_id;
 END$$;
 
+
+DO
+$$
+DECLARE
+v_user_id INT;
+    v_admin_id INT;
+
+    v_comic_1_id INT;
+    v_comic_2_id INT;
+
+    v_translation_1_id INT;
+    v_translation_2_id INT;
+
+    v_status_pending_id INT;
+    v_status_review_id INT;
+    v_status_resolved_id INT;
+    v_status_rejected_id INT;
+
+    rec RECORD;
+    v_counter INT := 0;
+BEGIN
+SELECT u.user_id
+INTO v_user_id
+FROM users u
+         JOIN user_roles ur ON ur.role_id = u.role_id
+WHERE lower(ur.name) <> 'admin'
+ORDER BY u.user_id
+    LIMIT 1;
+
+IF v_user_id IS NULL THEN
+SELECT u.user_id
+INTO v_user_id
+FROM users u
+ORDER BY u.user_id
+    LIMIT 1;
+END IF;
+
+SELECT u.user_id
+INTO v_admin_id
+FROM users u
+         JOIN user_roles ur ON ur.role_id = u.role_id
+WHERE lower(ur.name) = 'admin'
+ORDER BY u.user_id
+    LIMIT 1;
+
+SELECT c.comic_id
+INTO v_comic_1_id
+FROM comics c
+ORDER BY c.comic_id
+    LIMIT 1;
+
+SELECT c.comic_id
+INTO v_comic_2_id
+FROM comics c
+WHERE c.comic_id <> COALESCE(v_comic_1_id, -1)
+ORDER BY c.comic_id
+    LIMIT 1;
+
+IF v_comic_2_id IS NULL THEN
+        v_comic_2_id := v_comic_1_id;
+END IF;
+
+SELECT t.translation_id
+INTO v_translation_1_id
+FROM translations t
+ORDER BY t.translation_id
+    LIMIT 1;
+
+SELECT t.translation_id
+INTO v_translation_2_id
+FROM translations t
+WHERE t.translation_id <> COALESCE(v_translation_1_id, -1)
+ORDER BY t.translation_id DESC
+    LIMIT 1;
+
+IF v_translation_2_id IS NULL THEN
+        v_translation_2_id := v_translation_1_id;
+END IF;
+
+SELECT status_id INTO v_status_pending_id
+FROM complaint_statuses
+WHERE name = 'Ожидание'
+    LIMIT 1;
+
+SELECT status_id INTO v_status_review_id
+FROM complaint_statuses
+WHERE name = 'На рассмотрении'
+    LIMIT 1;
+
+SELECT status_id INTO v_status_resolved_id
+FROM complaint_statuses
+WHERE name = 'Решена'
+    LIMIT 1;
+
+SELECT status_id INTO v_status_rejected_id
+FROM complaint_statuses
+WHERE name = 'Отклонена'
+    LIMIT 1;
+
+DELETE FROM complaints
+WHERE description LIKE '[DEMO-COMPLAINT]%';
+
+FOR rec IN
+SELECT type_id, name, scope
+FROM complaint_types
+ORDER BY scope, type_id
+    LOOP
+        v_counter := v_counter + 1;
+
+INSERT INTO complaints (
+    user_id,
+    target_id,
+    target_type_id,
+    description,
+    status_id,
+    created_at
+)
+VALUES (
+           COALESCE(v_user_id, v_admin_id),
+           CASE
+               WHEN rec.scope = 'COMIC' THEN CASE WHEN mod(v_counter, 2) = 0 THEN v_comic_2_id ELSE v_comic_1_id END
+               ELSE CASE WHEN mod(v_counter, 2) = 0 THEN v_translation_2_id ELSE v_translation_1_id END
+               END,
+           rec.type_id,
+           '[DEMO-COMPLAINT] Проверка отображения жалобы типа: ' || rec.name || '. Это тестовое описание для поиска, фильтрации и карточек.',
+           CASE
+               WHEN mod(v_counter, 4) = 1 THEN v_status_pending_id
+               WHEN mod(v_counter, 4) = 2 THEN v_status_review_id
+               WHEN mod(v_counter, 4) = 3 THEN v_status_resolved_id
+               ELSE v_status_rejected_id
+               END,
+           NOW() - ((v_counter * 7) || ' minutes')::interval
+       );
+END LOOP;
+
+    IF v_admin_id IS NOT NULL AND v_translation_1_id IS NOT NULL THEN
+        INSERT INTO complaints (
+            user_id,
+            target_id,
+            target_type_id,
+            description,
+            status_id,
+            created_at
+        )
+SELECT
+    v_admin_id,
+    v_translation_1_id,
+    ct.type_id,
+    '[DEMO-COMPLAINT] Жалоба от администратора для дополнительной проверки сортировки и поиска.',
+    v_status_pending_id,
+    NOW() - INTERVAL '3 minutes'
+FROM complaint_types ct
+WHERE ct.scope = 'TRANSLATION'
+ORDER BY ct.type_id
+    LIMIT 1;
+END IF;
+END
+$$;
+
+
 COMMIT;
