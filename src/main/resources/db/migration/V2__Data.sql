@@ -23,17 +23,26 @@ INSERT INTO review_statuses (name) VALUES
                                        ('Одобрено'),
                                        ('Отклонено');
 
-INSERT INTO complaint_types (name) VALUES
-                                       ('Спам'),
-                                       ('Оскорбление'),
-                                       ('Неверный перевод'),
-                                       ('Плагиат'),
-                                       ('Другое');
+INSERT INTO complaint_types (name, scope) VALUES
+                                       ('Неправильная обложка', 'COMIC'),
+                                       ('Некорректное описание', 'COMIC'),
+                                       ('Неверные жанры или теги', 'COMIC'),
+                                       ('Дубликат тайтла', 'COMIC'),
+                                       ('Проблема с главами', 'COMIC'),
+                                       ('Другое', 'COMIC'),
+                                       ('Ошибка в переводе', 'TRANSLATION'),
+                                       ('Дубликат страниц', 'TRANSLATION'),
+                                       ('Отсутствует страница', 'TRANSLATION'),
+                                       ('Непереведённый текст', 'TRANSLATION'),
+                                       ('Неправильный порядок страниц', 'TRANSLATION'),
+                                       ('Другой язык', 'TRANSLATION'),
+                                       ('Плохое качество страниц', 'TRANSLATION'),
+                                       ('Другое', 'TRANSLATION');
 
 INSERT INTO complaint_statuses (name) VALUES
                                           ('Ожидание'),
-                                          ('На рассмотрении'),
-                                          ('Закрыта');
+                                          ('Решена'),
+                                          ('Отклонена');
 
 INSERT INTO translation_types (name) VALUES
                                          ('Официальный'),

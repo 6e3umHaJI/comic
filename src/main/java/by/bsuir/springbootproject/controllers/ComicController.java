@@ -3,6 +3,7 @@ package by.bsuir.springbootproject.controllers;
 import by.bsuir.springbootproject.constants.Values;
 import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.services.ComplaintService;
 import by.bsuir.springbootproject.services.ComicService;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.ReaderService;
@@ -27,6 +28,7 @@ public class ComicController {
 
     private final ComicService comicService;
     private final CollectionService collectionService;
+    private final ComplaintService complaintService;
     private final SecurityContextUtils securityContextUtils;
     private final ReaderService readerService;
     private final NotificationService notificationService;
@@ -45,7 +47,7 @@ public class ComicController {
 
         model.addAllAttributes(comicService.getStartReadingData(id));
         model.addAttribute("continueReading", readerService.getContinueReadingInfoIfAuthenticated(id));
-
+        model.addAttribute("complaintTypes", complaintService.getComplaintTypesForScope("COMIC"));
         if (request.getUserPrincipal() != null) {
             Integer userId = securityContextUtils.getUserFromContext()
                     .map(by.bsuir.springbootproject.entities.User::getId)

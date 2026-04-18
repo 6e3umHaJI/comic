@@ -30,7 +30,7 @@
             <sec:authorize access="hasRole('ADMIN')">
                 <a href="<c:url value='/complaints'/>">
                     <span class="nav-icon"
-                          style="-webkit-mask-image:url('<c:url value="/assets/icons/warning.svg"/>'); mask-image:url('<c:url value="/assets/icons/warning.svg"/>');"></span>
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
                     Жалобы
                 </a>
                 <a href="<c:url value='/admin/uploads'/>">

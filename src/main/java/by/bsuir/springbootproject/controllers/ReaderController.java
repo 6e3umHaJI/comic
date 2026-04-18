@@ -2,6 +2,7 @@ package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.ReaderData;
 import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.services.ComplaintService;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.ReaderService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
@@ -22,6 +23,7 @@ public class ReaderController {
 
     private final ReaderService readerService;
     private final CollectionService collectionService;
+    private final ComplaintService complaintService;
     private final SecurityContextUtils securityContextUtils;
     private final NotificationService notificationService;
 
@@ -64,7 +66,7 @@ public class ReaderController {
         model.addAttribute("isLogged", isLogged);
         model.addAttribute("inCollections", inCollections);
         model.addAttribute("isNotificationsEnabled", isNotificationsEnabled);
-
+        model.addAttribute("complaintTypes", complaintService.getComplaintTypesForScope("TRANSLATION"));
         return "reader/reader-page";
     }
 

@@ -9,6 +9,7 @@
     <jsp:include page="/WEB-INF/views/theme-init.jsp"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="<c:url value='/style/common.css'/>">
+    <link rel="stylesheet" href="<c:url value='/style/complaint-modal.css'/>">
     <link rel="stylesheet" href="<c:url value='/style/comic-page.css'/>">
     <style>.hidden{display:none;}</style>
 </head>
@@ -238,7 +239,20 @@
                     </button>
                 </div>
 
-                <button class="btn add-chapter-btn">Добавить главу</button>
+                <div class="comic-secondary-actions">
+                    <button class="btn add-chapter-btn">Добавить главу</button>
+
+                    <button type="button"
+                            id="comicComplaintBtn"
+                            class="btn btn-outline icon-only-btn complaint-action-btn js-open-complaint-modal"
+                            data-authenticated="${isLogged}"
+                            data-target-id="${comic.id}"
+                            title="Пожаловаться"
+                            aria-label="Пожаловаться">
+                        <span class="btn-icon"
+                              style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -798,5 +812,7 @@
 </div>
 <jsp:include page="/WEB-INF/views/collections/collection-global-modal.jsp"/>
 <script src="<c:url value='/script/collection-modal.js'/>"></script>
+<jsp:include page="/WEB-INF/views/fragments/complaint-modal.jsp"/>
+<script src="<c:url value='/script/complaint-modal.js'/>"></script>
 </body>
 </html>

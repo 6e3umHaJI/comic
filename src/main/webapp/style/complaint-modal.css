@@ -1,0 +1,137 @@
+.comic-secondary-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.complaint-action-btn,
+.reader-complaint-btn {
+    width: 42px;
+    min-width: 42px;
+    height: 38px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-color: var(--border);
+    background: var(--card) !important;
+    box-sizing: border-box;
+}
+
+.complaint-action-btn:hover,
+.complaint-action-btn:focus-visible,
+.reader-complaint-btn:hover,
+.reader-complaint-btn:focus-visible {
+    border-color: var(--accent) !important;
+    background: var(--card) !important;
+}
+
+.complaint-modal .modal-content {
+    width: min(560px, calc(100vw - 32px));
+    padding: 24px 24px 20px;
+    position: relative;
+}
+
+.complaint-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.complaint-close-btn:hover,
+.complaint-close-btn:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--card);
+}
+
+.complaint-modal-title {
+    margin: 0 40px 18px 0;
+}
+
+.complaint-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.complaint-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.complaint-form-group label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.complaint-form-group select,
+.complaint-form-group textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.complaint-form-group select {
+    height: 42px;
+    padding: 0 12px;
+}
+
+.complaint-form-group textarea {
+    min-height: 150px;
+    padding: 12px;
+    resize: vertical;
+}
+
+.complaint-form-group select:focus,
+.complaint-form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.complaint-form-status {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    line-height: 1.45;
+}
+
+.complaint-form-status.is-error {
+    border-color: #c54040;
+    color: #c54040;
+    background: rgba(197, 64, 64, 0.08);
+}
+
+.complaint-form-status.is-success {
+    border-color: #3b8b4f;
+    color: #3b8b4f;
+    background: rgba(59, 139, 79, 0.08);
+}
+
+.complaint-form-actions {
+    display: flex;
+    justify-content: flex-end;
+}

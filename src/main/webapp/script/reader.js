@@ -1060,10 +1060,7 @@
     complaintBtn.addEventListener('click', () => {
         if (!isLogged) {
             openAuthRequiredModalFallback();
-            return;
         }
-
-        showToast('Функция жалобы будет подключена отдельно.');
     });
 
     if (prevChapterBtn) {

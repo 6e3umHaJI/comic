@@ -22,4 +22,7 @@ public class ComplaintType extends BaseEntity {
 
     @Column(nullable = false, length = 100)
     private String name;
+
+    @Column(nullable = false, length = 20)
+    private String scope;
 }

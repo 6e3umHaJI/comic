@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS review_statuses (
 
 CREATE TABLE IF NOT EXISTS complaint_types (
                                                type_id SERIAL PRIMARY KEY,
-                                               name VARCHAR(100) NOT NULL
+                                               name VARCHAR(100) NOT NULL,
+                                               scope VARCHAR(20)
     );
 
 CREATE TABLE IF NOT EXISTS complaint_statuses (
@@ -393,28 +394,23 @@ CREATE INDEX IF NOT EXISTS idx_translations_chapter_id ON translations(chapter_i
 CREATE INDEX IF NOT EXISTS idx_ratings_comic_id ON ratings(comic_id);
 CREATE INDEX IF NOT EXISTS idx_saved_comics_user_section ON saved_comics(section_id);
 CREATE INDEX IF NOT EXISTS idx_complaints_user_id ON complaints(user_id);
+CREATE INDEX IF NOT EXISTS idx_complaints_user_status
+    ON complaints(user_id, status_id);
+CREATE INDEX IF NOT EXISTS idx_complaint_types_scope
+    ON complaint_types(scope);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_is_read ON notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_comic_id ON notifications(comic_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_translation_id ON notifications(translation_id);
-
-
 CREATE INDEX IF NOT EXISTS idx_notifications_user_type_created_at
     ON notifications(user_id, type_id, created_at DESC);
-
-
 CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_user_created_at
     ON comic_notification_subscriptions(user_id, created_at DESC);
-
-
-
 CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_user_id
     ON comic_notification_subscriptions(user_id);
-
 CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_comic_id
     ON comic_notification_subscriptions(comic_id);
-
 CREATE INDEX IF NOT EXISTS idx_comic_notification_subscriptions_created_at
     ON comic_notification_subscriptions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comics_created_at ON comics(created_at DESC);

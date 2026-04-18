@@ -1,6 +1,11 @@
 package by.bsuir.springbootproject.entities;
 
-import jakarta.persistence.*;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,13 +28,14 @@ public class Complaint extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "target_id")
+    @Column(name = "target_id", nullable = false)
     private Integer targetId;
 
-    @Column(name = "target_type_id")
-    private Integer targetTypeId;
+    @ManyToOne
+    @JoinColumn(name = "target_type_id")
+    private ComplaintType type;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String description;
 
     @ManyToOne

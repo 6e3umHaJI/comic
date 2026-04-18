@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <jsp:include page="/WEB-INF/views/theme-init.jsp"/>
     <link rel="stylesheet" href="<c:url value='/style/common.css'/>">
+    <link rel="stylesheet" href="<c:url value='/style/complaint-modal.css'/>">
     <link rel="stylesheet" href="<c:url value='/style/reader.css'/>">
 </head>
 <body class="reader-body" data-authenticated="${pageContext.request.userPrincipal != null}">
@@ -113,10 +114,18 @@
                       style="-webkit-mask-image:url('${readerNotificationIconUrl}'); mask-image:url('${readerNotificationIconUrl}');"></span>
             </button>
 
-            <button type="button" id="readerComplaintBtn" class="reader-icon-btn" title="Жалоба">
+            <button type="button"
+                    id="readerComplaintBtn"
+                    class="reader-icon-btn reader-complaint-btn js-open-complaint-modal"
+                    data-authenticated="${isLogged}"
+                    data-target-id="${translation.id}"
+                    title="Пожаловаться"
+                    aria-label="Пожаловаться">
                 <span class="reader-file-icon"
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
             </button>
+
+
 
             <button type="button" id="readerThemeBtn" class="reader-icon-btn" title="Тема">
                 <span class="reader-file-icon"
@@ -296,7 +305,9 @@
 <jsp:include page="/WEB-INF/views/collections/collection-global-modal.jsp"/>
 
 <script src="<c:url value='/script/auth-required-modal.js'/>"></script>
+<script src="<c:url value='/script/complaint-modal.js'/>"></script>
 <script src="<c:url value='/script/collection-modal.js'/>"></script>
 <script src="<c:url value='/script/notifications.js'/>"></script>
+<jsp:include page="/WEB-INF/views/fragments/complaint-modal.jsp"/>
 </body>
 </html>
