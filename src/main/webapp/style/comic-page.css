@@ -443,13 +443,6 @@
     opacity: .5;
 }
 
-.pagination li.disabled span {
-    display: inline-block;
-    padding: 6px 10px;
-    color: var(--text);
-    opacity: .6;
-}
-
 .chapter-click {
     cursor: pointer;
 }
@@ -645,19 +638,10 @@
     box-sizing: border-box;
 }
 
-.pagination li a,
-.pagination li button,
-.pagination-icon-link {
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    min-height: 38px;
-    padding: 0 !important;
-}
-
 .pagination li.disabled > span {
-    min-width: 38px;
-    padding: 0 10px !important;
+    width: 38px;
+    height: 38px;
+    padding: 10px !important;
 }
 
 
@@ -825,7 +809,7 @@
     padding: 4px 8px;
     border-radius: 12px;
     background: var(--color-accent);
-    color: white;
+    color: var(--dark-text);
     font-size: 12px;
     line-height: 1.2;
     word-break: break-word;

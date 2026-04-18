@@ -116,7 +116,6 @@ a {
     margin: 0 12px;
     color: var(--text);
     font-weight: 500;
-    transition: color 0.2s ease;
 }
 
 .nav-links a:hover {
@@ -151,7 +150,7 @@ a {
     justify-content: center;
     gap: 6px;
     margin-left: 6px;
-    padding: 6px 14px;
+    padding: 14px;
     border: none;
     border-radius: 5px;
     background-color: var(--accent);
@@ -160,7 +159,7 @@ a {
     line-height: 1.2;
     cursor: pointer;
     box-sizing: border-box;
-    transition: background 0.3s;
+    transition: none;
 }
 
 .btn:hover {
@@ -169,13 +168,13 @@ a {
 }
 
 .btn-outline {
-    background: transparent;
+    background: var(--card);
     color: var(--text);
     border: 1px solid var(--border);
 }
 
 .btn-outline:hover {
-    background: transparent;
+    background: var(--card);
     border-color: var(--accent);
     color: var(--text);
 }
@@ -214,7 +213,7 @@ a {
 .btn-icon,
 .theme-icon,
 .footer-icon {
-    transition: transform 0.2s ease, background-color 0.2s ease;
+    transition: transform 0.2s ease;
 }
 
 .nav-icon {
@@ -342,8 +341,8 @@ a {
     justify-content: center;
     flex-shrink: 0;
     border-radius: 999px;
-    background: rgba(150, 150, 150, 0.12);
-    color: var(--text);
+    background: var(--color-accent);
+    color: var(--dark-text);
     font-size: 0.8rem;
     font-weight: 600;
     line-height: 1;
@@ -455,7 +454,6 @@ a {
     border-radius: 10px;
     cursor: pointer;
     box-sizing: border-box;
-    transition: border-color .2s ease, color .2s ease, background .2s ease;
 }
 
 .collection-add-btn:hover {
@@ -494,7 +492,6 @@ a {
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
-    transition: border-color .2s ease, background .2s ease, color .2s ease;
 }
 
 .collection-choice-btn:hover {
@@ -547,7 +544,6 @@ a {
     border-radius: 5px;
     background: var(--card);
     cursor: pointer;
-    transition: .18s ease;
 }
 
 .check-ui::before {
@@ -775,3 +771,6 @@ body.quick-search-open {
     }
 }
 
+#trMore {
+    display: none;
+}

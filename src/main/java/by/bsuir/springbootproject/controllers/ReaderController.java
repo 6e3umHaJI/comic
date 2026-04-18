@@ -1,7 +1,6 @@
 package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.ReaderData;
-import by.bsuir.springbootproject.repositories.TranslationRepository;
 import by.bsuir.springbootproject.services.CollectionService;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.ReaderService;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,7 +23,6 @@ public class ReaderController {
     private final ReaderService readerService;
     private final CollectionService collectionService;
     private final SecurityContextUtils securityContextUtils;
-    private final TranslationRepository translationRepository;
     private final NotificationService notificationService;
 
     @GetMapping("/{translationId}")
@@ -73,7 +70,8 @@ public class ReaderController {
 
     @PostMapping("/{translationId}/progress")
     @ResponseBody
-    public ResponseEntity<?> saveProgress(@PathVariable Integer translationId, @RequestParam Integer page) {
+    public ResponseEntity<Map<String, Object>> saveProgress(@PathVariable Integer translationId,
+                                                            @RequestParam Integer page) {
         readerService.saveProgressIfAuthenticated(translationId, page);
         return ResponseEntity.ok(Map.of("status", "ok", "page", page));
     }
@@ -81,12 +79,7 @@ public class ReaderController {
     @GetMapping("/chapters/{chapterId}/languages")
     @ResponseBody
     public Map<String, Object> getChapterLanguages(@PathVariable Integer chapterId) {
-        List<String> languages = translationRepository.findApprovedLangsByChapterIds(List.of(chapterId)).stream()
-                .filter(row -> row[0] != null && ((Number) row[0]).intValue() == chapterId)
-                .map(row -> (String) row[1])
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        List<String> languages = readerService.getApprovedLanguagesByChapterId(chapterId);
 
         return Map.of(
                 "chapterId", chapterId,

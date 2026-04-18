@@ -132,16 +132,6 @@ public class ReaderServiceImpl implements ReaderService {
 
     @Override
     @Transactional
-    public void markChapterReadIfAuthenticated(Integer chapterId) {
-        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
-                insert into read_chapters(user_id, chapter_id)
-                values (?, ?)
-                on conflict do nothing
-                """, user.getId(), chapterId));
-    }
-
-    @Override
-    @Transactional
     public void markTranslationOpenedIfAuthenticated(Integer translationId) {
         securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
                 insert into read_progress(user_id, translation_id, current_page, updated_at)
@@ -183,6 +173,15 @@ public class ReaderServiceImpl implements ReaderService {
                 set current_page = excluded.current_page,
                     updated_at = now()
                 """, user.getId(), translationId, page));
+    }
+
+    @Override
+    public List<String> getApprovedLanguagesByChapterId(Integer chapterId) {
+        return translationRepository.findApprovedLangsByChapterIds(List.of(chapterId)).stream()
+                .filter(row -> row[0] != null && ((Number) row[0]).intValue() == chapterId)
+                .map(row -> (String) row[1])
+                .distinct()
+                .toList();
     }
 
     private Optional<ReadProgressSnapshot> findLastReadProgress(Integer userId, Integer comicId) {

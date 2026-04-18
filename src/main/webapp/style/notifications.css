@@ -40,7 +40,7 @@
 
 .notifications-tab-btn.active {
     background: var(--accent);
-    color: white;
+    color: var(--dark-text);
     border-color: var(--border);
     border-bottom-color: var(--card);
     position: relative;

@@ -15,11 +15,11 @@ public interface ReaderService {
 
     Set<Integer> getReadTranslationIdsIfAuthenticated(List<Integer> translationIds);
 
-    void markChapterReadIfAuthenticated(Integer chapterId);
-
     void markTranslationOpenedIfAuthenticated(Integer translationId);
 
     Integer getSavedPageIfAuthenticated(Integer translationId);
 
     void saveProgressIfAuthenticated(Integer translationId, Integer page);
+
+    List<String> getApprovedLanguagesByChapterId(Integer chapterId);
 }

@@ -704,8 +704,7 @@ body.filters-open {
     bottom: 0;
     display: flex;
     gap: 10px;
-    padding-top: 12px;
-    background: var(--card);
+    background: none;
 }
 
 @media (max-width: 900px) {
