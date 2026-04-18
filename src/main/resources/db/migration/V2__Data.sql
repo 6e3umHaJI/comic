@@ -188,9 +188,6 @@ END$$;
 INSERT INTO ratings (user_id, comic_id, score_id)
 SELECT (random()*100+1)::int, comic_id, ((random()*4)+1)::int FROM comics;
 
-INSERT INTO read_chapters (user_id, chapter_id)
-SELECT (random()*100+1)::int, chapter_id FROM chapters WHERE random()<0.5;
-
 INSERT INTO user_sections(user_id,name)
 SELECT user_id,
        ('Секция '||((random()*3)+1)::int)

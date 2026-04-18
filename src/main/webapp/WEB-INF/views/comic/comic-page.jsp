@@ -176,17 +176,24 @@
 
                 <c:if test="${(isLogged and not empty continueReading) or not empty startReadingTranslationId}">
                     <c:choose>
-                        <c:when test="${isLogged and not empty continueReading}">
-                            <a class="btn btn-outline"
-                               href="<c:url value='/read/${continueReading.translationId}'/>">
-                                Продолжить чтение (глава ${continueReading.chapterNumber}, ${continueReading.languageName})
-                            </a>
+                        <c:when test="${continueReading != null}">
+                            <div class="comic-read-actions">
+                                <c:url var="continueReadingUrl" value="/read/${continueReading.translationId}">
+                                    <c:param name="page" value="${continueReading.currentPage}"/>
+                                </c:url>
+
+                                <a href="${continueReadingUrl}" class="btn">
+                                    Продолжить чтение (глава ${continueReading.chapterNumber}, ${continueReading.languageName})
+                                </a>
+                            </div>
                         </c:when>
+
                         <c:otherwise>
-                            <a class="btn btn-outline"
-                               href="<c:url value='/read/${startReadingTranslationId}'/>">
-                                Начать читать
-                            </a>
+                            <c:if test="${startReadingTranslationId != null}">
+                                <a href="<c:url value='/read/${startReadingTranslationId}'/>" class="btn">
+                                    Начать читать
+                                </a>
+                            </c:if>
                         </c:otherwise>
                     </c:choose>
                 </c:if>

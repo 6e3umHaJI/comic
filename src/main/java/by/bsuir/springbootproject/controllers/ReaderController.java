@@ -1,21 +1,21 @@
 package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.ReaderData;
+import by.bsuir.springbootproject.repositories.TranslationRepository;
+import by.bsuir.springbootproject.services.CollectionService;
+import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.ReaderService;
+import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import by.bsuir.springbootproject.services.CollectionService;
-import by.bsuir.springbootproject.services.NotificationService;
-import by.bsuir.springbootproject.utils.SecurityContextUtils;
-import by.bsuir.springbootproject.repositories.TranslationRepository;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Map;
+import java.util.Objects;
 
 @Controller
 @RequiredArgsConstructor
@@ -35,13 +35,12 @@ public class ReaderController {
                              Model model) {
         ReaderData data = readerService.getReaderData(translationId);
 
-        readerService.markTranslationOpenedIfAuthenticated(translationId);
-        readerService.markChapterReadIfAuthenticated(data.getTranslation().getChapter().getId());
-
         int totalPages = data.getPages().size();
         int initialPage = page != null
                 ? Math.min(Math.max(page, 1), totalPages)
                 : Math.min(Math.max(readerService.getSavedPageIfAuthenticated(translationId), 1), totalPages);
+
+        readerService.markTranslationOpenedIfAuthenticated(translationId);
 
         boolean isLogged = request.getUserPrincipal() != null;
         boolean inCollections = false;
@@ -72,11 +71,9 @@ public class ReaderController {
         return "reader/reader-page";
     }
 
-
     @PostMapping("/{translationId}/progress")
     @ResponseBody
-    public ResponseEntity<?> saveProgress(@PathVariable Integer translationId,
-                                          @RequestParam Integer page) {
+    public ResponseEntity<?> saveProgress(@PathVariable Integer translationId, @RequestParam Integer page) {
         readerService.saveProgressIfAuthenticated(translationId, page);
         return ResponseEntity.ok(Map.of("status", "ok", "page", page));
     }
@@ -96,5 +93,4 @@ public class ReaderController {
                 "languages", languages
         );
     }
-
 }

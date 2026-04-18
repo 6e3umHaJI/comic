@@ -8,11 +8,16 @@ import java.util.Set;
 
 public interface ReaderService {
     ReaderData getReaderData(Integer translationId);
-    void markChapterReadIfAuthenticated(Integer chapterId);
-    void markTranslationOpenedIfAuthenticated(Integer translationId);
-    Integer getSavedPageIfAuthenticated(Integer translationId);
-    void saveProgressIfAuthenticated(Integer translationId, Integer page);
+
     Integer getFirstAvailableTranslationId(Integer comicId);
+
     ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId);
+
     Set<Integer> getReadTranslationIdsIfAuthenticated(List<Integer> translationIds);
+
+    void markTranslationOpenedIfAuthenticated(Integer translationId);
+
+    Integer getSavedPageIfAuthenticated(Integer translationId);
+
+    void saveProgressIfAuthenticated(Integer translationId, Integer page);
 }

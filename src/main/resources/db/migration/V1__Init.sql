@@ -131,12 +131,6 @@ CREATE TABLE IF NOT EXISTS pages (
     image_path TEXT NOT NULL
     );
 
-CREATE TABLE IF NOT EXISTS read_chapters (
-                                             user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    chapter_id INT REFERENCES chapters(chapter_id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, chapter_id)
-    );
-
 CREATE TABLE IF NOT EXISTS ratings (
                                        rating_id SERIAL PRIMARY KEY,
                                        user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
@@ -242,18 +236,21 @@ CREATE TRIGGER trg_update_comic_timestamp
     EXECUTE FUNCTION update_comic_timestamp();
 
 CREATE OR REPLACE FUNCTION recalc_comic_popularity()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS
+$$
 DECLARE
-v_comic_id    INT;
-    total_reads   BIGINT;
+v_comic_id INT;
+    total_reads BIGINT;
     total_ratings BIGINT;
-    v_avg_rating  NUMERIC;
-    total_saves   BIGINT;
+    v_avg_rating NUMERIC;
+    total_saves BIGINT;
 BEGIN
-    IF TG_TABLE_NAME = 'read_chapters' THEN
-SELECT ch.comic_id INTO v_comic_id
-FROM chapters ch
-WHERE ch.chapter_id = COALESCE(NEW.chapter_id, OLD.chapter_id);
+    IF TG_TABLE_NAME = 'read_progress' THEN
+SELECT ch.comic_id
+INTO v_comic_id
+FROM translations t
+         JOIN chapters ch ON ch.chapter_id = t.chapter_id
+WHERE t.translation_id = COALESCE(NEW.translation_id, OLD.translation_id);
 
 ELSIF TG_TABLE_NAME = 'ratings' THEN
         v_comic_id := COALESCE(NEW.comic_id, OLD.comic_id);
@@ -262,10 +259,15 @@ ELSIF TG_TABLE_NAME = 'ratings' THEN
         v_comic_id := COALESCE(NEW.comic_id, OLD.comic_id);
 END IF;
 
-SELECT COUNT(DISTINCT rc.user_id)
+    IF v_comic_id IS NULL THEN
+        RETURN COALESCE(NEW, OLD);
+END IF;
+
+SELECT COUNT(DISTINCT rp.user_id)
 INTO total_reads
-FROM read_chapters rc
-         JOIN chapters ch ON rc.chapter_id = ch.chapter_id
+FROM read_progress rp
+         JOIN translations t ON t.translation_id = rp.translation_id
+         JOIN chapters ch ON ch.chapter_id = t.chapter_id
 WHERE ch.comic_id = v_comic_id;
 
 SELECT COUNT(r.rating_id), AVG(rs.value)
@@ -280,14 +282,15 @@ FROM saved_comics sc
 WHERE sc.comic_id = v_comic_id;
 
 UPDATE comics c
-SET popularity_score = COALESCE(total_reads,0)*2
-    + COALESCE(total_saves,0)
-    + COALESCE(v_avg_rating,0)*5
+SET popularity_score = COALESCE(total_reads, 0) * 2
+    + COALESCE(total_saves, 0)
+    + COALESCE(v_avg_rating, 0) * 5
 WHERE c.comic_id = v_comic_id;
 
 RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION recalc_comic_avg_rating()
 RETURNS TRIGGER AS $$
@@ -315,10 +318,11 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_popularity_after_read
-    AFTER INSERT OR DELETE ON read_chapters
+CREATE TRIGGER trg_popularity_after_read_progress
+    AFTER INSERT OR DELETE ON read_progress
 FOR EACH ROW
 EXECUTE FUNCTION recalc_comic_popularity();
+
 
 CREATE TRIGGER trg_popularity_after_rating
     AFTER INSERT OR DELETE ON ratings

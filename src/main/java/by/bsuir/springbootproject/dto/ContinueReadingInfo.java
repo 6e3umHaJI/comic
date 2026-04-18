@@ -9,4 +9,5 @@ public class ContinueReadingInfo {
     private final Integer translationId;
     private final Integer chapterNumber;
     private final String languageName;
+    private final Integer currentPage;
 }
