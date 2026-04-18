@@ -55,8 +55,35 @@ public class ComicController {
         model.addAttribute("isLogged", request.getUserPrincipal() != null);
 
         model.addAttribute("chaptersPageSize", Values.CHAPTERS_PAGE_SIZE);
-        model.addAttribute("startReadingTranslationId", readerService.getFirstAvailableTranslationId(id));
+        Translation firstApprovedTranslation = translationRepository.findFirstApprovedByComic(id, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        model.addAttribute("startReadingTranslationId", firstApprovedTranslation != null ? firstApprovedTranslation.getId() : null);
         model.addAttribute("continueReading", readerService.getContinueReadingInfoIfAuthenticated(id));
+
+        if (firstApprovedTranslation != null) {
+            Integer startReadingChapterId = firstApprovedTranslation.getChapter().getId();
+            Integer startReadingChapterNumber = firstApprovedTranslation.getChapter().getChapterNumber();
+
+            String startReadingLangsCsv = translationRepository.findApprovedLangsByChapterIds(List.of(startReadingChapterId))
+                    .stream()
+                    .filter(row -> row[0] != null && ((Number) row[0]).intValue() == startReadingChapterId)
+                    .map(row -> (String) row[1])
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .reduce((left, right) -> left + "," + right)
+                    .orElse("");
+
+            model.addAttribute("startReadingChapterId", startReadingChapterId);
+            model.addAttribute("startReadingChapterNumber", startReadingChapterNumber);
+            model.addAttribute("startReadingLangsCsv", startReadingLangsCsv);
+        } else {
+            model.addAttribute("startReadingChapterId", null);
+            model.addAttribute("startReadingChapterNumber", null);
+            model.addAttribute("startReadingLangsCsv", "");
+        }
 
         if (request.getUserPrincipal() != null) {
             Integer userId = securityContextUtils.getUserFromContext()

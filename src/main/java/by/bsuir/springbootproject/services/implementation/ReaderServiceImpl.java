@@ -132,6 +132,16 @@ public class ReaderServiceImpl implements ReaderService {
 
     @Override
     @Transactional
+    public void markChapterReadIfAuthenticated(Integer chapterId) {
+        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
+                insert into read_chapters(user_id, chapter_id)
+                values (?, ?)
+                on conflict do nothing
+                """, user.getId(), chapterId));
+    }
+
+    @Override
+    @Transactional
     public void markTranslationOpenedIfAuthenticated(Integer translationId) {
         securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
                 insert into read_progress(user_id, translation_id, current_page, updated_at)

@@ -189,10 +189,15 @@
                         </c:when>
 
                         <c:otherwise>
-                            <c:if test="${startReadingTranslationId != null}">
-                                <a href="<c:url value='/read/${startReadingTranslationId}'/>" class="btn">
+                            <c:if test="${startReadingChapterId != null}">
+                                <button type="button"
+                                        id="startReadingBtn"
+                                        class="btn"
+                                        data-start-chapter-id="${startReadingChapterId}"
+                                        data-start-chapter-number="${startReadingChapterNumber}"
+                                        data-start-langs="${startReadingLangsCsv}">
                                     Начать читать
-                                </a>
+                                </button>
                             </c:if>
                         </c:otherwise>
                     </c:choose>
@@ -515,6 +520,7 @@
       const trLangSelect = document.getElementById("trLangSelect");
       const trList = document.getElementById("trList");
       const trMore = document.getElementById("trMore");
+      const startReadingBtn = document.getElementById("startReadingBtn");
 
       let trChapterId = null;
       let trPage = 0;
@@ -620,6 +626,17 @@
       window.addEventListener("keydown", (e) => { if (e.key === "Escape" && trModal && trModal.style.display === "flex") closeTranslationsModal(); });
       if (trLangSelect) trLangSelect.addEventListener("change", () => { trPage = 0; loadTranslations(false); });
       if (trMore) trMore.addEventListener("click", () => { trPage++; loadTranslations(true); });
+      if (startReadingBtn) {
+          startReadingBtn.addEventListener("click", () => {
+              const chapterId = startReadingBtn.dataset.startChapterId;
+              const chapterNumber = startReadingBtn.dataset.startChapterNumber || "";
+              const langsCsv = startReadingBtn.dataset.startLangs || "";
+
+              if (!chapterId) return;
+
+              openTranslationsModal(chapterId, langsCsv, chapterNumber);
+          });
+      }
 
       tabContent.addEventListener("click", (e) => {
         if (e.target && e.target.id === "relatedPrev") { e.preventDefault(); relatedPage--; fetchRelated(); return; }
