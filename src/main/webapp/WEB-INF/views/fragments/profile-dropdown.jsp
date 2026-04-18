@@ -2,7 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 
 <c:choose>
-    <c:when test="${hasNotifications}">
+    <c:when test="${hasUnreadNotifications}">
         <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
     </c:when>
     <c:otherwise>
@@ -26,7 +26,9 @@
               style="-webkit-mask-image:url('${profileNotificationIconUrl}'); mask-image:url('${profileNotificationIconUrl}');"></span>
         <span class="profile-dropdown-item-main">
             <span>Оповещения</span>
-            <span class="profile-dropdown-item-count js-profile-notification-count">${notificationCountLabel}</span>
+            <span class="profile-dropdown-item-count js-profile-notification-count">
+                ${notificationCount > 99 ? '99+' : notificationCount}
+            </span>
         </span>
     </a>
 

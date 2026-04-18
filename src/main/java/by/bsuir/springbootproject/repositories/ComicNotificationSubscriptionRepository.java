@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -18,7 +19,20 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
 
     boolean existsByUser_IdAndComic_Id(Integer userId, Integer comicId);
 
-    void deleteByUser_IdAndComic_Id(Integer userId, Integer comicId);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ComicNotificationSubscription s where s.user.id = :userId and s.comic.id = :comicId")
+    int deleteByUserIdAndComicId(Integer userId, Integer comicId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    insert into comic_notification_subscriptions (user_id, comic_id, created_at)
+                    values (:userId, :comicId, current_timestamp)
+                    on conflict (user_id, comic_id) do nothing
+                    """,
+            nativeQuery = true
+    )
+    int insertIgnore(Integer userId, Integer comicId);
 
     @EntityGraph(attributePaths = {"comic"})
     @Query(

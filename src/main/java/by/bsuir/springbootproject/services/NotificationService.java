@@ -16,6 +16,8 @@ public interface NotificationService {
 
     long getNotificationCount(Integer userId);
 
+    long getUnreadNotificationCount(Integer userId);
+
     boolean isComicSubscribed(Integer userId, Integer comicId);
 
     NotificationToggleResult toggleComicSubscription(Integer userId, Integer comicId);

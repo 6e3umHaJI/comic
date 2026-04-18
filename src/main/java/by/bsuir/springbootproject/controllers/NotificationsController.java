@@ -83,11 +83,12 @@ public class NotificationsController {
 
         boolean deleted = notificationService.deleteNotification(user.getId(), notificationId);
         long notificationCount = notificationService.getNotificationCount(user.getId());
+        long unreadNotificationCount = notificationService.getUnreadNotificationCount(user.getId());
 
         return Map.of(
                 "success", deleted,
                 "notificationCount", notificationCount,
-                "hasNotifications", notificationCount > 0
+                "unreadNotificationCount", unreadNotificationCount
         );
     }
 }

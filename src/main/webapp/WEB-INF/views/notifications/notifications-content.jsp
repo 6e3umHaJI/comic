@@ -9,7 +9,9 @@
 <div class="notifications-panel js-notifications-state"
      data-tab="${tab}"
      data-notification-count="${notificationCount}"
-     data-has-notifications="${hasNotifications}">
+     data-unread-notification-count="${unreadNotificationCount}"
+     data-has-unread-notifications="${hasUnreadNotifications}">
+
 
     <c:choose>
         <c:when test="${tab == 'subscriptions'}">
@@ -49,18 +51,20 @@
                                     </a>
 
                                     <button type="button"
-                                            class="btn btn-outline icon-only-btn notification-action-btn notification-sub-toggle js-notification-toggle"
+                                            class="btn btn-outline icon-only-btn notification-action-btn notification-sub-toggle js-notification-toggle is-active"
                                             data-comic-id="${item.comicId}"
                                             data-authenticated="true"
                                             data-icon-only="true"
                                             data-toggle-url="<c:url value='/notifications/toggle'/>"
                                             data-icon-on-url="${notificationIconOnUrl}"
                                             data-icon-off-url="${notificationIconOffUrl}"
+                                            data-subscribed="true"
                                             title="Отключить оповещения"
                                             aria-label="Отключить оповещения">
                                         <span class="btn-icon js-notification-toggle-icon"
                                               style="-webkit-mask-image:url('${notificationIconOnUrl}'); mask-image:url('${notificationIconOnUrl}');"></span>
                                     </button>
+
                                 </div>
 
                                 <div class="notification-sub-body">

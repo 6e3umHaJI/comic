@@ -18,7 +18,6 @@
     <main class="main container notifications-page">
         <div class="notifications-head">
             <h1>Оповещения</h1>
-            <p>Все уведомления по тайтлам, переводам и действиям администрации.</p>
         </div>
 
         <div class="tab-buttons notifications-tab-buttons">

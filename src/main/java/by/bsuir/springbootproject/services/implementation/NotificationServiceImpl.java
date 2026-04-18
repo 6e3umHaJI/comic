@@ -16,6 +16,8 @@ import by.bsuir.springbootproject.repositories.NotificationRepository;
 import by.bsuir.springbootproject.repositories.NotificationTypeRepository;
 import by.bsuir.springbootproject.repositories.UserRepository;
 import by.bsuir.springbootproject.services.NotificationService;
+import java.util.Objects;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -101,21 +103,41 @@ public class NotificationServiceImpl implements NotificationService {
             mv.addObject("feedItems", items);
             applyPagination(mv, pageData);
 
-            notificationRepository.markAllAsReadByUserId(userId);
+            List<Integer> idsToMarkRead = pageData.getContent().stream()
+                    .filter(notification -> !Boolean.TRUE.equals(notification.getIsRead()))
+                    .map(Notification::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            if (!idsToMarkRead.isEmpty()) {
+                notificationRepository.markAsReadByIds(idsToMarkRead);
+            }
         }
 
         long notificationCount = getNotificationCount(userId);
+        long unreadNotificationCount = getUnreadNotificationCount(userId);
+
         mv.addObject("notificationCount", notificationCount);
-        mv.addObject("hasNotifications", notificationCount > 0);
+        mv.addObject("notificationCountLabel", notificationCount > 99 ? "99+" : String.valueOf(notificationCount));
+        mv.addObject("unreadNotificationCount", unreadNotificationCount);
+        mv.addObject("hasUnreadNotifications", unreadNotificationCount > 0);
 
         return mv;
     }
+
 
     @Override
     @Transactional(readOnly = true)
     public long getNotificationCount(Integer userId) {
         return notificationRepository.countByUser_Id(userId);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getUnreadNotificationCount(Integer userId) {
+        return notificationRepository.countByUser_IdAndIsReadFalse(userId);
+    }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -128,24 +150,20 @@ public class NotificationServiceImpl implements NotificationService {
         comicRepository.findById(comicId)
                 .orElseThrow(() -> new IllegalArgumentException("Комикс не найден"));
 
-        boolean subscribed;
+        boolean alreadySubscribed = subscriptionRepository.existsByUser_IdAndComic_Id(userId, comicId);
 
-        if (subscriptionRepository.existsByUser_IdAndComic_Id(userId, comicId)) {
-            subscriptionRepository.deleteByUser_IdAndComic_Id(userId, comicId);
-            subscribed = false;
-        } else {
-            subscriptionRepository.save(
-                    ComicNotificationSubscription.builder()
-                            .user(userRepository.getReferenceById(userId))
-                            .comic(comicRepository.getReferenceById(comicId))
-                            .createdAt(LocalDateTime.now())
-                            .build()
-            );
-            subscribed = true;
+        if (alreadySubscribed) {
+            subscriptionRepository.deleteByUserIdAndComicId(userId, comicId);
+            return new NotificationToggleResult(comicId, false);
         }
 
-        return new NotificationToggleResult(comicId, subscribed);
+        subscriptionRepository.insertIgnore(userId, comicId);
+
+        boolean subscribedNow = subscriptionRepository.existsByUser_IdAndComic_Id(userId, comicId);
+        return new NotificationToggleResult(comicId, subscribedNow);
     }
+
+
 
     @Override
     public boolean deleteNotification(Integer userId, Integer notificationId) {

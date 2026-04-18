@@ -99,8 +99,19 @@
 
 .reader-notification-btn.is-active {
     border-color: var(--border);
+    background: var(--card);
     color: var(--accent);
 }
+
+.reader-notification-btn:hover,
+.reader-notification-btn:focus-visible,
+.reader-notification-btn.is-active:hover,
+.reader-notification-btn.is-active:focus-visible {
+    border-color: var(--accent);
+    background: rgba(150, 150, 150, 0.08);
+    color: var(--accent);
+}
+
 
 .reader-icon-btn.is-disabled {
     opacity: 0.45;

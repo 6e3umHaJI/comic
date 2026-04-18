@@ -51,52 +51,59 @@
                 <a href="<c:url value='/auth/login'/>" class="btn">Войти</a>
             </sec:authorize>
 
-           <sec:authorize access="isAuthenticated()">
-               <div class="profile-menu-wrap">
-                   <button class="btn" id="profileMenuToggle" type="button" aria-expanded="false">
-                       <span class="btn-icon"
-                             style="-webkit-mask-image:url('<c:url value="/assets/icons/user.svg"/>'); mask-image:url('<c:url value="/assets/icons/user.svg"/>');"></span>
-                   </button>
+            <sec:authorize access="isAuthenticated()">
+                <div class="profile-menu-wrap">
+                    <button class="btn" id="profileMenuToggle" type="button" aria-expanded="false">
+                        <span class="btn-icon"
+                              style="-webkit-mask-image:url('<c:url value="/assets/icons/user.svg"/>'); mask-image:url('<c:url value="/assets/icons/user.svg"/>');"></span>
+                    </button>
 
-                   <div id="profileDropdown" class="profile-dropdown" hidden>
-                       <a href="<c:url value='/collections'/>" class="profile-dropdown-item">
-                           <span class="profile-menu-icon"
-                                 style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
-                           <span>Коллекция</span>
-                       </a>
+                    <div id="profileDropdown" class="profile-dropdown" hidden>
+                        <a href="<c:url value='/collections'/>" class="profile-dropdown-item">
+                            <span class="profile-menu-icon"
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/collection.svg"/>'); mask-image:url('<c:url value="/assets/icons/collection.svg"/>');"></span>
+                            <span class="profile-dropdown-item-main">
+                                <span>Коллекция</span>
+                            </span>
+                        </a>
 
-                       <c:choose>
-                           <c:when test="${hasUnreadNotifications}">
-                               <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
-                           </c:when>
-                           <c:otherwise>
-                               <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
-                           </c:otherwise>
-                       </c:choose>
+                        <c:choose>
+                            <c:when test="${hasUnreadNotifications}">
+                                <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
+                            </c:when>
+                            <c:otherwise>
+                                <c:url var="profileNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
+                            </c:otherwise>
+                        </c:choose>
 
-                       <a href="<c:url value='/notifications'/>" class="profile-dropdown-item">
-                           <span class="profile-menu-icon js-header-notification-icon"
-                                 data-on-icon-url="<c:url value='/assets/icons/notification-on.svg'/>"
-                                 data-off-icon-url="<c:url value='/assets/icons/notification-off.svg'/>"
-                                 style="-webkit-mask-image:url('${profileNotificationIconUrl}'); mask-image:url('${profileNotificationIconUrl}');"></span>
-                           <span>Оповещения</span>
-                       </a>
+                        <a href="<c:url value='/notifications'/>" class="profile-dropdown-item">
+                            <span class="profile-menu-icon js-header-notification-icon"
+                                  data-on-icon-url="<c:url value='/assets/icons/notification-on.svg'/>"
+                                  data-off-icon-url="<c:url value='/assets/icons/notification-off.svg'/>"
+                                  style="-webkit-mask-image:url('${profileNotificationIconUrl}'); mask-image:url('${profileNotificationIconUrl}');"></span>
+                            <span class="profile-dropdown-item-main">
+                                <span>Оповещения</span>
+                                <span class="profile-dropdown-item-count js-profile-notification-count">
+                                    ${notificationCount > 99 ? '99+' : notificationCount}
+                                </span>
+                            </span>
+                        </a>
 
-                       <a href="#" class="profile-dropdown-item">
-                           <span class="profile-menu-icon"
-                                 style="-webkit-mask-image:url('<c:url value="/assets/icons/upload.svg"/>'); mask-image:url('<c:url value="/assets/icons/upload.svg"/>');"></span>
-                           <span>Мои главы</span>
-                       </a>
-                   </div>
-               </div>
+                        <a href="#" class="profile-dropdown-item">
+                            <span class="profile-menu-icon"
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/upload.svg"/>'); mask-image:url('<c:url value="/assets/icons/upload.svg"/>');"></span>
+                            <span class="profile-dropdown-item-main">
+                                <span>Мои главы</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
 
-               <a href="<c:url value='/auth/logout'/>" class="btn btn-outline">
-                   <span class="btn-icon"
-                         style="-webkit-mask-image:url('<c:url value="/assets/icons/logout.svg"/>'); mask-image:url('<c:url value="/assets/icons/logout.svg"/>');"></span>
-               </a>
-           </sec:authorize>
-
-
+                <a href="<c:url value='/auth/logout'/>" class="btn btn-outline">
+                    <span class="btn-icon"
+                          style="-webkit-mask-image:url('<c:url value="/assets/icons/logout.svg"/>'); mask-image:url('<c:url value="/assets/icons/logout.svg"/>');"></span>
+                </a>
+            </sec:authorize>
         </div>
     </div>
 </header>

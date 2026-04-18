@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,9 +20,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
 
     long countByUser_Id(Integer userId);
 
+    long countByUser_IdAndIsReadFalse(Integer userId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Notification n set n.isRead = true where n.user.id = :userId and n.isRead = false")
-    void markAllAsReadByUserId(Integer userId);
+    @Query("update Notification n set n.isRead = true where n.id in :ids and n.isRead = false")
+    void markAsReadByIds(List<Integer> ids);
 
     Optional<Notification> findByIdAndUser_Id(Integer id, Integer userId);
 }

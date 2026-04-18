@@ -1,4 +1,9 @@
 (() => {
+    if (window.__comicNotificationsScriptInitialized) {
+        return;
+    }
+    window.__comicNotificationsScriptInitialized = true;
+
     function openAuthRequiredModal() {
         const modal = document.getElementById('authRequiredModal');
         if (modal) {
@@ -20,19 +25,20 @@
         return value > 99 ? '99+' : String(Math.max(value, 0));
     }
 
-    function updateHeaderNotificationState(count) {
-        const numericCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+    function updateHeaderNotificationState(totalCount, unreadCount) {
+        const numericTotalCount = Number.isFinite(Number(totalCount)) ? Number(totalCount) : 0;
+        const numericUnreadCount = Number.isFinite(Number(unreadCount)) ? Number(unreadCount) : 0;
 
         const icon = document.querySelector('.js-header-notification-icon');
         if (icon) {
             const onUrl = icon.dataset.onIconUrl;
             const offUrl = icon.dataset.offIconUrl;
-            setMaskIcon(icon, numericCount > 0 ? onUrl : offUrl);
+            setMaskIcon(icon, numericUnreadCount > 0 ? onUrl : offUrl);
         }
 
         const badge = document.querySelector('.js-profile-notification-count');
         if (badge) {
-            badge.textContent = formatCount(numericCount);
+            badge.textContent = formatCount(numericTotalCount);
         }
     }
 
@@ -54,6 +60,14 @@
     function updateAllNotificationButtons(comicId, subscribed) {
         document.querySelectorAll(`.js-notification-toggle[data-comic-id="${comicId}"]`)
             .forEach((button) => updateNotificationButton(button, subscribed));
+    }
+
+    function setButtonsPending(comicId, pending) {
+        document.querySelectorAll(`.js-notification-toggle[data-comic-id="${comicId}"]`)
+            .forEach((button) => {
+                button.disabled = pending;
+                button.dataset.notificationRequestPending = pending ? 'true' : 'false';
+            });
     }
 
     function getNotificationsPageNodes() {
@@ -80,12 +94,31 @@
             return;
         }
 
-        const count = Number(stateNode.dataset.notificationCount || 0);
+        const totalCount = Number(stateNode.dataset.notificationCount || 0);
+        const unreadCount = Number(stateNode.dataset.unreadNotificationCount || 0);
         const tab = stateNode.dataset.tab || 'feed';
 
-        updateHeaderNotificationState(count);
+        updateHeaderNotificationState(totalCount, unreadCount);
         setActiveTab(tab);
         page.dataset.tab = tab;
+    }
+
+    function resolveCurrentPageIndexFromContent(content) {
+        if (!content) {
+            return 0;
+        }
+
+        const activePageLink = content.querySelector('.pagination a.active-page');
+        if (activePageLink) {
+            const activePageNumber = parseInt(activePageLink.textContent.trim(), 10);
+            if (Number.isFinite(activePageNumber) && activePageNumber > 0) {
+                return activePageNumber - 1;
+            }
+        }
+
+        const url = new URL(window.location.href);
+        const raw = parseInt(url.searchParams.get('page') || '0', 10);
+        return Number.isFinite(raw) && raw >= 0 ? raw : 0;
     }
 
     function loadNotificationsPartial(url, pushState) {
@@ -121,6 +154,10 @@
         if (toggleButton) {
             event.preventDefault();
 
+            if (toggleButton.dataset.notificationRequestPending === 'true') {
+                return;
+            }
+
             const isAuthenticated = toggleButton.dataset.authenticated === 'true';
             if (!isAuthenticated) {
                 openAuthRequiredModal();
@@ -129,6 +166,8 @@
 
             const comicId = toggleButton.dataset.comicId;
             const toggleUrl = toggleButton.dataset.toggleUrl || '/notifications/toggle';
+
+            setButtonsPending(comicId, true);
 
             fetch(toggleUrl, {
                 method: 'POST',
@@ -153,18 +192,21 @@
 
                     updateAllNotificationButtons(String(json.comicId), Boolean(json.subscribed));
                 })
-                .catch(() => {});
+                .catch(() => {})
+                .finally(() => {
+                    setButtonsPending(comicId, false);
+                });
 
+            return;
+        }
+
+        const { page, content } = getNotificationsPageNodes();
+        if (!page || !content) {
             return;
         }
 
         const tabButton = event.target.closest('.notifications-tab-btn');
         if (tabButton) {
-            const { page } = getNotificationsPageNodes();
-            if (!page) {
-                return;
-            }
-
             event.preventDefault();
 
             const url = new URL(window.location.href);
@@ -182,12 +224,7 @@
         }
 
         const paginationLink = event.target.closest('.pagination a');
-        if (paginationLink) {
-            const { page } = getNotificationsPageNodes();
-            if (!page || !paginationLink.href) {
-                return;
-            }
-
+        if (paginationLink && paginationLink.href) {
             event.preventDefault();
             loadNotificationsPartial(new URL(paginationLink.href, window.location.origin), true);
             return;
@@ -197,15 +234,17 @@
         if (deleteButton) {
             event.preventDefault();
 
-            const { content } = getNotificationsPageNodes();
             const deleteUrl = deleteButton.dataset.deleteUrl;
             const notificationId = deleteButton.dataset.notificationId;
-            const currentUrl = new URL(window.location.href);
-            const cardsOnPage = content ? content.querySelectorAll('.notification-card').length : 0;
-            const currentPage = parseInt(currentUrl.searchParams.get('page') || '0', 10);
 
-            if (cardsOnPage === 1 && currentPage > 0) {
-                currentUrl.searchParams.set('page', String(currentPage - 1));
+            const currentPageIndex = resolveCurrentPageIndexFromContent(content);
+            const currentUrl = new URL(window.location.href);
+            const cardsOnPage = content.querySelectorAll('.notification-card').length;
+
+            currentUrl.searchParams.set('page', String(currentPageIndex));
+
+            if (cardsOnPage === 1 && currentPageIndex > 0) {
+                currentUrl.searchParams.set('page', String(currentPageIndex - 1));
             }
 
             fetch(deleteUrl, {
@@ -222,8 +261,12 @@
                         throw new Error('delete failed');
                     }
 
-                    updateHeaderNotificationState(Number(json.notificationCount || 0));
-                    loadNotificationsPartial(currentUrl, false);
+                    updateHeaderNotificationState(
+                        Number(json.notificationCount || 0),
+                        Number(json.unreadNotificationCount || 0)
+                    );
+
+                    loadNotificationsPartial(currentUrl, true);
                 })
                 .catch(() => {});
 

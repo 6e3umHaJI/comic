@@ -20,8 +20,13 @@ public class GlobalViewModelAdvice {
                 .map(user -> notificationService.getNotificationCount(user.getId()))
                 .orElse(0L);
 
+        long unreadNotificationCount = securityContextUtils.getUserFromContext()
+                .map(user -> notificationService.getUnreadNotificationCount(user.getId()))
+                .orElse(0L);
+
         model.addAttribute("notificationCount", notificationCount);
         model.addAttribute("notificationCountLabel", notificationCount > 99 ? "99+" : String.valueOf(notificationCount));
-        model.addAttribute("hasNotifications", notificationCount > 0);
+        model.addAttribute("unreadNotificationCount", unreadNotificationCount);
+        model.addAttribute("hasUnreadNotifications", unreadNotificationCount > 0);
     }
 }

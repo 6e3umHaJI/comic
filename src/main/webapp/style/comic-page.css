@@ -81,6 +81,15 @@
     color: var(--accent);
 }
 
+.notification-action-btn:hover,
+.notification-action-btn:focus-visible,
+.notification-action-btn.is-active:hover,
+.notification-action-btn.is-active:focus-visible {
+    border-color: var(--accent);
+    background: rgba(150, 150, 150, 0.08);
+    color: var(--accent);
+}
+
 
 .comic-right {
     flex: 1;
