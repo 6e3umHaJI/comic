@@ -40,13 +40,13 @@ public class Comic extends BaseEntity {
     @JoinColumn(name = "comic_status_id")
     private ComicStatus comicStatus;
 
-    @Column(name = "short_description", columnDefinition = "TEXT")
+    @Column(name = "short_description", nullable = false, length = 500)
     private String shortDescription;
 
-    @Column(name = "full_description", columnDefinition = "TEXT")
+    @Column(name = "full_description", nullable = false, length = 2000)
     private String fullDescription;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, length = 255)
     private String cover;
 
     @OneToMany(mappedBy = "comic", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

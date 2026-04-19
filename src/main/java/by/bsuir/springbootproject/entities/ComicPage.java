@@ -21,6 +21,6 @@ public class ComicPage extends BaseEntity {
     @Column(name = "page_number", nullable = false)
     private Integer pageNumber;
 
-    @Column(name = "image_path", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "image_path", nullable = false, length = 255)
     private String imagePath;
 }

@@ -48,5 +48,8 @@ public interface NotificationService {
     void notifyComplaintReviewed(Integer userId,
                                  Integer comicId,
                                  String comicTitle,
+                                 Integer translationId,
+                                 Integer chapterNumber,
+                                 String languageName,
                                  String message);
 }

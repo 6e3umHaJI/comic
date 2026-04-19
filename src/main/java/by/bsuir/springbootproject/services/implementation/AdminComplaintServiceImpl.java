@@ -13,6 +13,7 @@ import by.bsuir.springbootproject.repositories.ComplaintStatusRepository;
 import by.bsuir.springbootproject.repositories.ComplaintTypeRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
 import by.bsuir.springbootproject.services.AdminComplaintService;
+import by.bsuir.springbootproject.services.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +24,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +43,7 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
     private final ComplaintStatusRepository complaintStatusRepository;
     private final ComicRepository comicRepository;
     private final TranslationRepository translationRepository;
+    private final NotificationService notificationService;
 
     @Override
     public ModelAndView getComplaintsPage(String scope,
@@ -105,11 +108,103 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
         ComplaintStatus status = complaintStatusRepository.findById(statusId)
                 .orElseThrow(() -> new IllegalArgumentException("Статус не найден."));
 
+        String previousStatusName = complaint.getStatus() != null ? complaint.getStatus().getName() : null;
+        String newStatusName = status.getName();
+
         complaint.setStatus(status);
         complaintRepository.save(complaint);
 
-        return status.getName();
+        if (!newStatusName.equals(previousStatusName)
+                && ("Решена".equals(newStatusName) || "Отклонена".equals(newStatusName))) {
+            sendComplaintResultNotification(complaint, newStatusName);
+        }
+
+        return newStatusName;
     }
+
+    private void sendComplaintResultNotification(Complaint complaint, String newStatusName) {
+        if (complaint.getUser() == null) {
+            return;
+        }
+
+        Integer comicId = null;
+        String comicTitle = null;
+        Integer translationId = null;
+        Integer chapterNumber = null;
+        String languageName = null;
+
+        String scope = complaint.getType() != null && complaint.getType().getScope() != null
+                ? complaint.getType().getScope().trim().toUpperCase(Locale.ROOT)
+                : "";
+
+        if ("COMIC".equals(scope)) {
+            Comic comic = comicRepository.findById(complaint.getTargetId()).orElse(null);
+            if (comic != null) {
+                comicId = comic.getId();
+                comicTitle = comic.getTitle();
+            }
+        } else if ("TRANSLATION".equals(scope)) {
+            Translation translation = translationRepository.findReaderTranslationById(complaint.getTargetId()).orElse(null);
+            if (translation != null) {
+                translationId = translation.getId();
+
+                if (translation.getChapter() != null) {
+                    chapterNumber = translation.getChapter().getChapterNumber();
+
+                    if (translation.getChapter().getComic() != null) {
+                        comicId = translation.getChapter().getComic().getId();
+                        comicTitle = translation.getChapter().getComic().getTitle();
+                    }
+                }
+
+                if (translation.getLanguage() != null) {
+                    languageName = translation.getLanguage().getName();
+                }
+            }
+        }
+
+        String message = buildComplaintResultMessage(complaint, newStatusName);
+
+        notificationService.notifyComplaintReviewed(
+                complaint.getUser().getId(),
+                comicId,
+                comicTitle,
+                translationId,
+                chapterNumber,
+                languageName,
+                message
+        );
+    }
+
+
+    private String buildComplaintResultMessage(Complaint complaint, String statusName) {
+        String resultText = "Решена".equals(statusName)
+                ? "Жалоба подтверждена."
+                : "Жалоба отклонена.";
+
+
+        String typeName = complaint.getType() != null && complaint.getType().getName() != null
+                ? complaint.getType().getName()
+                : "Без типа";
+
+
+        String complaintText = complaint.getDescription() != null && !complaint.getDescription().isBlank()
+                ? complaint.getDescription().trim()
+                : "Без описания";
+
+
+        String sentAt = complaint.getCreatedAt() != null
+                ? complaint.getCreatedAt().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
+                : "дата неизвестна";
+
+
+        return resultText
+                + " Тип: «" + typeName + "»."
+                + " Отправлена: " + sentAt + "."
+                + " Подробное описание: «" + complaintText + "».";
+    }
+
+
 
     private Integer parseTypeId(String typeId, List<ComplaintType> complaintTypes) {
         if (typeId == null || typeId.isBlank()) {

@@ -35,7 +35,7 @@ public class Complaint extends BaseEntity {
     @JoinColumn(name = "target_type_id")
     private ComplaintType type;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(nullable = false, length = 200)
     private String description;
 
     @ManyToOne

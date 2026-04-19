@@ -10,11 +10,7 @@ import by.bsuir.springbootproject.entities.ComicNotificationSubscription;
 import by.bsuir.springbootproject.entities.Notification;
 import by.bsuir.springbootproject.entities.NotificationType;
 import by.bsuir.springbootproject.entities.Translation;
-import by.bsuir.springbootproject.repositories.ComicNotificationSubscriptionRepository;
-import by.bsuir.springbootproject.repositories.ComicRepository;
-import by.bsuir.springbootproject.repositories.NotificationRepository;
-import by.bsuir.springbootproject.repositories.NotificationTypeRepository;
-import by.bsuir.springbootproject.repositories.UserRepository;
+import by.bsuir.springbootproject.repositories.*;
 import by.bsuir.springbootproject.services.NotificationService;
 import java.util.Objects;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -50,10 +46,12 @@ public class NotificationServiceImpl implements NotificationService {
     private static final String TYPE_USER_CHAPTER_DELETED = "Ваша глава была удалена";
     private static final String TYPE_UPLOAD_RIGHTS_REVOKED = "Право на добавление глав ограничено";
     private static final String TYPE_COMPLAINT_REVIEWED = "Ваша жалоба рассмотрена";
+    private static final int MAX_NOTIFICATION_MESSAGE_LENGTH = 300;
 
     private final NotificationRepository notificationRepository;
     private final NotificationTypeRepository notificationTypeRepository;
     private final ComicNotificationSubscriptionRepository subscriptionRepository;
+    private final TranslationRepository translationRepository;
     private final ComicRepository comicRepository;
     private final UserRepository userRepository;
 
@@ -351,22 +349,66 @@ public class NotificationServiceImpl implements NotificationService {
     public void notifyComplaintReviewed(Integer userId,
                                         Integer comicId,
                                         String comicTitle,
+                                        Integer translationId,
+                                        Integer chapterNumber,
+                                        String languageName,
                                         String message) {
         if (userId == null) {
             return;
         }
 
         Comic comic = comicId != null ? comicRepository.findById(comicId).orElse(null) : null;
+        Translation translation = translationId != null ? translationRepository.findById(translationId).orElse(null) : null;
+
         Notification notification = baseNotification(userId, TYPE_COMPLAINT_REVIEWED);
 
         notification.setComic(comic);
-        notification.setComicTitleSnapshot(hasText(comicTitle) ? comicTitle : (comic != null ? comic.getTitle() : null));
-        notification.setLinkPath(comic != null ? "/comics/" + comic.getId() : null);
-        notification.setIsClickable(comic != null);
-        notification.setMessage(hasText(message) ? message : "Ваша жалоба была рассмотрена.");
+        notification.setTranslation(translation);
+        notification.setChapter(translation != null ? translation.getChapter() : null);
+
+        notification.setComicTitleSnapshot(
+                hasText(comicTitle)
+                        ? comicTitle
+                        : comic != null ? comic.getTitle() : null
+        );
+        notification.setChapterNumberSnapshot(
+                chapterNumber != null
+                        ? chapterNumber
+                        : translation != null && translation.getChapter() != null
+                          ? translation.getChapter().getChapterNumber()
+                          : null
+        );
+        notification.setLanguageNameSnapshot(
+                hasText(languageName)
+                        ? languageName
+                        : translation != null && translation.getLanguage() != null
+                          ? translation.getLanguage().getName()
+                          : null
+        );
+
+        if (translation != null) {
+            notification.setLinkPath("/read/" + translation.getId());
+            notification.setIsClickable(true);
+        } else if (comic != null) {
+            notification.setLinkPath("/comics/" + comic.getId());
+            notification.setIsClickable(true);
+        } else {
+            notification.setLinkPath(null);
+            notification.setIsClickable(false);
+        }
+
+        notification.setMessage(trimNotificationMessage(message));
 
         notificationRepository.save(notification);
     }
+
+    private String trimNotificationMessage(String value) {
+        String result = value == null ? "" : value.trim();
+        return result.length() <= MAX_NOTIFICATION_MESSAGE_LENGTH
+                ? result
+                : result.substring(0, MAX_NOTIFICATION_MESSAGE_LENGTH);
+    }
+
 
     private Sort buildNotificationSort(String sortField, String sortDirection) {
         Sort.Direction direction = "asc".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
@@ -489,7 +531,20 @@ public class NotificationServiceImpl implements NotificationService {
 
         return switch (typeName) {
             case TYPE_ADMIN_MESSAGE, TYPE_UPLOAD_RIGHTS_REVOKED -> "Администрация сайта";
-            case TYPE_COMPLAINT_REVIEWED -> hasText(comicTitle) ? comicTitle : "Результат по жалобе";
+            case TYPE_COMPLAINT_REVIEWED -> {
+                Integer chapterNumber = resolveChapterNumber(notification);
+                String languageName = resolveLanguageName(notification);
+
+                if (hasText(comicTitle) && chapterNumber != null && hasText(languageName)) {
+                    yield comicTitle + ". Глава " + chapterNumber + ". " + languageName;
+                }
+
+                if (hasText(comicTitle) && chapterNumber != null) {
+                    yield comicTitle + ". Глава " + chapterNumber;
+                }
+
+                yield hasText(comicTitle) ? comicTitle : "Результат по жалобе";
+            }
             case TYPE_COMIC_REMOVED_FROM_COLLECTION -> hasText(comicTitle) ? comicTitle : "Удалённый тайтл";
             case TYPE_USER_CHAPTER_DELETED -> hasText(comicTitle) ? comicTitle : "Удалённая глава";
             default -> hasText(comicTitle) ? comicTitle : "Комикс";

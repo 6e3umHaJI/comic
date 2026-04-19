@@ -33,9 +33,9 @@
                 <label for="complaintDescription">Описание жалобы</label>
                 <textarea id="complaintDescription"
                           name="description"
-                          maxlength="2000"
+                          maxlength="200"
                           required
-                          placeholder="Опишите проблему подробнее"></textarea>
+                          placeholder="Опишите проблему подробнее(до 200 символов)"></textarea>
             </div>
 
             <div id="complaintFormStatus" class="complaint-form-status hidden"></div>

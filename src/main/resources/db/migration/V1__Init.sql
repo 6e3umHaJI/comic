@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS comics (
     age_rating_id INT REFERENCES age_ratings(age_rating_id),
     release_year INT,
     comic_status_id INT REFERENCES comic_statuses(status_id),
-    short_description TEXT,
-    full_description TEXT,
-    cover TEXT,
+    short_description VARCHAR(500),
+    full_description VARCHAR(2000),
+    cover VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     popularity_score BIGINT DEFAULT 0,
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS pages (
                                      page_id SERIAL PRIMARY KEY,
                                      translation_id INT REFERENCES translations(translation_id) ON DELETE CASCADE,
     page_number INT NOT NULL,
-    image_path TEXT NOT NULL
+    image_path VARCHAR(255) NOT NULL
     );
 
 CREATE TABLE IF NOT EXISTS ratings (
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS complaints (
                                           user_id INT REFERENCES users(user_id),
     target_id INT,
     target_type_id INT,
-    description TEXT,
+    description VARCHAR (200),
     status_id INT REFERENCES complaint_statuses(status_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS notifications (
                                              notification_id SERIAL PRIMARY KEY,
                                              user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
     type_id INT REFERENCES notification_types(type_id),
-    message TEXT,
+    message VARCHAR(300),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     comic_id INT REFERENCES comics(comic_id) ON DELETE SET NULL,
