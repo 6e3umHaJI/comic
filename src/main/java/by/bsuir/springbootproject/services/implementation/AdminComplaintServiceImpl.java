@@ -98,7 +98,7 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
 
     @Override
     @Transactional
-    public void updateComplaintStatus(Integer complaintId, Integer statusId) {
+    public String updateComplaintStatus(Integer complaintId, Integer statusId) {
         Complaint complaint = complaintRepository.findById(complaintId)
                 .orElseThrow(() -> new IllegalArgumentException("Жалоба не найдена."));
 
@@ -107,6 +107,8 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
 
         complaint.setStatus(status);
         complaintRepository.save(complaint);
+
+        return status.getName();
     }
 
     private Integer parseTypeId(String typeId, List<ComplaintType> complaintTypes) {

@@ -52,9 +52,9 @@
         </c:when>
 
         <c:otherwise>
-            <div class="admin-complaints-list">
+            <div class="admin-complaints-list" id="adminComplaintsList">
                 <c:forEach var="item" items="${complaints}">
-                    <article class="admin-complaint-card">
+                    <article class="admin-complaint-card" data-complaint-id="${item.id}">
                         <c:choose>
                             <c:when test="${not empty item.targetUrl}">
                                 <a href="<c:url value='${item.targetUrl}'/>" class="admin-complaint-main">
@@ -140,14 +140,6 @@
                                   action="<c:url value='/admin/complaints/status'/>"
                                   class="admin-complaint-status-form">
                                 <input type="hidden" name="complaintId" value="${item.id}"/>
-                                <input type="hidden" name="scope" value="${scope}"/>
-                                <input type="hidden" name="sortDirection" value="${sortDirection}"/>
-                                <input type="hidden" name="page" value="${currentPage > 0 ? currentPage - 1 : 0}"/>
-                                <input type="hidden" name="q" value="${q}"/>
-
-                                <c:if test="${selectedTypeId != null}">
-                                    <input type="hidden" name="typeId" value="${selectedTypeId}"/>
-                                </c:if>
 
                                 <label for="status-${item.id}" class="admin-complaint-status-label">Статус</label>
                                 <select id="status-${item.id}"

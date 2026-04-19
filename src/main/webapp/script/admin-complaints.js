@@ -26,6 +26,18 @@
         const scope = state.dataset.scope || 'TRANSLATION';
         page.dataset.scope = scope;
         setActiveScope(scope);
+
+        content.querySelectorAll('.js-admin-complaint-status-select').forEach((select) => {
+            const form = select.closest('.admin-complaint-status-form');
+            const confirmBtn = form ? form.querySelector('.js-admin-complaint-confirm-btn') : null;
+            if (!confirmBtn) {
+                return;
+            }
+
+            const initialValue = String(select.dataset.initialValue || '');
+            const currentValue = String(select.value || '');
+            confirmBtn.classList.toggle('hidden', initialValue === currentValue);
+        });
     }
 
     function loadPartial(url, pushState) {
@@ -58,6 +70,47 @@
             });
     }
 
+    function updateStatusBadge(card, statusName) {
+        const badge = card.querySelector('.admin-complaint-status-badge');
+        if (!badge) {
+            return;
+        }
+
+        badge.textContent = statusName;
+        badge.classList.remove('is-pending', 'is-review', 'is-success', 'is-rejected');
+
+        if (statusName === 'Ожидание') {
+            badge.classList.add('is-pending');
+        } else if (statusName === 'На рассмотрении') {
+            badge.classList.add('is-review');
+        } else if (statusName === 'Решена') {
+            badge.classList.add('is-success');
+        } else if (statusName === 'Отклонена') {
+            badge.classList.add('is-rejected');
+        }
+    }
+
+    function showEmptyStateIfNeeded() {
+        const { content } = getNodes();
+        if (!content) {
+            return;
+        }
+
+        const list = content.querySelector('#adminComplaintsList');
+        if (!list) {
+            return;
+        }
+
+        if (list.querySelector('.admin-complaint-card')) {
+            return;
+        }
+
+        const emptyState = document.createElement('div');
+        emptyState.className = 'admin-complaints-empty';
+        emptyState.textContent = 'По выбранным параметрам жалоб не найдено.';
+        list.replaceWith(emptyState);
+    }
+
     document.addEventListener('click', (event) => {
         const { page } = getNodes();
         if (!page) {
@@ -81,7 +134,6 @@
         if (paginationLink && paginationLink.href) {
             event.preventDefault();
             loadPartial(new URL(paginationLink.href, window.location.origin), true);
-            return;
         }
     });
 
@@ -109,8 +161,55 @@
             });
 
             url.searchParams.set('page', '0');
+
             loadPartial(url, true);
             return;
+        }
+
+        const statusForm = event.target.closest('.admin-complaint-status-form');
+        if (statusForm) {
+            event.preventDefault();
+
+            const select = statusForm.querySelector('.js-admin-complaint-status-select');
+            const confirmBtn = statusForm.querySelector('.js-admin-complaint-confirm-btn');
+            const card = statusForm.closest('.admin-complaint-card');
+            if (!select || !confirmBtn || !card) {
+                return;
+            }
+
+            confirmBtn.disabled = true;
+
+            fetch(statusForm.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    complaintId: statusForm.querySelector('input[name="complaintId"]').value,
+                    statusId: select.value
+                }).toString()
+            })
+                .then((response) => response.json())
+                .then((json) => {
+                    if (!json || !json.success) {
+                        throw new Error(json?.message || 'Не удалось обновить статус.');
+                    }
+
+                    if (json.removed) {
+                        card.remove();
+                        showEmptyStateIfNeeded();
+                        return;
+                    }
+
+                    updateStatusBadge(card, json.statusName);
+                    select.dataset.initialValue = String(json.statusId);
+                    confirmBtn.classList.add('hidden');
+                })
+                .catch(() => {})
+                .finally(() => {
+                    confirmBtn.disabled = false;
+                });
         }
     });
 

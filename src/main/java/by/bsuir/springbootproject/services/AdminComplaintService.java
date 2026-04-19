@@ -9,5 +9,5 @@ public interface AdminComplaintService {
                                    String sortDirection,
                                    int page);
 
-    void updateComplaintStatus(Integer complaintId, Integer statusId);
+    String updateComplaintStatus(Integer complaintId, Integer statusId);
 }

@@ -54,6 +54,10 @@
     box-sizing: border-box;
 }
 
+.admin-complaints-content {
+    min-height: 120px;
+}
+
 .admin-complaints-filters {
     display: flex;
     align-items: end;
@@ -388,4 +392,8 @@
     .admin-complaint-date {
         white-space: normal;
     }
+}
+
+.admin-complaint-confirm-btn.hidden {
+    display: none !important;
 }
