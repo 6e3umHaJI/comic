@@ -115,6 +115,7 @@
                 <input type="text"
                        id="collectionsSearchInput"
                        name="q"
+                       maxlength="255"
                        placeholder="Поиск по названию или оригиналу"
                        value="${q}">
                 <button type="submit" class="btn">Найти</button>

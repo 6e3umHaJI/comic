@@ -23,6 +23,7 @@
                     <input type="text"
                            name="q"
                            value="${q}"
+                           maxlength="255"
                            placeholder="Поиск по названию или оригиналу">
                     <button type="submit" class="btn">Найти</button>
                 </form>

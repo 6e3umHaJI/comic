@@ -1,4 +1,19 @@
 (() => {
+    const LIMITS = {
+        genreName: 50,
+        tagName: 50,
+        relationTypeName: 50,
+        lookupSearch: 50,
+        comicSearch: 255,
+        releaseYearLength: 4,
+        minReleaseYear: 1900,
+        maxReleaseYear: 2100,
+        comicTitle: 255,
+        originalTitle: 255,
+        shortDescription: 500,
+        fullDescription: 2000
+    };
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replaceAll('&', '&amp;')
@@ -10,6 +25,10 @@
 
     function trimEdges(value) {
         return String(value ?? '').trim();
+    }
+
+    function cutTo(value, maxLength) {
+        return String(value ?? '').slice(0, maxLength);
     }
 
     function readLookupState(sourceId, selectable) {
@@ -75,6 +94,16 @@
             .join('');
     }
 
+    function getNameLimitByKind(kind) {
+        if (kind === 'genre') {
+            return LIMITS.genreName;
+        }
+        if (kind === 'tag') {
+            return LIMITS.tagName;
+        }
+        return LIMITS.relationTypeName;
+    }
+
     function renderLookupModalRows(kind, items, query) {
         const rowsWrap = document.getElementById('lookupModalRows');
         if (!rowsWrap) {
@@ -99,7 +128,7 @@
                     <input type="text"
                            class="js-lookup-name"
                            value="${escapeHtml(item.name)}"
-                           maxlength="${kind === 'relationType' ? '50' : '100'}"
+                           maxlength="${getNameLimitByKind(kind)}"
                            ${item.editing ? '' : 'readonly'}>
 
                     <button type="button" class="btn btn-outline js-toggle-lookup-edit">
@@ -128,7 +157,7 @@
                        class="relation-type-name manual-trim-input"
                        value="${escapeHtml(item.relationTypeName || '')}"
                        list="relationTypeNames"
-                       maxlength="50"
+                       maxlength="${LIMITS.relationTypeName}"
                        placeholder="Метка связи *">
             </div>
             <button type="button" class="btn btn-outline relation-remove-btn js-remove-relation">Удалить</button>
@@ -170,7 +199,7 @@
             relations.push({
                 relatedComicId,
                 relatedComicTitle,
-                relationTypeName
+                relationTypeName: cutTo(relationTypeName, LIMITS.relationTypeName)
             });
         }
 
@@ -193,6 +222,20 @@
         const lookupModalCloseBtn = document.getElementById('lookupModalCloseBtn');
         const lookupModalAddBtn = document.getElementById('lookupModalAddBtn');
         const lookupModalApplyBtn = document.getElementById('lookupModalApplyBtn');
+
+        const titleInput = document.getElementById('title');
+        const originalTitleInput = document.getElementById('originalTitle');
+        const shortDescriptionInput = document.getElementById('shortDescription');
+        const fullDescriptionInput = document.getElementById('fullDescription');
+        const releaseYearInput = document.getElementById('releaseYear');
+
+        if (titleInput) titleInput.maxLength = LIMITS.comicTitle;
+        if (originalTitleInput) originalTitleInput.maxLength = LIMITS.originalTitle;
+        if (shortDescriptionInput) shortDescriptionInput.maxLength = LIMITS.shortDescription;
+        if (fullDescriptionInput) fullDescriptionInput.maxLength = LIMITS.fullDescription;
+        if (releaseYearInput) releaseYearInput.maxLength = LIMITS.releaseYearLength;
+        if (relatedSearchInput) relatedSearchInput.maxLength = LIMITS.comicSearch;
+        if (lookupModalSearch) lookupModalSearch.maxLength = LIMITS.lookupSearch;
 
         const state = {
             currentModalKind: null,
@@ -226,6 +269,7 @@
 
             if (lookupModalSearch) {
                 lookupModalSearch.value = '';
+                lookupModalSearch.maxLength = LIMITS.lookupSearch;
             }
 
             renderLookupModalRows(kind, getStateByKind(kind), '');
@@ -387,6 +431,8 @@
 
         if (lookupModalSearch) {
             lookupModalSearch.addEventListener('input', () => {
+                lookupModalSearch.value = cutTo(lookupModalSearch.value, LIMITS.lookupSearch);
+
                 if (!state.currentModalKind) {
                     return;
                 }
@@ -407,6 +453,7 @@
                 }
 
                 if (event.target.classList.contains('js-lookup-name')) {
+                    event.target.value = cutTo(event.target.value, getNameLimitByKind(state.currentModalKind));
                     item.name = event.target.value;
                     if (state.currentModalKind === 'relationType') {
                         buildRelationTypeDatalist(state.relationType);
@@ -414,12 +461,36 @@
                 }
             }
 
-            if (event.target.id === 'releaseYear') {
-                event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4);
+            if (event.target === releaseYearInput) {
+                event.target.value = event.target.value.replace(/\D/g, '').slice(0, LIMITS.releaseYearLength);
+            }
+
+            if (event.target === relatedSearchInput) {
+                event.target.value = cutTo(event.target.value, LIMITS.comicSearch);
+            }
+
+            if (event.target.classList.contains('relation-type-name')) {
+                event.target.value = cutTo(event.target.value, LIMITS.relationTypeName).replace(/^\s+/, '');
             }
 
             if (event.target.classList.contains('manual-trim-input')) {
                 event.target.value = event.target.value.replace(/^\s+/, '');
+            }
+
+            if (event.target === titleInput) {
+                event.target.value = cutTo(event.target.value, LIMITS.comicTitle);
+            }
+
+            if (event.target === originalTitleInput) {
+                event.target.value = cutTo(event.target.value, LIMITS.originalTitle);
+            }
+
+            if (event.target === shortDescriptionInput) {
+                event.target.value = cutTo(event.target.value, LIMITS.shortDescription);
+            }
+
+            if (event.target === fullDescriptionInput) {
+                event.target.value = cutTo(event.target.value, LIMITS.fullDescription);
             }
         });
 
@@ -460,6 +531,8 @@
 
         if (relatedSearchInput && relatedResults) {
             relatedSearchInput.addEventListener('input', () => {
+                relatedSearchInput.value = cutTo(relatedSearchInput.value, LIMITS.comicSearch);
+
                 const query = trimEdges(relatedSearchInput.value);
                 const searchUrl = relatedSearchInput.dataset.searchUrl;
                 const excludeComicId = relatedSearchInput.dataset.excludeComicId || '';
@@ -532,23 +605,27 @@
                     field.value = trimEdges(field.value);
                 });
 
-                const releaseYear = document.getElementById('releaseYear');
-                if (releaseYear) {
-                    releaseYear.value = releaseYear.value.replace(/\D/g, '').slice(0, 4);
+                if (releaseYearInput) {
+                    releaseYearInput.value = releaseYearInput.value.replace(/\D/g, '').slice(0, LIMITS.releaseYearLength);
 
-                    if (!/^\d{4}$/.test(releaseYear.value)) {
+                    if (!/^\d{4}$/.test(releaseYearInput.value)) {
                         event.preventDefault();
                         showClientError('Год релиза должен быть в формате XXXX.');
                         return;
                     }
 
-                    const yearValue = Number(releaseYear.value);
-                    if (yearValue < 1900 || yearValue > 2100) {
+                    const yearValue = Number(releaseYearInput.value);
+                    if (yearValue < LIMITS.minReleaseYear || yearValue > LIMITS.maxReleaseYear) {
                         event.preventDefault();
                         showClientError('Год релиза должен быть в диапазоне 1900–2100.');
                         return;
                     }
                 }
+
+                if (titleInput) titleInput.value = cutTo(trimEdges(titleInput.value), LIMITS.comicTitle);
+                if (originalTitleInput) originalTitleInput.value = cutTo(trimEdges(originalTitleInput.value), LIMITS.originalTitle);
+                if (shortDescriptionInput) shortDescriptionInput.value = cutTo(trimEdges(shortDescriptionInput.value), LIMITS.shortDescription);
+                if (fullDescriptionInput) fullDescriptionInput.value = cutTo(trimEdges(fullDescriptionInput.value), LIMITS.fullDescription);
 
                 renderSelectedChips(state.genre, 'selectedGenresChips', 'selectedGenreInputs', 'genreIds');
                 renderSelectedChips(state.tag, 'selectedTagsChips', 'selectedTagInputs', 'tagIds');
@@ -558,13 +635,22 @@
                 const relationTypeOperationsJson = document.getElementById('relationTypeOperationsJson');
 
                 if (genreOperationsJson) {
-                    genreOperationsJson.value = serializeLookupOperations(state.genre, true);
+                    genreOperationsJson.value = serializeLookupOperations(
+                        state.genre.map((item) => ({ ...item, name: cutTo(trimEdges(item.name), LIMITS.genreName) })),
+                        true
+                    );
                 }
                 if (tagOperationsJson) {
-                    tagOperationsJson.value = serializeLookupOperations(state.tag, true);
+                    tagOperationsJson.value = serializeLookupOperations(
+                        state.tag.map((item) => ({ ...item, name: cutTo(trimEdges(item.name), LIMITS.tagName) })),
+                        true
+                    );
                 }
                 if (relationTypeOperationsJson) {
-                    relationTypeOperationsJson.value = serializeLookupOperations(state.relationType, false);
+                    relationTypeOperationsJson.value = serializeLookupOperations(
+                        state.relationType.map((item) => ({ ...item, name: cutTo(trimEdges(item.name), LIMITS.relationTypeName) })),
+                        false
+                    );
                 }
 
                 const relationsSerialization = serializeRelations();

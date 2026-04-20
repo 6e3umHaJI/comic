@@ -324,6 +324,12 @@
     color: var(--text);
     box-sizing: border-box;
     box-shadow: 0 0 14px rgba(0, 0, 0, 0.3);
+    margin: 0 auto !important;
+    transform: none !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
 }
 
 .admin-lookup-close-btn {
@@ -416,12 +422,43 @@
 
 .lookup-row-select input[type="checkbox"],
 .lookup-row-delete input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
     width: 18px;
     height: 18px;
     margin: 0;
-    accent-color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    position: relative;
     cursor: pointer;
+    transition: .2s ease;
     flex-shrink: 0;
+}
+
+.lookup-row-select input[type="checkbox"]:hover,
+.lookup-row-delete input[type="checkbox"]:hover,
+.lookup-row-select input[type="checkbox"]:focus-visible,
+.lookup-row-delete input[type="checkbox"]:focus-visible {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.lookup-row-select input[type="checkbox"]:checked,
+.lookup-row-delete input[type="checkbox"]:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.lookup-row-select input[type="checkbox"]:checked::after,
+.lookup-row-delete input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px 12px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M6.4 11.2 3.2 8l-1.1 1.1 4.3 4.3 7.5-7.5L12.8 4.8z'/%3E%3C/svg%3E");
 }
 
 .admin-lookup-modal-actions {

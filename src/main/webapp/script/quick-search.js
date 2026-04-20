@@ -1,4 +1,8 @@
 (() => {
+    const LIMITS = {
+        query: 255
+    };
+
     const modal = document.getElementById('quickSearchModal');
     if (!modal) return;
 
@@ -23,6 +27,10 @@
         loaded: 0,
         requestId: 0
     };
+
+    function trimToMax(value, maxLength = LIMITS.query) {
+        return String(value ?? '').trim().slice(0, maxLength);
+    }
 
     function setBodyLock(locked) {
         document.body.classList.toggle('quick-search-open', locked);
@@ -51,6 +59,7 @@
 
     function openModal() {
         resetModal();
+        input.maxLength = LIMITS.query;
         modal.hidden = false;
         setBodyLock(true);
         requestAnimationFrame(() => input.focus());
@@ -130,7 +139,6 @@
         results.hidden = results.children.length === 0;
     }
 
-
     function renderFooter() {
         footer.hidden = true;
         moreBtn.hidden = true;
@@ -176,7 +184,8 @@
     }
 
     function fetchSearchResults(append = false) {
-        const query = input.value.trim();
+        input.value = trimToMax(input.value);
+        const query = trimToMax(input.value);
 
         if (!query) {
             results.innerHTML = '';
@@ -252,7 +261,14 @@
         }
     });
 
-    input?.addEventListener('input', debouncedSearch);
+    input?.addEventListener('input', () => {
+        input.value = trimToMax(input.value);
+        debouncedSearch();
+    });
+
+    input?.addEventListener('blur', () => {
+        input.value = trimToMax(input.value);
+    });
 
     moreBtn?.addEventListener('click', () => {
         fetchSearchResults(true);

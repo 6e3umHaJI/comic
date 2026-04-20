@@ -181,6 +181,7 @@
                         <label for="relatedComicSearch">Поиск комикса</label>
                         <input type="text"
                                id="relatedComicSearch"
+                               maxlength="255"
                                placeholder="Введите название комикса"
                                data-search-url="${searchComicUrl}"
                                data-exclude-comic-id="${form.comicId}">
@@ -230,7 +231,7 @@
 
                 <div class="admin-field-group">
                     <label for="lookupModalSearch">Поиск</label>
-                    <input type="text" id="lookupModalSearch" placeholder="Введите название">
+                    <input type="text" id="lookupModalSearch" maxlength="50" placeholder="Введите название">
                 </div>
 
                 <div id="lookupModalRows" class="lookup-modal-rows"></div>

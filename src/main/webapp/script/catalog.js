@@ -1,3 +1,15 @@
+const LIMITS = {
+    catalogSearchQuery: 255,
+    filterSearchGenre: 50,
+    filterSearchTag: 50,
+    filterSearchLanguage: 35,
+    ratingDigits: 3,
+    ratingMaxIntegerPart: 5,
+    releaseYearLength: 4,
+    releaseYearMin: 1900,
+    releaseYearMax: 2100
+};
+
 const filterContainer = document.getElementById('filterContainer');
 const filterOverlay = document.getElementById('filterOverlay');
 const openFiltersBtn = document.getElementById('openFiltersBtn');
@@ -18,6 +30,116 @@ const BOOLEAN_FIELDS = [
     'strictTagMatch',
     'strictLanguageMatch'
 ];
+
+function trimToMax(value, maxLength) {
+    return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function digitsOnly(value, maxLength) {
+    return String(value ?? '').replace(/\D/g, '').slice(0, maxLength);
+}
+
+function normalizeRatingRaw(value) {
+    const digits = digitsOnly(value, LIMITS.ratingDigits);
+
+    if (!digits) {
+        return '';
+    }
+
+    const firstDigit = Math.min(Number(digits.charAt(0)), LIMITS.ratingMaxIntegerPart);
+    const fraction = digits.slice(1, LIMITS.ratingDigits);
+
+    if (!fraction) {
+        return String(firstDigit);
+    }
+
+    return `${firstDigit}.${fraction}`;
+}
+
+function finalizeRatingValue(value) {
+    const normalized = normalizeRatingRaw(value);
+    if (!normalized) {
+        return '';
+    }
+
+    const [wholePart, fractionPart = ''] = normalized.split('.');
+    return `${wholePart}.${fractionPart.padEnd(2, '0').slice(0, 2)}`;
+}
+
+function normalizeReleaseYearRaw(value) {
+    return digitsOnly(value, LIMITS.releaseYearLength);
+}
+
+function finalizeReleaseYearValue(value) {
+    const normalized = normalizeReleaseYearRaw(value);
+
+    if (!normalized) {
+        return '';
+    }
+
+    if (normalized.length !== LIMITS.releaseYearLength) {
+        return '';
+    }
+
+    let year = Number(normalized);
+
+    if (year < LIMITS.releaseYearMin) {
+        year = LIMITS.releaseYearMin;
+    }
+    if (year > LIMITS.releaseYearMax) {
+        year = LIMITS.releaseYearMax;
+    }
+
+    return String(year);
+}
+
+function getFilterSearchLimit(input) {
+    const explicitLimit = Number(input.dataset.filterSearchLimit || 0);
+    if (Number.isFinite(explicitLimit) && explicitLimit > 0) {
+        return explicitLimit;
+    }
+
+    const placeholder = String(input.placeholder || '').toLowerCase();
+    if (placeholder.includes('жанр')) {
+        return LIMITS.filterSearchGenre;
+    }
+    if (placeholder.includes('тег')) {
+        return LIMITS.filterSearchTag;
+    }
+    if (placeholder.includes('язык')) {
+        return LIMITS.filterSearchLanguage;
+    }
+
+    return LIMITS.catalogSearchQuery;
+}
+
+function applyCatalogInputLimits(scope = document) {
+    const catalogSearchInput = scope.querySelector('.search-form input[name="keyWords"]');
+    if (catalogSearchInput) {
+        catalogSearchInput.maxLength = LIMITS.catalogSearchQuery;
+        catalogSearchInput.value = trimToMax(catalogSearchInput.value, LIMITS.catalogSearchQuery);
+    }
+
+    scope.querySelectorAll('.filter-search').forEach((input) => {
+        const limit = getFilterSearchLimit(input);
+        input.maxLength = limit;
+        input.value = trimToMax(input.value, limit);
+    });
+
+    scope.querySelectorAll('input[name="avgRatingFrom"], input[name="avgRatingTo"]').forEach((input) => {
+        input.type = 'text';
+        input.inputMode = 'decimal';
+        input.maxLength = 4;
+        input.value = normalizeRatingRaw(input.value);
+    });
+
+    scope.querySelectorAll('input[name="releaseYearFrom"], input[name="releaseYearTo"]').forEach((input) => {
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.maxLength = LIMITS.releaseYearLength;
+        input.value = normalizeReleaseYearRaw(input.value);
+    });
+}
 
 function setScrollLock(locked) {
     document.body.classList.toggle('filters-open', locked);
@@ -122,7 +244,29 @@ function applySort() {
 document.querySelector('.filter-panel')?.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const data = new FormData(e.target);
+    applyCatalogInputLimits(document);
+
+    const form = e.target;
+
+    const avgRatingFrom = form.querySelector('input[name="avgRatingFrom"]');
+    const avgRatingTo = form.querySelector('input[name="avgRatingTo"]');
+    const releaseYearFrom = form.querySelector('input[name="releaseYearFrom"]');
+    const releaseYearTo = form.querySelector('input[name="releaseYearTo"]');
+
+    if (avgRatingFrom) {
+        avgRatingFrom.value = finalizeRatingValue(avgRatingFrom.value);
+    }
+    if (avgRatingTo) {
+        avgRatingTo.value = finalizeRatingValue(avgRatingTo.value);
+    }
+    if (releaseYearFrom) {
+        releaseYearFrom.value = finalizeReleaseYearValue(releaseYearFrom.value);
+    }
+    if (releaseYearTo) {
+        releaseYearTo.value = finalizeReleaseYearValue(releaseYearTo.value);
+    }
+
+    const data = new FormData(form);
     ensureMultiValueFields(data);
     ensureBooleanFields(data);
 
@@ -148,6 +292,8 @@ function resetFilters() {
         searchInput.value = '';
     }
 
+    applyCatalogInputLimits(document);
+
     const data = new FormData();
     data.append('reset', 'true');
 
@@ -156,19 +302,56 @@ function resetFilters() {
 
 document.querySelector('.search-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
+
+    const searchInput = e.target.querySelector('input[name="keyWords"]');
+    if (searchInput) {
+        searchInput.value = trimToMax(searchInput.value, LIMITS.catalogSearchQuery);
+    }
+
     const data = new FormData(e.target);
     sendCatalogRequest(data, true);
 });
 
 document.querySelectorAll('.filter-search').forEach((input) => {
     input.addEventListener('input', (e) => {
-        const value = e.target.value.toLowerCase();
-        const options = e.target.parentElement.querySelectorAll('.filter-options label');
+        const currentInput = e.target;
+        const limit = getFilterSearchLimit(currentInput);
+
+        currentInput.value = trimToMax(currentInput.value, limit);
+
+        const value = currentInput.value.toLowerCase();
+        const options = currentInput.parentElement.querySelectorAll('.filter-options label');
 
         options.forEach((option) => {
             const text = option.textContent.toLowerCase();
             option.style.display = text.includes(value) ? '' : 'none';
         });
+    });
+
+    input.addEventListener('blur', (e) => {
+        const currentInput = e.target;
+        const limit = getFilterSearchLimit(currentInput);
+        currentInput.value = trimToMax(currentInput.value, limit);
+    });
+});
+
+document.querySelectorAll('input[name="avgRatingFrom"], input[name="avgRatingTo"]').forEach((input) => {
+    input.addEventListener('input', () => {
+        input.value = normalizeRatingRaw(input.value);
+    });
+
+    input.addEventListener('blur', () => {
+        input.value = finalizeRatingValue(input.value);
+    });
+});
+
+document.querySelectorAll('input[name="releaseYearFrom"], input[name="releaseYearTo"]').forEach((input) => {
+    input.addEventListener('input', () => {
+        input.value = normalizeReleaseYearRaw(input.value);
+    });
+
+    input.addEventListener('blur', () => {
+        input.value = finalizeReleaseYearValue(input.value);
     });
 });
 
@@ -194,3 +377,5 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+
+applyCatalogInputLimits(document);

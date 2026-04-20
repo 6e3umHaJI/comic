@@ -18,6 +18,7 @@
                    id="complaintSearchQ"
                    name="q"
                    value="${q}"
+                   maxlength="255"
                    placeholder="Введите название">
         </div>
 

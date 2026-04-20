@@ -146,7 +146,7 @@ INSERT INTO comics (
              ((i%5)+1),
              2010+(i%13),
              ((i%3)+1),
-             '1000118374.jpg',
+             i||'1000118374.jpg',
              short_text,
              full_text,
              NOW()-(i||' days')::interval,

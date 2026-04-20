@@ -4,6 +4,14 @@
     }
     window.__comicNotificationsScriptInitialized = true;
 
+    const LIMITS = {
+        searchQuery: 255
+    };
+
+    function trimToMax(value, maxLength) {
+        return String(value ?? '').trim().slice(0, maxLength);
+    }
+
     function openAuthRequiredModal() {
         const modal = document.getElementById('authRequiredModal');
         if (modal) {
@@ -77,6 +85,30 @@
         };
     }
 
+    function applyNotificationsSearchLimits(scope = document) {
+        const input = scope.querySelector('.notifications-search-form input[name="q"]');
+        if (!input) {
+            return;
+        }
+
+        input.maxLength = LIMITS.searchQuery;
+        input.value = trimToMax(input.value, LIMITS.searchQuery);
+
+        if (input.dataset.limitBound === 'true') {
+            return;
+        }
+
+        input.dataset.limitBound = 'true';
+
+        input.addEventListener('input', () => {
+            input.value = trimToMax(input.value, LIMITS.searchQuery);
+        });
+
+        input.addEventListener('blur', () => {
+            input.value = trimToMax(input.value, LIMITS.searchQuery);
+        });
+    }
+
     function setActiveTab(tab) {
         document.querySelectorAll('.notifications-tab-btn').forEach((button) => {
             button.classList.toggle('active', button.dataset.tab === tab);
@@ -101,6 +133,7 @@
         updateHeaderNotificationState(totalCount, unreadCount);
         setActiveTab(tab);
         page.dataset.tab = tab;
+        applyNotificationsSearchLimits(content);
     }
 
     function resolveCurrentPageIndexFromContent(content) {
@@ -287,11 +320,18 @@
 
         event.preventDefault();
 
+        const searchInput = form.querySelector('input[name="q"]');
+        if (searchInput) {
+            searchInput.value = trimToMax(searchInput.value, LIMITS.searchQuery);
+        }
+
         const url = new URL(form.action || window.location.pathname, window.location.origin);
         const formData = new FormData(form);
 
         formData.forEach((value, key) => {
-            const stringValue = String(value).trim();
+            const stringValue = key === 'q'
+                ? trimToMax(value, LIMITS.searchQuery)
+                : String(value).trim();
 
             if (stringValue.length > 0) {
                 url.searchParams.set(key, stringValue);
@@ -314,5 +354,6 @@
         loadNotificationsPartial(new URL(window.location.href), false);
     });
 
+    applyNotificationsSearchLimits(document);
     syncHeaderFromContent();
 })();

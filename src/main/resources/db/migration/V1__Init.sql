@@ -80,19 +80,20 @@ CREATE TABLE IF NOT EXISTS comics (
                                       comic_id SERIAL PRIMARY KEY,
                                       title VARCHAR(255) NOT NULL,
     original_title VARCHAR(255),
-    type_id INT REFERENCES comic_types(type_id),
+    type_id INT REFERENCES comic_types(type_id) NOT NULL,
     age_rating_id INT REFERENCES age_ratings(age_rating_id),
-    release_year INT,
-    comic_status_id INT REFERENCES comic_statuses(status_id),
-    short_description VARCHAR(500),
-    full_description VARCHAR(2000),
-    cover VARCHAR(255),
+    release_year INT NOT NULL,
+    comic_status_id INT REFERENCES comic_statuses(status_id) NOT NULL,
+    short_description VARCHAR(500) NOT NULL,
+    full_description VARCHAR(2000) NOT NULL,
+    cover VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     popularity_score BIGINT DEFAULT 0,
     avg_rating NUMERIC(3,2) DEFAULT 0,
     ratings_count INT DEFAULT 0,
-    chapters_count INT DEFAULT 0
+    chapters_count INT DEFAULT 0,
+    CONSTRAINT uq_comics_cover UNIQUE (cover)
     );
 
 CREATE TABLE IF NOT EXISTS comic_tags (

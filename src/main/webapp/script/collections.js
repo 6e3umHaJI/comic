@@ -1,3 +1,12 @@
+const COLLECTIONS_LIMITS = {
+    searchQuery: 255
+};
+
+function trimCollectionValue(value, maxLength = COLLECTIONS_LIMITS.searchQuery) {
+    return String(value ?? '').trim().slice(0, maxLength);
+}
+
+
 function showInlineNotice(containerId, message, type = 'error') {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -292,6 +301,19 @@ function bindCollectionsPageEvents() {
     const collectionsSortField = document.getElementById('collectionsSortField');
     const collectionsSortDirection = document.getElementById('collectionsSortDirection');
 
+    if (collectionsSearchInput) {
+        collectionsSearchInput.maxLength = COLLECTIONS_LIMITS.searchQuery;
+        collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+
+        collectionsSearchInput.addEventListener('input', () => {
+            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+        });
+
+        collectionsSearchInput.addEventListener('blur', () => {
+            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+        });
+    }
+
     function applyCollectionsFilters() {
         const main = document.querySelector('.collections-main');
         const activeSectionId = main?.dataset.activeSectionId ?? null;
@@ -301,7 +323,7 @@ function bindCollectionsPageEvents() {
             activeSectionId,
             0,
             currentViewMode,
-            collectionsSearchInput?.value?.trim() || '',
+            trimCollectionValue(collectionsSearchInput?.value || ''),
             collectionsSortField?.value || 'addedAt',
             collectionsSortDirection?.value || 'desc'
         );
@@ -309,6 +331,11 @@ function bindCollectionsPageEvents() {
 
     collectionsSearchForm?.addEventListener('submit', (e) => {
         e.preventDefault();
+
+        if (collectionsSearchInput) {
+            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+        }
+
         applyCollectionsFilters();
     });
 

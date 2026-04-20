@@ -45,7 +45,17 @@ import java.util.UUID;
 public class AdminComicManageServiceImpl implements AdminComicManageService {
 
     private static final String VIEW_NAME = "admin/comic-form";
+
     private static final long MAX_COVER_SIZE = 5L * 1024L * 1024L;
+    private static final int COMIC_TITLE_MAX_LENGTH = 255;
+    private static final int COMIC_ORIGINAL_TITLE_MAX_LENGTH = 255;
+    private static final int SHORT_DESCRIPTION_MAX_LENGTH = 500;
+    private static final int FULL_DESCRIPTION_MAX_LENGTH = 2000;
+    private static final int GENRE_NAME_MAX_LENGTH = 50;
+    private static final int TAG_NAME_MAX_LENGTH = 50;
+    private static final int RELATION_TYPE_NAME_MAX_LENGTH = 50;
+    private static final int COMIC_SEARCH_MAX_LENGTH = 255;
+
     private static final Set<String> ALLOWED_COVER_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
     private final ComicRepository comicRepository;
@@ -101,11 +111,11 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
         String oldCover = optionalTrimmed(comic.getCover(), 255);
 
-        String title = requiredTrimmed(form.getTitle(), "Укажите название комикса.", 255);
-        String originalTitle = optionalTrimmed(form.getOriginalTitle(), 255);
+        String title = requiredTrimmed(form.getTitle(), "Укажите название комикса.", COMIC_TITLE_MAX_LENGTH);
+        String originalTitle = optionalTrimmed(form.getOriginalTitle(), COMIC_ORIGINAL_TITLE_MAX_LENGTH);
         Integer releaseYear = parseReleaseYear(form.getReleaseYear());
-        String shortDescription = requiredTrimmed(form.getShortDescription(), "Укажите краткое описание.", 500);
-        String fullDescription = requiredTrimmed(form.getFullDescription(), "Укажите описание.", 2000);
+        String shortDescription = requiredTrimmed(form.getShortDescription(), "Укажите краткое описание.", SHORT_DESCRIPTION_MAX_LENGTH);
+        String fullDescription = requiredTrimmed(form.getFullDescription(), "Укажите описание.", FULL_DESCRIPTION_MAX_LENGTH);
 
         comic.setTitle(title);
         comic.setOriginalTitle(originalTitle.isBlank() ? null : originalTitle);
@@ -149,7 +159,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
     @Override
     public List<Map<String, Object>> searchComics(String q, Integer excludeComicId) {
-        String query = optionalTrimmed(q, 255);
+        String query = optionalTrimmed(q, COMIC_SEARCH_MAX_LENGTH);
         if (query.length() < 2) {
             return List.of();
         }
@@ -273,7 +283,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         }
 
         for (LookupOperation op : parseLookupOperations(form.getGenreOperationsJson())) {
-            String name = optionalTrimmed(op.getName(), 100);
+            String name = optionalTrimmed(op.getName(), GENRE_NAME_MAX_LENGTH);
 
             if (op.getId() != null) {
                 Genre genre = genreRepository.findById(op.getId()).orElse(null);
@@ -324,7 +334,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         }
 
         for (LookupOperation op : parseLookupOperations(form.getTagOperationsJson())) {
-            String name = optionalTrimmed(op.getName(), 100);
+            String name = optionalTrimmed(op.getName(), TAG_NAME_MAX_LENGTH);
 
             if (op.getId() != null) {
                 Tag tag = tagRepository.findById(op.getId()).orElse(null);
@@ -368,7 +378,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
     private void applyRelationTypeOperations(String json) {
         for (LookupOperation op : parseLookupOperations(json)) {
-            String name = optionalTrimmed(op.getName(), 50);
+            String name = optionalTrimmed(op.getName(), RELATION_TYPE_NAME_MAX_LENGTH);
 
             if (op.getId() != null) {
                 RelationType relationType = relationTypeRepository.findById(op.getId()).orElse(null);
@@ -419,7 +429,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
             String relationTypeName = requiredTrimmed(
                     relationInput.getRelationTypeName(),
                     "Укажите метку связи для каждого связанного комикса.",
-                    50
+                    RELATION_TYPE_NAME_MAX_LENGTH
             );
 
             RelationType relationType = relationTypeRepository.findByNameIgnoreCase(relationTypeName)

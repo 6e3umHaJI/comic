@@ -20,12 +20,14 @@
     <div class="main container">
         <div class="search-section">
             <form class="search-form">
-                <input type="text"
-                       name="keyWords"
-                       placeholder="Поиск по названию или оригиналу"
-                       value="${searchCriteria.keyWords}">
-                <button type="submit" class="btn">Найти</button>
-            </form>
+                 <input type="text"
+                        id="catalogSearchInput"
+                        name="keyWords"
+                        maxlength="255"
+                        placeholder="Поиск по названию или оригиналу"
+                        value="${searchCriteria.keyWords}">
+                 <button type="submit" class="btn">Найти</button>
+             </form>
         </div>
 
         <div class="top-controls">

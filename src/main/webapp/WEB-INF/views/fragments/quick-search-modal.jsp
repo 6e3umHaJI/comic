@@ -8,11 +8,12 @@
      hidden>
     <div class="quick-search-dialog" role="dialog" aria-modal="true" aria-labelledby="quickSearchInput">
         <div class="quick-search-head">
-            <input type="text"
-                   id="quickSearchInput"
-                   class="quick-search-input"
-                   placeholder="Введите название или оригинальное название"
-                   autocomplete="off">
+           <input type="text"
+                  id="quickSearchInput"
+                  class="quick-search-input"
+                  maxlength="255"
+                  placeholder="Введите название или оригинальное название"
+                  autocomplete="off">
             <button type="button"
                     class="quick-search-close"
                     id="quickSearchClose"

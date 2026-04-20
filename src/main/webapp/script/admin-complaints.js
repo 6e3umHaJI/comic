@@ -1,9 +1,41 @@
 (() => {
+    const LIMITS = {
+        searchQuery: 255
+    };
+
+    function trimToMax(value, maxLength) {
+        return String(value ?? '').trim().slice(0, maxLength);
+    }
+
     function getNodes() {
         return {
             page: document.getElementById('adminComplaintsPage'),
             content: document.getElementById('adminComplaintsContent')
         };
+    }
+
+    function applyComplaintSearchLimits(scope = document) {
+        const input = scope.querySelector('#complaintSearchQ');
+        if (!input) {
+            return;
+        }
+
+        input.maxLength = LIMITS.searchQuery;
+        input.value = trimToMax(input.value, LIMITS.searchQuery);
+
+        if (input.dataset.limitBound === 'true') {
+            return;
+        }
+
+        input.dataset.limitBound = 'true';
+
+        input.addEventListener('input', () => {
+            input.value = trimToMax(input.value, LIMITS.searchQuery);
+        });
+
+        input.addEventListener('blur', () => {
+            input.value = trimToMax(input.value, LIMITS.searchQuery);
+        });
     }
 
     function setActiveScope(scope) {
@@ -26,6 +58,7 @@
         const scope = state.dataset.scope || 'TRANSLATION';
         page.dataset.scope = scope;
         setActiveScope(scope);
+        applyComplaintSearchLimits(content);
 
         content.querySelectorAll('.js-admin-complaint-status-select').forEach((select) => {
             const form = select.closest('.admin-complaint-status-form');
@@ -147,11 +180,18 @@
         if (filterForm) {
             event.preventDefault();
 
+            const searchInput = filterForm.querySelector('input[name="q"]');
+            if (searchInput) {
+                searchInput.value = trimToMax(searchInput.value, LIMITS.searchQuery);
+            }
+
             const url = new URL(filterForm.action || window.location.pathname, window.location.origin);
             const formData = new FormData(filterForm);
 
             formData.forEach((value, key) => {
-                const stringValue = String(value).trim();
+                const stringValue = key === 'q'
+                    ? trimToMax(value, LIMITS.searchQuery)
+                    : String(value).trim();
 
                 if (stringValue.length > 0) {
                     url.searchParams.set(key, stringValue);
@@ -240,5 +280,6 @@
         loadPartial(new URL(window.location.href), false);
     });
 
+    applyComplaintSearchLimits(document);
     syncScopeFromContent();
 })();

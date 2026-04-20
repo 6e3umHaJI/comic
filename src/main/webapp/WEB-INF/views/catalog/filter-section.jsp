@@ -55,38 +55,37 @@
     <div class="filter-group">
         <div class="filter-label">Средний рейтинг:</div>
         <div class="filter-range">
-            <input type="number"
+            <input type="text"
                    name="avgRatingFrom"
-                   step="0.01"
-                   min="0"
-                   max="5"
+                   inputmode="decimal"
+                   maxlength="4"
                    placeholder="От (0.00)"
-                   value="${searchCriteria.avgRatingFrom}"
-                   oninput="if(this.value>5)this.value=5;if(this.value<0)this.value=0">
+                   value="${searchCriteria.avgRatingFrom}">
             <span>–</span>
-            <input type="number"
+            <input type="text"
                    name="avgRatingTo"
-                   step="0.01"
-                   min="0"
-                   max="5"
+                   inputmode="decimal"
+                   maxlength="4"
                    placeholder="До (5.00)"
-                   value="${searchCriteria.avgRatingTo}"
-                   oninput="if(this.value>5)this.value=5;if(this.value<0)this.value=0">
+                   value="${searchCriteria.avgRatingTo}">
         </div>
     </div>
+
 
     <div class="filter-group">
         <div class="filter-label">Год релиза:</div>
         <div class="filter-range">
-            <input type="number"
+            <input type="text"
                    name="releaseYearFrom"
-                   min="0"
+                   inputmode="numeric"
+                   maxlength="4"
                    placeholder="От"
                    value="${searchCriteria.releaseYearFrom}">
             <span>–</span>
-            <input type="number"
+            <input type="text"
                    name="releaseYearTo"
-                   min="0"
+                   inputmode="numeric"
+                   maxlength="4"
                    placeholder="До"
                    value="${searchCriteria.releaseYearTo}">
         </div>
@@ -103,7 +102,11 @@
 
     <div class="filter-group collapsible">
         <div class="filter-label">Жанры:</div>
-        <input type="text" class="filter-search" placeholder="Поиск по жанрам...">
+        <input type="text"
+               class="filter-search"
+               maxlength="50"
+               data-filter-search-limit="50"
+               placeholder="Поиск по жанрам...">
         <div class="filter-options scrollable">
             <c:forEach items="${genres}" var="g">
                 <label>
@@ -128,7 +131,11 @@
 
     <div class="filter-group collapsible">
         <div class="filter-label">Теги:</div>
-        <input type="text" class="filter-search" placeholder="Поиск по тегам...">
+        <input type="text"
+               class="filter-search"
+               maxlength="50"
+               data-filter-search-limit="50"
+               placeholder="Поиск по тегам...">
         <div class="filter-options scrollable">
             <c:forEach items="${tags}" var="t">
                 <label>
@@ -153,7 +160,11 @@
 
     <div class="filter-group collapsible">
         <div class="filter-label">Языки перевода:</div>
-        <input type="text" class="filter-search" placeholder="Поиск по языкам...">
+        <input type="text"
+               class="filter-search"
+               maxlength="35"
+               data-filter-search-limit="35"
+               placeholder="Поиск по языкам...">
         <div class="filter-options scrollable">
             <c:forEach var="lang" items="${languages}">
                 <label>
