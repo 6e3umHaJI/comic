@@ -1,0 +1,376 @@
+.admin-comic-form-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.admin-comic-form-head h1 {
+    margin: 0 0 6px;
+}
+
+.admin-comic-form-head p {
+    margin: 0;
+    color: var(--text);
+    opacity: 0.78;
+}
+
+.admin-form-alert {
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+}
+
+.admin-form-alert.is-error {
+    border-color: #c54040;
+    color: #c54040;
+    background: rgba(197, 64, 64, 0.08);
+}
+
+.admin-comic-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.admin-comic-form-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 18px;
+}
+
+.admin-form-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    padding: 18px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.admin-form-card-wide {
+    grid-column: 1 / -1;
+}
+
+.admin-form-card h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.admin-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-field-group label,
+.admin-field-label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.admin-field-group input,
+.admin-field-group select,
+.admin-field-group textarea,
+#coverFile {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+}
+
+.admin-field-group input,
+.admin-field-group select {
+    height: 42px;
+    padding: 0 12px;
+}
+
+.admin-field-group textarea {
+    padding: 12px;
+    resize: vertical;
+}
+
+.admin-field-group select[multiple] {
+    height: auto;
+    min-height: 180px;
+    padding: 8px;
+}
+
+.admin-field-group input:focus,
+.admin-field-group select:focus,
+.admin-field-group textarea:focus,
+#coverFile:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.cover-preview-wrap {
+    width: 100%;
+    min-height: 320px;
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    background: rgba(150, 150, 150, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.cover-preview-image {
+    width: 100%;
+    max-height: 460px;
+    object-fit: cover;
+    display: block;
+}
+
+.cover-preview-placeholder {
+    padding: 20px;
+    color: var(--text);
+    opacity: 0.72;
+    text-align: center;
+}
+
+.field-hint {
+    color: var(--text);
+    opacity: 0.72;
+    font-size: 0.92rem;
+}
+
+.lookup-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+}
+
+.lookup-editor-title {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.lookup-editor-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lookup-editor-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.lookup-editor-row .lookup-name {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.lookup-editor-row .lookup-name:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.lookup-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.lookup-select-for-comic-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.related-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.related-search-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 10px;
+    cursor: pointer;
+}
+
+.related-search-item:hover {
+    border-color: var(--accent);
+}
+
+.related-search-cover {
+    width: 46px;
+    height: 66px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.related-search-placeholder {
+    width: 46px;
+    height: 66px;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.related-search-main {
+    min-width: 0;
+}
+
+.related-search-title {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.related-search-subtitle {
+    color: var(--text);
+    opacity: 0.72;
+    font-size: 0.92rem;
+}
+
+.related-relations {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.relation-item {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 12px;
+}
+
+.relation-item-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.relation-item-title {
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.relation-type-name {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.relation-type-name:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.relation-remove-btn {
+    flex-shrink: 0;
+}
+
+.admin-comic-form-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.comic-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.comic-title-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.comic-edit-btn {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-color: var(--border);
+    background: var(--card) !important;
+    color: var(--accent);
+    box-sizing: border-box;
+}
+
+.comic-edit-btn:hover,
+.comic-edit-btn:focus-visible {
+    border-color: var(--accent) !important;
+    background: var(--card) !important;
+    color: var(--accent);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 980px) {
+    .admin-comic-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-form-card-wide {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .lookup-editor-row {
+        grid-template-columns: 1fr;
+    }
+
+    .relation-item {
+        flex-direction: column;
+    }
+
+    .relation-remove-btn {
+        width: 100%;
+    }
+}

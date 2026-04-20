@@ -40,7 +40,7 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
                 JOIN c2.genres g2
                 WHERE c2.id = :id
             )
-              AND c.id <> :id
+            AND c.id <> :id
             ORDER BY c.popularityScore DESC
             """)
     List<Comic> findSimilarComics(@Param("id") Integer id);
@@ -56,20 +56,12 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
     List<Object[]> getRatingDistribution(@Param("comicId") Integer comicId);
 
     @Query("""
-            SELECT
-                CASE
-                    WHEN us.isDefault = true THEN us.name
-                    ELSE 'Другие'
-                END,
-                COUNT(DISTINCT us.user.id)
+            SELECT CASE WHEN us.isDefault = true THEN us.name ELSE 'Другие' END,
+                   COUNT(DISTINCT us.user.id)
             FROM SavedComic sc
             JOIN sc.section us
             WHERE sc.comic.id = :comicId
-            GROUP BY
-                CASE
-                    WHEN us.isDefault = true THEN us.name
-                    ELSE 'Другие'
-                END
+            GROUP BY CASE WHEN us.isDefault = true THEN us.name ELSE 'Другие' END
             """)
     List<Object[]> getFavoriteStats(@Param("comicId") Integer comicId);
 
@@ -106,21 +98,38 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
             FROM ComicRelation cr
             LEFT JOIN cr.relationType rt
             WHERE cr.comic.id = :id
-            ORDER BY cr.relatedComic.popularityScore DESC, cr.relatedComic.id DESC, rt.name ASC
+            ORDER BY cr.relatedComic.popularityScore DESC,
+                     cr.relatedComic.id DESC,
+                     rt.name ASC
             """)
     List<Object[]> findRelatedComicsWithTypes(@Param("id") int id);
 
     @Query("""
-            select distinct c
-            from Comic c
-            left join fetch c.type
-            left join fetch c.ageRating
-            left join fetch c.comicStatus
-            left join fetch c.genres
-            left join fetch c.tags
-            where c.id = :id
+            SELECT DISTINCT c
+            FROM Comic c
+            LEFT JOIN FETCH c.type
+            LEFT JOIN FETCH c.ageRating
+            LEFT JOIN FETCH c.comicStatus
+            LEFT JOIN FETCH c.genres
+            LEFT JOIN FETCH c.tags
+            WHERE c.id = :id
             """)
     Optional<Comic> findByIdForComicPage(@Param("id") Integer id);
+
+    @Query("""
+            SELECT DISTINCT c
+            FROM Comic c
+            LEFT JOIN FETCH c.type
+            LEFT JOIN FETCH c.ageRating
+            LEFT JOIN FETCH c.comicStatus
+            LEFT JOIN FETCH c.genres
+            LEFT JOIN FETCH c.tags
+            LEFT JOIN FETCH c.relatedComics rc
+            LEFT JOIN FETCH rc.relatedComic
+            LEFT JOIN FETCH rc.relationType
+            WHERE c.id = :id
+            """)
+    Optional<Comic> findByIdForAdminEdit(@Param("id") Integer id);
 
     @Override
     @EntityGraph(attributePaths = {"genres"})
@@ -128,19 +137,18 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
 
     @Query(
             value = """
-                select c
-                from Comic c
-                where lower(c.title) like lower(concat('%', :q, '%'))
-                   or lower(c.originalTitle) like lower(concat('%', :q, '%'))
-                order by c.popularityScore desc, c.avgRating desc, c.id desc
-                """,
+                    SELECT c
+                    FROM Comic c
+                    WHERE lower(c.title) LIKE lower(concat('%', :q, '%'))
+                       OR lower(c.originalTitle) LIKE lower(concat('%', :q, '%'))
+                    ORDER BY c.popularityScore DESC, c.avgRating DESC, c.id DESC
+                    """,
             countQuery = """
-                select count(c)
-                from Comic c
-                where lower(c.title) like lower(concat('%', :q, '%'))
-                   or lower(c.originalTitle) like lower(concat('%', :q, '%'))
-                """
+                    SELECT COUNT(c)
+                    FROM Comic c
+                    WHERE lower(c.title) LIKE lower(concat('%', :q, '%'))
+                       OR lower(c.originalTitle) LIKE lower(concat('%', :q, '%'))
+                    """
     )
     Page<Comic> findQuickSearchResults(@Param("q") String q, Pageable pageable);
-
 }

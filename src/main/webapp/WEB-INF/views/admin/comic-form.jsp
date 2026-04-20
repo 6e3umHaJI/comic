@@ -1,0 +1,274 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<html data-theme="light">
+<head>
+    <title>${pageTitle}</title>
+    <jsp:include page="/WEB-INF/views/dependencies.jsp"/>
+    <jsp:include page="/WEB-INF/views/theme-init.jsp"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="<c:url value='/style/common.css'/>">
+    <link rel="stylesheet" href="<c:url value='/style/admin-comic-form.css'/>">
+</head>
+<body>
+<div class="wrapper">
+    <jsp:include page="/WEB-INF/views/header.jsp"/>
+
+    <main class="main container admin-comic-form-page">
+        <div class="admin-comic-form-head">
+            <h1>${pageTitle}</h1>
+            <p>Заполните данные комикса и сохраните изменения.</p>
+        </div>
+
+        <c:if test="${not empty errorMessage}">
+            <div class="admin-form-alert is-error">${errorMessage}</div>
+        </c:if>
+
+        <c:url var="saveComicUrl" value="/admin/comics/save"/>
+        <c:url var="searchComicUrl" value="/admin/comics/search"/>
+
+        <form id="adminComicForm"
+              action="${saveComicUrl}"
+              method="post"
+              enctype="multipart/form-data"
+              class="admin-comic-form">
+
+            <input type="hidden" name="comicId" value="${form.comicId}">
+            <input type="hidden" name="currentCover" value="${form.currentCover}">
+            <input type="hidden" name="genreOperationsJson" id="genreOperationsJson" value="<c:out value='${form.genreOperationsJson}'/>">
+            <input type="hidden" name="tagOperationsJson" id="tagOperationsJson" value="<c:out value='${form.tagOperationsJson}'/>">
+            <input type="hidden" name="relationTypeOperationsJson" id="relationTypeOperationsJson" value="<c:out value='${form.relationTypeOperationsJson}'/>">
+            <input type="hidden" name="relationsJson" id="relationsJson" value="<c:out value='${form.relationsJson}'/>">
+
+            <div class="admin-comic-form-grid">
+                <section class="admin-form-card admin-form-card-cover">
+                    <h2>Обложка</h2>
+
+                    <div class="cover-preview-wrap">
+                        <c:choose>
+                            <c:when test="${not empty form.currentCover}">
+                                <img id="coverPreview"
+                                     class="cover-preview-image"
+                                     src="<c:url value='/assets/covers/${form.currentCover}'/>"
+                                     alt="Обложка">
+                            </c:when>
+                            <c:otherwise>
+                                <div id="coverPreviewPlaceholder" class="cover-preview-placeholder">
+                                    Обложка не загружена
+                                </div>
+                                <img id="coverPreview" class="cover-preview-image hidden" alt="Обложка">
+                            </c:otherwise>
+                        </c:choose>
+                    </div>
+
+                    <label class="admin-field-label" for="coverFile">Файл обложки</label>
+                    <input type="file"
+                           id="coverFile"
+                           name="coverFile"
+                           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                    <div class="field-hint">До 5 МБ. Форматы: JPG, PNG, WEBP.</div>
+                </section>
+
+                <section class="admin-form-card">
+                    <h2>Основная информация</h2>
+
+                    <div class="admin-field-group">
+                        <label for="title">Название *</label>
+                        <input type="text" id="title" name="title" value="${form.title}" maxlength="255" required>
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="originalTitle">Оригинальное название</label>
+                        <input type="text" id="originalTitle" name="originalTitle" value="${form.originalTitle}" maxlength="255">
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="releaseYear">Год релиза *</label>
+                        <input type="number" id="releaseYear" name="releaseYear" value="${form.releaseYear}" min="1000" max="2100" required>
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="typeId">Тип *</label>
+                        <select id="typeId" name="typeId" required>
+                            <option value="">Выберите тип</option>
+                            <c:forEach var="type" items="${comicTypes}">
+                                <option value="${type.id}" ${form.typeId == type.id ? 'selected' : ''}>${type.name}</option>
+                            </c:forEach>
+                        </select>
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="ageRatingId">Возраст</label>
+                        <select id="ageRatingId" name="ageRatingId">
+                            <option value="">Не выбран</option>
+                            <c:forEach var="age" items="${ageRatings}">
+                                <option value="${age.id}" ${form.ageRatingId == age.id ? 'selected' : ''}>${age.name}</option>
+                            </c:forEach>
+                        </select>
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="comicStatusId">Статус *</label>
+                        <select id="comicStatusId" name="comicStatusId" required>
+                            <option value="">Выберите статус</option>
+                            <c:forEach var="status" items="${comicStatuses}">
+                                <option value="${status.id}" ${form.comicStatusId == status.id ? 'selected' : ''}>${status.name}</option>
+                            </c:forEach>
+                        </select>
+                    </div>
+                </section>
+
+                <section class="admin-form-card admin-form-card-wide">
+                    <h2>Описание</h2>
+
+                    <div class="admin-field-group">
+                        <label for="shortDescription">Краткое описание *</label>
+                        <textarea id="shortDescription" name="shortDescription" rows="4" required>${form.shortDescription}</textarea>
+                    </div>
+
+                    <div class="admin-field-group">
+                        <label for="fullDescription">Описание *</label>
+                        <textarea id="fullDescription" name="fullDescription" rows="8" required>${form.fullDescription}</textarea>
+                    </div>
+                </section>
+
+                <section class="admin-form-card">
+                    <h2>Жанры</h2>
+
+                    <div class="admin-field-group">
+                        <label for="genreIds">Выбранные жанры</label>
+                        <select id="genreIds" name="genreIds" multiple size="8">
+                            <c:forEach var="genre" items="${genres}">
+                                <option value="${genre.id}" ${form.genreIds != null && form.genreIds.contains(genre.id) ? 'selected' : ''}>
+                                    ${genre.name}
+                                </option>
+                            </c:forEach>
+                        </select>
+                    </div>
+
+                    <div class="lookup-editor">
+                        <div class="lookup-editor-title">Редактор жанров</div>
+                        <div id="genreEditorRows" class="lookup-editor-rows">
+                            <c:forEach var="genre" items="${genres}">
+                                <div class="lookup-editor-row" data-id="${genre.id}">
+                                    <input type="hidden" class="lookup-id" value="${genre.id}">
+                                    <input type="text" class="lookup-name" value="${genre.name}" maxlength="100">
+                                    <label class="lookup-checkbox">
+                                        <input type="checkbox" class="lookup-delete">
+                                        Удалить
+                                    </label>
+                                </div>
+                            </c:forEach>
+                        </div>
+                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="genreEditorRows" data-kind="genre">
+                            Добавить жанр
+                        </button>
+                    </div>
+                </section>
+
+                <section class="admin-form-card">
+                    <h2>Теги</h2>
+
+                    <div class="admin-field-group">
+                        <label for="tagIds">Выбранные теги</label>
+                        <select id="tagIds" name="tagIds" multiple size="8">
+                            <c:forEach var="tag" items="${tags}">
+                                <option value="${tag.id}" ${form.tagIds != null && form.tagIds.contains(tag.id) ? 'selected' : ''}>
+                                    ${tag.name}
+                                </option>
+                            </c:forEach>
+                        </select>
+                    </div>
+
+                    <div class="lookup-editor">
+                        <div class="lookup-editor-title">Редактор тегов</div>
+                        <div id="tagEditorRows" class="lookup-editor-rows">
+                            <c:forEach var="tag" items="${tags}">
+                                <div class="lookup-editor-row" data-id="${tag.id}">
+                                    <input type="hidden" class="lookup-id" value="${tag.id}">
+                                    <input type="text" class="lookup-name" value="${tag.name}" maxlength="100">
+                                    <label class="lookup-checkbox">
+                                        <input type="checkbox" class="lookup-delete">
+                                        Удалить
+                                    </label>
+                                </div>
+                            </c:forEach>
+                        </div>
+                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="tagEditorRows" data-kind="tag">
+                            Добавить тег
+                        </button>
+                    </div>
+                </section>
+
+                <section class="admin-form-card admin-form-card-wide">
+                    <h2>Связанные комиксы</h2>
+
+                    <div class="admin-field-group">
+                        <label for="relatedComicSearch">Поиск комикса</label>
+                        <input type="text"
+                               id="relatedComicSearch"
+                               placeholder="Введите название комикса"
+                               data-search-url="${searchComicUrl}"
+                               data-exclude-comic-id="${form.comicId}">
+                    </div>
+
+                    <div id="relatedComicSearchResults" class="related-search-results"></div>
+
+                    <div id="relatedComicRelations" class="related-relations">
+                        <c:forEach var="relation" items="${form.relationItems}">
+                            <div class="relation-item" data-related-comic-id="${relation.relatedComicId}">
+                                <div class="relation-item-main">
+                                    <div class="relation-item-title">${relation.relatedComicTitle}</div>
+                                    <input type="hidden" class="relation-comic-id" value="${relation.relatedComicId}">
+                                    <input type="text"
+                                           class="relation-type-name"
+                                           value="${relation.relationTypeName}"
+                                           list="relationTypeNames"
+                                           maxlength="50"
+                                           placeholder="Метка связи">
+                                </div>
+                                <button type="button" class="btn btn-outline relation-remove-btn js-remove-relation">Удалить</button>
+                            </div>
+                        </c:forEach>
+                    </div>
+
+                    <datalist id="relationTypeNames">
+                        <c:forEach var="relationType" items="${relationTypes}">
+                            <option value="${relationType.name}"></option>
+                        </c:forEach>
+                    </datalist>
+
+                    <div class="lookup-editor">
+                        <div class="lookup-editor-title">Редактор меток связи</div>
+                        <div id="relationTypeEditorRows" class="lookup-editor-rows">
+                            <c:forEach var="relationType" items="${relationTypes}">
+                                <div class="lookup-editor-row" data-id="${relationType.id}">
+                                    <input type="hidden" class="lookup-id" value="${relationType.id}">
+                                    <input type="text" class="lookup-name relation-type-editor-input" value="${relationType.name}" maxlength="50">
+                                    <label class="lookup-checkbox">
+                                        <input type="checkbox" class="lookup-delete">
+                                        Удалить
+                                    </label>
+                                </div>
+                            </c:forEach>
+                        </div>
+                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="relationTypeEditorRows" data-kind="relationType">
+                            Добавить метку
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <div class="admin-comic-form-actions">
+                <button type="submit" class="btn">Сохранить</button>
+            </div>
+        </form>
+    </main>
+
+    <jsp:include page="/WEB-INF/views/footer.jsp"/>
+</div>
+
+<script src="<c:url value='/script/admin-comic-form.js'/>"></script>
+</body>
+</html>

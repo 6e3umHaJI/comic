@@ -5,9 +5,9 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
-import java.time.format.DateTimeFormatter;
 
 @AttributeOverride(name = "id", column = @Column(name = "comic_id"))
 @Entity
@@ -49,18 +49,21 @@ public class Comic extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String cover;
 
+    @Builder.Default
     @OneToMany(mappedBy = "comic", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Chapter> chapters = new HashSet<>();
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "popularity_score", nullable = false)
     private Long popularityScore = 0L;
-
 
     @Column(name = "ratings_count")
     private Integer ratingsCount;
@@ -68,9 +71,11 @@ public class Comic extends BaseEntity {
     @Column(name = "chapters_count")
     private Integer chaptersCount;
 
+    @Builder.Default
     @Column(name = "avg_rating")
     private Double avgRating = 0.0;
 
+    @Builder.Default
     @ManyToMany
     @JoinTable(
             name = "comic_tags",
@@ -79,6 +84,7 @@ public class Comic extends BaseEntity {
     )
     private Set<Tag> tags = new HashSet<>();
 
+    @Builder.Default
     @ManyToMany
     @JoinTable(
             name = "comic_genres",
@@ -87,9 +93,11 @@ public class Comic extends BaseEntity {
     )
     private Set<Genre> genres = new HashSet<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "comic", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ComicRelation> relatedComics = new HashSet<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "relatedComic", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ComicRelation> parentRelations = new HashSet<>();
 
@@ -102,14 +110,9 @@ public class Comic extends BaseEntity {
         return updatedAt != null ? updatedAt.toLocalDate().toString() : "";
     }
 
-    private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy");
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-
-    private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     public String getCreatedAtFormatted() {
         return createdAt != null ? createdAt.format(DATE_FORMATTER) : "";
@@ -127,4 +130,3 @@ public class Comic extends BaseEntity {
         return updatedAt != null ? updatedAt.format(ISO_DATE_TIME_FORMATTER) : "";
     }
 }
-

@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 
 <html data-theme="light">
 <head>
@@ -257,10 +258,26 @@
         </div>
 
         <div class="comic-right">
-            <div class="comic-title">${comic.title}</div>
-           <div class="comic-rating" id="comicRatingBadge" title="Оценить">
-               ★ <span id="comicRatingValue"><fmt:formatNumber value="${comic.avgRating != null ? comic.avgRating : 0}" pattern="0.00"/></span>
-           </div>
+            <div class="comic-title-row">
+                <div class="comic-title-left">
+                    <div class="comic-title">${comic.title}</div>
+
+                    <sec:authorize access="hasRole('ADMIN')">
+                        <a href="<c:url value='/admin/comics/${comic.id}/edit'/>"
+                           class="btn btn-outline icon-only-btn comic-edit-btn"
+                           title="Редактировать комикс"
+                           aria-label="Редактировать комикс">
+                            <span class="btn-icon"
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/edit.svg"/>'); mask-image:url('<c:url value="/assets/icons/edit.svg"/>');"></span>
+                        </a>
+                    </sec:authorize>
+                </div>
+
+                <div class="comic-rating" id="comicRatingBadge" title="Оценить">
+                    ★ <span id="comicRatingValue"><fmt:formatNumber value="${comic.avgRating != null ? comic.avgRating : 0}" pattern="0.00"/></span>
+                </div>
+            </div>
+
 
             <div class="tab-buttons">
                 <button type="button" data-tab="description"

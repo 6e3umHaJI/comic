@@ -102,6 +102,14 @@
                                     <span>Жалобы</span>
                                 </span>
                             </a>
+                            <a href="<c:url value='/admin/comics/new'/>" class="profile-dropdown-item">
+                                <span class="profile-menu-icon"
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/add.svg"/>'); mask-image:url('<c:url value="/assets/icons/add.svg"/>');"></span>
+                                <span class="profile-dropdown-item-main">
+                                    <span>Добавить комикс</span>
+                                </span>
+                            </a>
+
                         </sec:authorize>
 
                     </div>
