@@ -21,6 +21,8 @@
             <p>Заполните данные комикса и сохраните изменения.</p>
         </div>
 
+        <div id="clientFormError" class="admin-form-alert is-error hidden"></div>
+
         <c:if test="${not empty errorMessage}">
             <div class="admin-form-alert is-error">${errorMessage}</div>
         </c:if>
@@ -32,7 +34,8 @@
               action="${saveComicUrl}"
               method="post"
               enctype="multipart/form-data"
-              class="admin-comic-form">
+              class="admin-comic-form"
+              novalidate>
 
             <input type="hidden" name="comicId" value="${form.comicId}">
             <input type="hidden" name="currentCover" value="${form.currentCover}">
@@ -40,6 +43,9 @@
             <input type="hidden" name="tagOperationsJson" id="tagOperationsJson" value="<c:out value='${form.tagOperationsJson}'/>">
             <input type="hidden" name="relationTypeOperationsJson" id="relationTypeOperationsJson" value="<c:out value='${form.relationTypeOperationsJson}'/>">
             <input type="hidden" name="relationsJson" id="relationsJson" value="<c:out value='${form.relationsJson}'/>">
+
+            <div id="selectedGenreInputs"></div>
+            <div id="selectedTagInputs"></div>
 
             <div class="admin-comic-form-grid">
                 <section class="admin-form-card admin-form-card-cover">
@@ -85,7 +91,15 @@
 
                     <div class="admin-field-group">
                         <label for="releaseYear">Год релиза *</label>
-                        <input type="number" id="releaseYear" name="releaseYear" value="${form.releaseYear}" min="1000" max="2100" required>
+                        <input type="text"
+                               id="releaseYear"
+                               name="releaseYear"
+                               value="${form.releaseYear}"
+                               maxlength="4"
+                               inputmode="numeric"
+                               pattern="[0-9]{4}"
+                               placeholder="XXXX"
+                               required>
                     </div>
 
                     <div class="admin-field-group">
@@ -124,45 +138,22 @@
 
                     <div class="admin-field-group">
                         <label for="shortDescription">Краткое описание *</label>
-                        <textarea id="shortDescription" name="shortDescription" rows="4" required>${form.shortDescription}</textarea>
+                        <textarea id="shortDescription" name="shortDescription" rows="4" maxlength="500" required>${form.shortDescription}</textarea>
                     </div>
 
                     <div class="admin-field-group">
                         <label for="fullDescription">Описание *</label>
-                        <textarea id="fullDescription" name="fullDescription" rows="8" required>${form.fullDescription}</textarea>
+                        <textarea id="fullDescription" name="fullDescription" rows="8" maxlength="2000" required>${form.fullDescription}</textarea>
                     </div>
                 </section>
 
                 <section class="admin-form-card">
                     <h2>Жанры</h2>
 
-                    <div class="admin-field-group">
-                        <label for="genreIds">Выбранные жанры</label>
-                        <select id="genreIds" name="genreIds" multiple size="8">
-                            <c:forEach var="genre" items="${genres}">
-                                <option value="${genre.id}" ${form.genreIds != null && form.genreIds.contains(genre.id) ? 'selected' : ''}>
-                                    ${genre.name}
-                                </option>
-                            </c:forEach>
-                        </select>
-                    </div>
-
-                    <div class="lookup-editor">
-                        <div class="lookup-editor-title">Редактор жанров</div>
-                        <div id="genreEditorRows" class="lookup-editor-rows">
-                            <c:forEach var="genre" items="${genres}">
-                                <div class="lookup-editor-row" data-id="${genre.id}">
-                                    <input type="hidden" class="lookup-id" value="${genre.id}">
-                                    <input type="text" class="lookup-name" value="${genre.name}" maxlength="100">
-                                    <label class="lookup-checkbox">
-                                        <input type="checkbox" class="lookup-delete">
-                                        Удалить
-                                    </label>
-                                </div>
-                            </c:forEach>
-                        </div>
-                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="genreEditorRows" data-kind="genre">
-                            Добавить жанр
+                    <div class="selected-values-wrap">
+                        <div id="selectedGenresChips" class="selected-values-chips"></div>
+                        <button type="button" class="btn btn-outline js-open-lookup-modal" data-kind="genre">
+                            Выбрать и редактировать
                         </button>
                     </div>
                 </section>
@@ -170,39 +161,21 @@
                 <section class="admin-form-card">
                     <h2>Теги</h2>
 
-                    <div class="admin-field-group">
-                        <label for="tagIds">Выбранные теги</label>
-                        <select id="tagIds" name="tagIds" multiple size="8">
-                            <c:forEach var="tag" items="${tags}">
-                                <option value="${tag.id}" ${form.tagIds != null && form.tagIds.contains(tag.id) ? 'selected' : ''}>
-                                    ${tag.name}
-                                </option>
-                            </c:forEach>
-                        </select>
-                    </div>
-
-                    <div class="lookup-editor">
-                        <div class="lookup-editor-title">Редактор тегов</div>
-                        <div id="tagEditorRows" class="lookup-editor-rows">
-                            <c:forEach var="tag" items="${tags}">
-                                <div class="lookup-editor-row" data-id="${tag.id}">
-                                    <input type="hidden" class="lookup-id" value="${tag.id}">
-                                    <input type="text" class="lookup-name" value="${tag.name}" maxlength="100">
-                                    <label class="lookup-checkbox">
-                                        <input type="checkbox" class="lookup-delete">
-                                        Удалить
-                                    </label>
-                                </div>
-                            </c:forEach>
-                        </div>
-                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="tagEditorRows" data-kind="tag">
-                            Добавить тег
+                    <div class="selected-values-wrap">
+                        <div id="selectedTagsChips" class="selected-values-chips"></div>
+                        <button type="button" class="btn btn-outline js-open-lookup-modal" data-kind="tag">
+                            Выбрать и редактировать
                         </button>
                     </div>
                 </section>
 
                 <section class="admin-form-card admin-form-card-wide">
-                    <h2>Связанные комиксы</h2>
+                    <div class="admin-card-head">
+                        <h2>Связанные комиксы</h2>
+                        <button type="button" class="btn btn-outline js-open-lookup-modal" data-kind="relationType">
+                            Редактировать метки связей
+                        </button>
+                    </div>
 
                     <div class="admin-field-group">
                         <label for="relatedComicSearch">Поиск комикса</label>
@@ -222,41 +195,18 @@
                                     <div class="relation-item-title">${relation.relatedComicTitle}</div>
                                     <input type="hidden" class="relation-comic-id" value="${relation.relatedComicId}">
                                     <input type="text"
-                                           class="relation-type-name"
+                                           class="relation-type-name manual-trim-input"
                                            value="${relation.relationTypeName}"
                                            list="relationTypeNames"
                                            maxlength="50"
-                                           placeholder="Метка связи">
+                                           placeholder="Метка связи *">
                                 </div>
                                 <button type="button" class="btn btn-outline relation-remove-btn js-remove-relation">Удалить</button>
                             </div>
                         </c:forEach>
                     </div>
 
-                    <datalist id="relationTypeNames">
-                        <c:forEach var="relationType" items="${relationTypes}">
-                            <option value="${relationType.name}"></option>
-                        </c:forEach>
-                    </datalist>
-
-                    <div class="lookup-editor">
-                        <div class="lookup-editor-title">Редактор меток связи</div>
-                        <div id="relationTypeEditorRows" class="lookup-editor-rows">
-                            <c:forEach var="relationType" items="${relationTypes}">
-                                <div class="lookup-editor-row" data-id="${relationType.id}">
-                                    <input type="hidden" class="lookup-id" value="${relationType.id}">
-                                    <input type="text" class="lookup-name relation-type-editor-input" value="${relationType.name}" maxlength="50">
-                                    <label class="lookup-checkbox">
-                                        <input type="checkbox" class="lookup-delete">
-                                        Удалить
-                                    </label>
-                                </div>
-                            </c:forEach>
-                        </div>
-                        <button type="button" class="btn btn-outline js-add-lookup-row" data-target="relationTypeEditorRows" data-kind="relationType">
-                            Добавить метку
-                        </button>
-                    </div>
+                    <datalist id="relationTypeNames"></datalist>
                 </section>
             </div>
 
@@ -264,6 +214,59 @@
                 <button type="submit" class="btn">Сохранить</button>
             </div>
         </form>
+
+        <div id="lookupModal" class="modal admin-lookup-modal hidden" aria-modal="true" role="dialog">
+            <div class="modal-content admin-lookup-modal-content">
+                <button type="button"
+                        id="lookupModalCloseBtn"
+                        class="admin-lookup-close-btn"
+                        aria-label="Закрыть">
+                    &times;
+                </button>
+
+                <div class="admin-lookup-modal-header">
+                    <h3 id="lookupModalTitle">Редактор</h3>
+                </div>
+
+                <div class="admin-field-group">
+                    <label for="lookupModalSearch">Поиск</label>
+                    <input type="text" id="lookupModalSearch" placeholder="Введите название">
+                </div>
+
+                <div id="lookupModalRows" class="lookup-modal-rows"></div>
+
+                <div class="admin-lookup-modal-actions">
+                    <button type="button" id="lookupModalAddBtn" class="btn btn-outline">Добавить</button>
+                    <button type="button" id="lookupModalApplyBtn" class="btn">Готово</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="genreSourceRows" class="hidden">
+            <c:forEach var="genre" items="${genres}">
+                <div class="lookup-source-row"
+                     data-id="${genre.id}"
+                     data-name="${genre.name}"
+                     data-selected="${form.genreIds != null && form.genreIds.contains(genre.id)}"></div>
+            </c:forEach>
+        </div>
+
+        <div id="tagSourceRows" class="hidden">
+            <c:forEach var="tag" items="${tags}">
+                <div class="lookup-source-row"
+                     data-id="${tag.id}"
+                     data-name="${tag.name}"
+                     data-selected="${form.tagIds != null && form.tagIds.contains(tag.id)}"></div>
+            </c:forEach>
+        </div>
+
+        <div id="relationTypeSourceRows" class="hidden">
+            <c:forEach var="relationType" items="${relationTypes}">
+                <div class="lookup-source-row"
+                     data-id="${relationType.id}"
+                     data-name="${relationType.name}"></div>
+            </c:forEach>
+        </div>
     </main>
 
     <jsp:include page="/WEB-INF/views/footer.jsp"/>

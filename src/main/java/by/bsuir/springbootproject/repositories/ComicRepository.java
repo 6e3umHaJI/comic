@@ -130,6 +130,7 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
             WHERE c.id = :id
             """)
     Optional<Comic> findByIdForAdminEdit(@Param("id") Integer id);
+    long countByCover(String cover);
 
     @Override
     @EntityGraph(attributePaths = {"genres"})

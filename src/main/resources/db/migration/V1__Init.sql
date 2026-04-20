@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS translation_types (
 
 CREATE TABLE IF NOT EXISTS languages (
                                          language_id SERIAL PRIMARY KEY,
-                                         name VARCHAR(50) NOT NULL
+                                         name VARCHAR(35) NOT NULL
     );
 
 CREATE TABLE IF NOT EXISTS notification_types (
@@ -59,12 +59,12 @@ CREATE TABLE IF NOT EXISTS rating_scores (
 
 CREATE TABLE IF NOT EXISTS genres (
                                       genre_id SERIAL PRIMARY KEY,
-                                      name VARCHAR(100) NOT NULL
+                                      name VARCHAR(50) NOT NULL
     );
 
 CREATE TABLE IF NOT EXISTS tags (
                                     tag_id SERIAL PRIMARY KEY,
-                                    name VARCHAR(100) NOT NULL
+                                    name VARCHAR(50) NOT NULL
     );
 
 CREATE TABLE IF NOT EXISTS users (

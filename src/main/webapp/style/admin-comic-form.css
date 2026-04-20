@@ -60,6 +60,14 @@
     font-size: 1.05rem;
 }
 
+.admin-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .admin-field-group {
     display: flex;
     flex-direction: column;
@@ -96,18 +104,23 @@
     resize: vertical;
 }
 
-.admin-field-group select[multiple] {
-    height: auto;
-    min-height: 180px;
-    padding: 8px;
-}
-
 .admin-field-group input:focus,
 .admin-field-group select:focus,
 .admin-field-group textarea:focus,
 #coverFile:focus {
     outline: none;
     border-color: var(--accent);
+}
+
+#releaseYear::-webkit-outer-spin-button,
+#releaseYear::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#releaseYear {
+    appearance: textfield;
+    -moz-appearance: textfield;
 }
 
 .cover-preview-wrap {
@@ -142,63 +155,29 @@
     font-size: 0.92rem;
 }
 
-.lookup-editor {
+.selected-values-wrap {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    border-top: 1px solid var(--border);
-    padding-top: 12px;
+    gap: 12px;
 }
 
-.lookup-editor-title {
-    font-weight: 700;
-    color: var(--text);
-}
-
-.lookup-editor-rows {
+.selected-values-chips {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 8px;
+    min-height: 18px;
 }
 
-.lookup-editor-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 10px;
-    align-items: center;
-}
-
-.lookup-editor-row .lookup-name {
-    width: 100%;
-    height: 40px;
+.selected-value-chip {
+    min-height: 30px;
     padding: 0 12px;
+    border-radius: 999px;
     border: 1px solid var(--border);
-    border-radius: 10px;
     background: var(--card);
     color: var(--text);
+    display: inline-flex;
+    align-items: center;
     box-sizing: border-box;
-    font: inherit;
-}
-
-.lookup-editor-row .lookup-name:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
-.lookup-checkbox {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    color: var(--text);
-}
-
-.lookup-select-for-comic-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text);
-    white-space: nowrap;
 }
 
 .related-search-results {
@@ -228,6 +207,7 @@
     object-fit: cover;
     border-radius: 8px;
     border: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .related-search-placeholder {
@@ -312,39 +292,143 @@
     justify-content: flex-end;
 }
 
-.comic-title-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: space-between;
-}
-
-.comic-title-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-}
-
-.comic-edit-btn {
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
-    padding: 0 !important;
-    display: inline-flex;
+.admin-lookup-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: none;
     align-items: center;
     justify-content: center;
-    border-color: var(--border);
-    background: var(--card) !important;
-    color: var(--accent);
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
 }
 
-.comic-edit-btn:hover,
-.comic-edit-btn:focus-visible {
-    border-color: var(--accent) !important;
-    background: var(--card) !important;
+.admin-lookup-modal.visible {
+    display: flex !important;
+}
+
+.admin-lookup-modal.hidden {
+    display: none !important;
+}
+
+.admin-lookup-modal-content {
+    position: relative;
+    width: min(760px, 96vw);
+    max-height: min(82vh, 900px);
+    overflow: hidden;
+    padding: 20px 18px 18px;
+    border-radius: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    box-sizing: border-box;
+    box-shadow: 0 0 14px rgba(0, 0, 0, 0.3);
+}
+
+.admin-lookup-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.admin-lookup-close-btn:hover,
+.admin-lookup-close-btn:focus-visible {
+    border-color: var(--accent);
     color: var(--accent);
+    background: rgba(150, 150, 150, 0.06);
+    outline: none;
+}
+
+.admin-lookup-modal-header h3 {
+    margin: 0 42px 14px 0;
+}
+
+.lookup-modal-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow: auto;
+    margin-top: 6px;
+    padding-right: 2px;
+}
+
+.lookup-modal-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 10px;
+}
+
+.lookup-modal-row.is-hidden {
+    display: none;
+}
+
+.lookup-modal-row input[type="text"] {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.lookup-modal-row input[type="text"][readonly] {
+    opacity: 0.92;
+}
+
+.lookup-modal-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.lookup-row-select,
+.lookup-row-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lookup-row-select input[type="checkbox"],
+.lookup-row-delete input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.admin-lookup-modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
 }
 
 .hidden {
@@ -361,8 +445,8 @@
     }
 }
 
-@media (max-width: 640px) {
-    .lookup-editor-row {
+@media (max-width: 760px) {
+    .lookup-modal-row {
         grid-template-columns: 1fr;
     }
 
@@ -371,6 +455,14 @@
     }
 
     .relation-remove-btn {
+        width: 100%;
+    }
+
+    .admin-lookup-modal-actions {
+        flex-direction: column;
+    }
+
+    .admin-lookup-modal-actions .btn {
         width: 100%;
     }
 }

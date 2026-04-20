@@ -3,7 +3,6 @@ package by.bsuir.springbootproject.services.implementation;
 import by.bsuir.springbootproject.dto.AdminComicForm;
 import by.bsuir.springbootproject.dto.AdminComicRelationItem;
 import by.bsuir.springbootproject.entities.Comic;
-import by.bsuir.springbootproject.entities.ComicRelation;
 import by.bsuir.springbootproject.entities.Genre;
 import by.bsuir.springbootproject.entities.RelationType;
 import by.bsuir.springbootproject.entities.Tag;
@@ -100,6 +99,8 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
         ensureCollectionsInitialized(comic);
 
+        String oldCover = optionalTrimmed(comic.getCover(), 255);
+
         String title = requiredTrimmed(form.getTitle(), "Укажите название комикса.", 255);
         String originalTitle = optionalTrimmed(form.getOriginalTitle(), 255);
         Integer releaseYear = parseReleaseYear(form.getReleaseYear());
@@ -107,7 +108,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         String fullDescription = requiredTrimmed(form.getFullDescription(), "Укажите описание.", 2000);
 
         comic.setTitle(title);
-        comic.setOriginalTitle(originalTitle);
+        comic.setOriginalTitle(originalTitle.isBlank() ? null : originalTitle);
         comic.setReleaseYear(releaseYear);
         comic.setShortDescription(shortDescription);
         comic.setFullDescription(fullDescription);
@@ -129,22 +130,26 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
             comic.setCreatedAt(LocalDateTime.now());
             comic.setUpdatedAt(LocalDateTime.now());
             comic.setPopularityScore(0L);
-            comic = comicRepository.save(comic);
-            ensureCollectionsInitialized(comic);
         }
+
+        comic = comicRepository.saveAndFlush(comic);
+        ensureCollectionsInitialized(comic);
 
         applyGenres(comic, form);
         applyTags(comic, form);
         applyRelationTypeOperations(form.getRelationTypeOperationsJson());
-        applyRelations(comic, form.getRelationsJson());
 
-        comicRepository.save(comic);
+        comic = comicRepository.saveAndFlush(comic);
+
+        rewriteRelations(comic.getId(), form.getRelationsJson());
+        deleteOldCoverIfUnused(oldCover, comic.getCover());
+
         return comic.getId();
     }
 
     @Override
     public List<Map<String, Object>> searchComics(String q, Integer excludeComicId) {
-        String query = q == null ? "" : q.trim();
+        String query = optionalTrimmed(q, 255);
         if (query.length() < 2) {
             return List.of();
         }
@@ -393,42 +398,39 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         }
     }
 
-    private void applyRelations(Comic comic, String relationsJson) {
-        ensureCollectionsInitialized(comic);
-
-        comic.getRelatedComics().clear();
-
+    private void rewriteRelations(Integer comicId, String relationsJson) {
+        List<RelationInput> relationInputs = parseRelations(relationsJson);
         Set<Integer> addedComicIds = new LinkedHashSet<>();
 
-        for (RelationInput relationInput : parseRelations(relationsJson)) {
-            if (relationInput.getRelatedComicId() == null) {
+        jdbcTemplate.update("delete from comic_relations where comic_id = ?", comicId);
+
+        for (RelationInput relationInput : relationInputs) {
+            Integer relatedComicId = relationInput.getRelatedComicId();
+            if (relatedComicId == null || relatedComicId <= 0) {
                 continue;
             }
-            if (comic.getId() != null && comic.getId().equals(relationInput.getRelatedComicId())) {
+            if (comicId.equals(relatedComicId)) {
                 continue;
             }
-            if (!addedComicIds.add(relationInput.getRelatedComicId())) {
+            if (!addedComicIds.add(relatedComicId)) {
                 continue;
             }
 
-            Comic relatedComic = comicRepository.findById(relationInput.getRelatedComicId()).orElse(null);
-            if (relatedComic == null) {
-                continue;
-            }
+            String relationTypeName = requiredTrimmed(
+                    relationInput.getRelationTypeName(),
+                    "Укажите метку связи для каждого связанного комикса.",
+                    50
+            );
 
-            String relationTypeName = optionalTrimmed(relationInput.getRelationTypeName(), 50);
-            RelationType relationType = relationTypeName.isBlank()
-                    ? null
-                    : relationTypeRepository.findByNameIgnoreCase(relationTypeName)
-                      .orElseGet(() -> relationTypeRepository.save(RelationType.builder().name(relationTypeName).build()));
+            RelationType relationType = relationTypeRepository.findByNameIgnoreCase(relationTypeName)
+                    .orElseGet(() -> relationTypeRepository.save(RelationType.builder().name(relationTypeName).build()));
 
-            ComicRelation relation = ComicRelation.builder()
-                    .comic(comic)
-                    .relatedComic(relatedComic)
-                    .relationType(relationType)
-                    .build();
-
-            comic.getRelatedComics().add(relation);
+            jdbcTemplate.update(
+                    "insert into comic_relations (comic_id, related_comic_id, relation_type_id) values (?, ?, ?)",
+                    comicId,
+                    relatedComicId,
+                    relationType.getId()
+            );
         }
     }
 
@@ -509,20 +511,20 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
     }
 
     private Integer parseReleaseYear(String value) {
-        String trimmed = optionalTrimmed(value, 10);
+        String trimmed = optionalTrimmed(value, 4);
         if (trimmed.isBlank()) {
             throw new IllegalArgumentException("Укажите год релиза.");
         }
-
-        try {
-            int year = Integer.parseInt(trimmed);
-            if (year < 1000 || year > 2100) {
-                throw new IllegalArgumentException("Год релиза указан некорректно.");
-            }
-            return year;
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Год релиза должен быть числом.");
+        if (!trimmed.matches("\\d{4}")) {
+            throw new IllegalArgumentException("Год релиза должен быть в формате XXXX.");
         }
+
+        int year = Integer.parseInt(trimmed);
+        if (year < 1900 || year > 2100) {
+            throw new IllegalArgumentException("Год релиза должен быть в диапазоне 1900–2100.");
+        }
+
+        return year;
     }
 
     private String storeCover(MultipartFile coverFile) {
@@ -550,6 +552,26 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
             return fileName;
         } catch (IOException e) {
             throw new IllegalStateException("Не удалось сохранить обложку.");
+        }
+    }
+
+    private void deleteOldCoverIfUnused(String oldCover, String newCover) {
+        String normalizedOld = optionalTrimmed(oldCover, 255);
+        String normalizedNew = optionalTrimmed(newCover, 255);
+
+        if (normalizedOld.isBlank() || normalizedOld.equals(normalizedNew)) {
+            return;
+        }
+
+        if (comicRepository.countByCover(normalizedOld) > 0) {
+            return;
+        }
+
+        Path oldCoverPath = Path.of("src/main/webapp/assets/covers", normalizedOld);
+
+        try {
+            Files.deleteIfExists(oldCoverPath);
+        } catch (IOException ignored) {
         }
     }
 

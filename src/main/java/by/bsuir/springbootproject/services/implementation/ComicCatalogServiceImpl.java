@@ -1,6 +1,12 @@
 package by.bsuir.springbootproject.services.implementation;
 
+import by.bsuir.springbootproject.entities.AgeRating;
+import by.bsuir.springbootproject.entities.ComicStatus;
+import by.bsuir.springbootproject.entities.ComicType;
+import by.bsuir.springbootproject.entities.Genre;
+import by.bsuir.springbootproject.entities.Language;
 import by.bsuir.springbootproject.entities.SearchCriteria;
+import by.bsuir.springbootproject.entities.Tag;
 import by.bsuir.springbootproject.repositories.AgeRatingRepository;
 import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.ComicSearchSpecification;
@@ -19,6 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.ModelAndView;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -34,8 +45,33 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
 
     @Override
     public ModelAndView findComics(SearchCriteria criteria) {
-        Sort sort = buildSort(criteria);
+        var genres = genreRepository.findAll().stream()
+                .sorted(Comparator.comparing(Genre::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
 
+        var tags = tagRepository.findAll().stream()
+                .sorted(Comparator.comparing(Tag::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        var types = typeRepository.findAll().stream()
+                .sorted(Comparator.comparing(ComicType::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        var statuses = statusRepository.findAll().stream()
+                .sorted(Comparator.comparing(ComicStatus::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        var ageRatings = ageRatingRepository.findAll().stream()
+                .sorted(Comparator.comparing(AgeRating::getId))
+                .toList();
+
+        var languages = languageRepository.findAll().stream()
+                .sorted(Comparator.comparing(Language::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        sanitizeCriteria(criteria, genres, tags, types, statuses, ageRatings, languages);
+
+        Sort sort = buildSort(criteria);
         Pageable pageable = PageRequest.of(
                 criteria.getPageNumber(),
                 criteria.getPageSize(),
@@ -47,7 +83,6 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
         int totalPages = comics.getTotalPages();
         int currentPage = comics.getNumber() + 1;
         int visiblePages = 5;
-
         int beginPage = Math.max(1, currentPage - 2);
         int endPage = Math.min(beginPage + visiblePages - 1, totalPages);
 
@@ -67,14 +102,63 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
         mv.addObject("endPage", endPage);
         mv.addObject("showLeftDots", showLeftDots);
         mv.addObject("showRightDots", showRightDots);
-        mv.addObject("genres", genreRepository.findAll());
-        mv.addObject("tags", tagRepository.findAll());
-        mv.addObject("types", typeRepository.findAll());
-        mv.addObject("statuses", statusRepository.findAll());
-        mv.addObject("ageRatings", ageRatingRepository.findAll());
-        mv.addObject("languages", languageRepository.findAll());
+        mv.addObject("genres", genres);
+        mv.addObject("tags", tags);
+        mv.addObject("types", types);
+        mv.addObject("statuses", statuses);
+        mv.addObject("ageRatings", ageRatings);
+        mv.addObject("languages", languages);
 
         return mv;
+    }
+
+    private void sanitizeCriteria(SearchCriteria criteria,
+                                  java.util.List<Genre> genres,
+                                  java.util.List<Tag> tags,
+                                  java.util.List<ComicType> types,
+                                  java.util.List<ComicStatus> statuses,
+                                  java.util.List<AgeRating> ageRatings,
+                                  java.util.List<Language> languages) {
+        criteria.setSelectedGenres(sanitizeValues(
+                criteria.getSelectedGenres(),
+                genres.stream().map(Genre::getName).collect(Collectors.toSet())
+        ));
+
+        criteria.setSelectedTags(sanitizeValues(
+                criteria.getSelectedTags(),
+                tags.stream().map(Tag::getName).collect(Collectors.toSet())
+        ));
+
+        criteria.setSelectedTypes(sanitizeValues(
+                criteria.getSelectedTypes(),
+                types.stream().map(ComicType::getName).collect(Collectors.toSet())
+        ));
+
+        criteria.setSelectedComicStatuses(sanitizeValues(
+                criteria.getSelectedComicStatuses(),
+                statuses.stream().map(ComicStatus::getName).collect(Collectors.toSet())
+        ));
+
+        criteria.setSelectedAgeRatings(sanitizeValues(
+                criteria.getSelectedAgeRatings(),
+                ageRatings.stream().map(AgeRating::getName).collect(Collectors.toSet())
+        ));
+
+        criteria.setSelectedLanguages(sanitizeValues(
+                criteria.getSelectedLanguages(),
+                languages.stream().map(Language::getName).collect(Collectors.toSet())
+        ));
+    }
+
+    private String[] sanitizeValues(String[] selectedValues, Set<String> allowedValues) {
+        if (selectedValues == null || selectedValues.length == 0) {
+            return new String[0];
+        }
+
+        return Arrays.stream(selectedValues)
+                .filter(value -> value != null && allowedValues.contains(value))
+                .distinct()
+                .toArray(String[]::new);
     }
 
     private Sort buildSort(SearchCriteria criteria) {

@@ -28,14 +28,6 @@
                       style="-webkit-mask-image:url('<c:url value="/assets/icons/search.svg"/>'); mask-image:url('<c:url value="/assets/icons/search.svg"/>');"></span>
                 Поиск
             </a>
-
-            <sec:authorize access="hasRole('ADMIN')">
-                <a href="<c:url value='/admin/uploads'/>">
-                    <span class="nav-icon"
-                          style="-webkit-mask-image:url('<c:url value="/assets/icons/admin.svg"/>'); mask-image:url('<c:url value="/assets/icons/admin.svg"/>');"></span>
-                    Загруженные главы
-                </a>
-            </sec:authorize>
         </nav>
 
         <div class="nav-actions">
@@ -88,7 +80,7 @@
 
                         <a href="#" class="profile-dropdown-item">
                             <span class="profile-menu-icon"
-                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/chapter.svg"/>'); mask-image:url('<c:url value="/assets/icons/chapter.svg"/>');"></span>
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/upload.svg"/>'); mask-image:url('<c:url value="/assets/icons/upload.svg"/>');"></span>
                             <span class="profile-dropdown-item-main">
                                 <span>Мои главы</span>
                             </span>
@@ -97,14 +89,14 @@
                         <sec:authorize access="hasRole('ADMIN')">
                             <a href="<c:url value='/admin/complaints'/>" class="profile-dropdown-item">
                                 <span class="profile-menu-icon"
-                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/warning.svg"/>'); mask-image:url('<c:url value="/assets/icons/warning.svg"/>');"></span>
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
                                 <span class="profile-dropdown-item-main">
                                     <span>Жалобы</span>
                                 </span>
                             </a>
                             <a href="<c:url value='/admin/comics/new'/>" class="profile-dropdown-item">
                                 <span class="profile-menu-icon"
-                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/add.svg"/>'); mask-image:url('<c:url value="/assets/icons/add.svg"/>');"></span>
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/book.svg"/>'); mask-image:url('<c:url value="/assets/icons/book.svg"/>');"></span>
                                 <span class="profile-dropdown-item-main">
                                     <span>Добавить комикс</span>
                                 </span>

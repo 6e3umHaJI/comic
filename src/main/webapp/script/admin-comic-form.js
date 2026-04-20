@@ -8,67 +8,111 @@
             .replaceAll("'", '&#039;');
     }
 
-    function createLookupRow(kind, data = {}) {
-        const row = document.createElement('div');
-        row.className = 'lookup-editor-row';
-        if (data.id) {
-            row.dataset.id = String(data.id);
-        }
-
-        const selectedPart = kind === 'genre' || kind === 'tag'
-            ? `
-                <label class="lookup-select-for-comic-label">
-                    <input type="checkbox" class="lookup-select-for-comic" ${data.selected ? 'checked' : ''}>
-                    Выбрать
-                </label>
-              `
-            : '';
-
-        row.innerHTML = `
-            <input type="hidden" class="lookup-id" value="${escapeHtml(data.id ?? '')}">
-            <input type="text" class="lookup-name" value="${escapeHtml(data.name ?? '')}" maxlength="${kind === 'relationType' ? '50' : '100'}">
-            ${selectedPart}
-            <label class="lookup-checkbox">
-                <input type="checkbox" class="lookup-delete" ${data.delete ? 'checked' : ''}>
-                Удалить
-            </label>
-        `;
-        return row;
+    function trimEdges(value) {
+        return String(value ?? '').trim();
     }
 
-    function serializeLookupRows(containerId, hiddenId) {
-        const container = document.getElementById(containerId);
-        const hiddenInput = document.getElementById(hiddenId);
-        if (!container || !hiddenInput) {
+    function readLookupState(sourceId, selectable) {
+        const source = document.getElementById(sourceId);
+        if (!source) {
+            return [];
+        }
+
+        return [...source.querySelectorAll('.lookup-source-row')].map((row) => ({
+            id: row.dataset.id ? Number(row.dataset.id) : null,
+            name: trimEdges(row.dataset.name || ''),
+            selected: selectable ? row.dataset.selected === 'true' : false,
+            delete: false,
+            editing: false
+        }));
+    }
+
+    function renderSelectedChips(items, chipsId, hiddenContainerId, fieldName) {
+        const chips = document.getElementById(chipsId);
+        const hiddenContainer = document.getElementById(hiddenContainerId);
+
+        if (!chips || !hiddenContainer) {
             return;
         }
 
-        const items = [...container.querySelectorAll('.lookup-editor-row')]
-            .map((row) => ({
-                id: row.dataset.id ? Number(row.dataset.id) : null,
-                name: (row.querySelector('.lookup-name')?.value || '').trim(),
-                selected: row.querySelector('.lookup-select-for-comic')?.checked || false,
-                delete: row.querySelector('.lookup-delete')?.checked || false
-            }))
-            .filter((item) => item.id || item.name.length > 0 || item.delete);
+        const selectedItems = items.filter((item) => item.selected && !item.delete && trimEdges(item.name).length > 0);
 
-        hiddenInput.value = JSON.stringify(items);
+        chips.innerHTML = selectedItems.length > 0
+            ? selectedItems.map((item) => `<span class="selected-value-chip">${escapeHtml(item.name)}</span>`).join('')
+            : '<span class="field-hint">Ничего не выбрано</span>';
+
+        hiddenContainer.innerHTML = selectedItems
+            .filter((item) => Number.isFinite(item.id) && item.id > 0)
+            .map((item) => `<input type="hidden" name="${fieldName}" value="${item.id}">`)
+            .join('');
     }
 
-    function buildRelationTypeDatalist() {
+    function serializeLookupOperations(items, selectable) {
+        return JSON.stringify(
+            items
+                .map((item) => ({
+                    id: Number.isFinite(item.id) ? item.id : null,
+                    name: trimEdges(item.name),
+                    selected: selectable ? Boolean(item.selected) : false,
+                    delete: Boolean(item.delete)
+                }))
+                .filter((item) => item.id || item.name.length > 0 || item.delete)
+        );
+    }
+
+    function buildRelationTypeDatalist(relationTypeItems) {
         const datalist = document.getElementById('relationTypeNames');
-        const container = document.getElementById('relationTypeEditorRows');
-        if (!datalist || !container) {
+        if (!datalist) {
             return;
         }
 
-        const names = [...container.querySelectorAll('.lookup-name')]
-            .map((input) => input.value.trim())
-            .filter((name) => name.length > 0);
+        const names = relationTypeItems
+            .filter((item) => !item.delete && trimEdges(item.name).length > 0)
+            .map((item) => trimEdges(item.name));
 
-        datalist.innerHTML = names
+        datalist.innerHTML = [...new Set(names)]
             .map((name) => `<option value="${escapeHtml(name)}"></option>`)
             .join('');
+    }
+
+    function renderLookupModalRows(kind, items, query) {
+        const rowsWrap = document.getElementById('lookupModalRows');
+        if (!rowsWrap) {
+            return;
+        }
+
+        const normalizedQuery = trimEdges(query).toLowerCase();
+
+        rowsWrap.innerHTML = items.map((item, index) => {
+            const matches = normalizedQuery.length === 0 || trimEdges(item.name).toLowerCase().includes(normalizedQuery);
+            const selectable = kind === 'genre' || kind === 'tag';
+
+            return `
+                <div class="lookup-modal-row ${matches ? '' : 'is-hidden'}" data-index="${index}">
+                    ${selectable ? `
+                        <label class="lookup-row-select">
+                            <input type="checkbox" class="js-lookup-selected" ${item.selected ? 'checked' : ''} ${item.delete ? 'disabled' : ''}>
+                            <span></span>
+                        </label>
+                    ` : '<span></span>'}
+
+                    <input type="text"
+                           class="js-lookup-name"
+                           value="${escapeHtml(item.name)}"
+                           maxlength="${kind === 'relationType' ? '50' : '100'}"
+                           ${item.editing ? '' : 'readonly'}>
+
+                    <button type="button" class="btn btn-outline js-toggle-lookup-edit">
+                        ${item.editing ? 'Готово' : 'Редактировать'}
+                    </button>
+
+                    <label class="lookup-row-delete">
+                        <input type="checkbox" class="js-lookup-delete" ${item.delete ? 'checked' : ''}>
+                        <span>Удалить</span>
+                    </label>
+                </div>
+            `;
+        }).join('');
     }
 
     function createRelationItem(item) {
@@ -81,11 +125,11 @@
                 <div class="relation-item-title">${escapeHtml(item.relatedComicTitle || '')}</div>
                 <input type="hidden" class="relation-comic-id" value="${escapeHtml(item.relatedComicId)}">
                 <input type="text"
-                       class="relation-type-name"
+                       class="relation-type-name manual-trim-input"
                        value="${escapeHtml(item.relationTypeName || '')}"
                        list="relationTypeNames"
                        maxlength="50"
-                       placeholder="Метка связи">
+                       placeholder="Метка связи *">
             </div>
             <button type="button" class="btn btn-outline relation-remove-btn js-remove-relation">Удалить</button>
         `;
@@ -95,80 +139,43 @@
     function serializeRelations() {
         const relationsHidden = document.getElementById('relationsJson');
         const relationsContainer = document.getElementById('relatedComicRelations');
+
         if (!relationsHidden || !relationsContainer) {
-            return;
+            return { ok: true };
         }
 
-        const items = [...relationsContainer.querySelectorAll('.relation-item')]
-            .map((row) => ({
-                relatedComicId: Number(row.dataset.relatedComicId),
-                relatedComicTitle: (row.querySelector('.relation-item-title')?.textContent || '').trim(),
-                relationTypeName: (row.querySelector('.relation-type-name')?.value || '').trim()
-            }))
-            .filter((item) => Number.isFinite(item.relatedComicId) && item.relatedComicId > 0);
+        const relations = [];
+        const seenComicIds = new Set();
 
-        relationsHidden.value = JSON.stringify(items);
-    }
+        for (const row of relationsContainer.querySelectorAll('.relation-item')) {
+            const relatedComicId = Number(row.dataset.relatedComicId);
+            const relatedComicTitle = trimEdges(row.querySelector('.relation-item-title')?.textContent || '');
+            const relationTypeInput = row.querySelector('.relation-type-name');
+            const relationTypeName = trimEdges(relationTypeInput?.value || '');
 
-    function applyStoredLookupOperations(containerId, hiddenId, kind) {
-        const container = document.getElementById(containerId);
-        const hiddenInput = document.getElementById(hiddenId);
-        if (!container || !hiddenInput || !hiddenInput.value) {
-            return;
-        }
-
-        let items = [];
-        try {
-            items = JSON.parse(hiddenInput.value || '[]');
-        } catch (e) {
-            items = [];
-        }
-
-        items.forEach((item) => {
-            if (item.id) {
-                const row = container.querySelector(`.lookup-editor-row[data-id="${item.id}"]`);
-                if (!row) {
-                    return;
-                }
-
-                const nameInput = row.querySelector('.lookup-name');
-                const deleteInput = row.querySelector('.lookup-delete');
-                const selectForComic = row.querySelector('.lookup-select-for-comic');
-
-                if (nameInput && item.name != null) {
-                    nameInput.value = item.name;
-                }
-                if (deleteInput) {
-                    deleteInput.checked = Boolean(item.delete);
-                }
-                if (selectForComic) {
-                    selectForComic.checked = Boolean(item.selected);
-                }
-                return;
+            if (!Number.isFinite(relatedComicId) || relatedComicId <= 0) {
+                continue;
             }
 
-            if ((item.name || '').trim().length > 0 || item.delete || item.selected) {
-                container.appendChild(createLookupRow(kind, item));
+            if (seenComicIds.has(relatedComicId)) {
+                continue;
             }
-        });
-    }
 
-    function addRelationFromSearchItem(item) {
-        const relationsContainer = document.getElementById('relatedComicRelations');
-        if (!relationsContainer || !item || !item.id) {
-            return;
+            if (!relationTypeName) {
+                return { ok: false, message: 'Укажите метку связи для каждого связанного комикса.' };
+            }
+
+            seenComicIds.add(relatedComicId);
+
+            relations.push({
+                relatedComicId,
+                relatedComicTitle,
+                relationTypeName
+            });
         }
 
-        const exists = relationsContainer.querySelector(`.relation-item[data-related-comic-id="${item.id}"]`);
-        if (exists) {
-            return;
-        }
-
-        relationsContainer.appendChild(createRelationItem({
-            relatedComicId: item.id,
-            relatedComicTitle: item.title,
-            relationTypeName: ''
-        }));
+        relationsHidden.value = JSON.stringify(relations);
+        return { ok: true };
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -178,11 +185,86 @@
         const coverPlaceholder = document.getElementById('coverPreviewPlaceholder');
         const relatedSearchInput = document.getElementById('relatedComicSearch');
         const relatedResults = document.getElementById('relatedComicSearchResults');
+        const clientFormError = document.getElementById('clientFormError');
 
-        applyStoredLookupOperations('genreEditorRows', 'genreOperationsJson', 'genre');
-        applyStoredLookupOperations('tagEditorRows', 'tagOperationsJson', 'tag');
-        applyStoredLookupOperations('relationTypeEditorRows', 'relationTypeOperationsJson', 'relationType');
-        buildRelationTypeDatalist();
+        const lookupModal = document.getElementById('lookupModal');
+        const lookupModalTitle = document.getElementById('lookupModalTitle');
+        const lookupModalSearch = document.getElementById('lookupModalSearch');
+        const lookupModalCloseBtn = document.getElementById('lookupModalCloseBtn');
+        const lookupModalAddBtn = document.getElementById('lookupModalAddBtn');
+        const lookupModalApplyBtn = document.getElementById('lookupModalApplyBtn');
+
+        const state = {
+            currentModalKind: null,
+            genre: readLookupState('genreSourceRows', true),
+            tag: readLookupState('tagSourceRows', true),
+            relationType: readLookupState('relationTypeSourceRows', false)
+        };
+
+        function getStateByKind(kind) {
+            if (kind === 'genre') return state.genre;
+            if (kind === 'tag') return state.tag;
+            return state.relationType;
+        }
+
+        function refreshRenderedState() {
+            renderSelectedChips(state.genre, 'selectedGenresChips', 'selectedGenreInputs', 'genreIds');
+            renderSelectedChips(state.tag, 'selectedTagsChips', 'selectedTagInputs', 'tagIds');
+            buildRelationTypeDatalist(state.relationType);
+        }
+
+        function openLookupModal(kind) {
+            state.currentModalKind = kind;
+
+            if (lookupModalTitle) {
+                lookupModalTitle.textContent = kind === 'genre'
+                    ? 'Жанры'
+                    : kind === 'tag'
+                        ? 'Теги'
+                        : 'Метки связей';
+            }
+
+            if (lookupModalSearch) {
+                lookupModalSearch.value = '';
+            }
+
+            renderLookupModalRows(kind, getStateByKind(kind), '');
+            lookupModal.classList.remove('hidden');
+            lookupModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLookupModal() {
+            if (!lookupModal) {
+                return;
+            }
+
+            lookupModal.classList.add('hidden');
+            lookupModal.classList.remove('visible');
+            document.body.style.overflow = '';
+            state.currentModalKind = null;
+        }
+
+        function showClientError(message) {
+            if (!clientFormError) {
+                return;
+            }
+
+            clientFormError.textContent = message;
+            clientFormError.classList.remove('hidden');
+            clientFormError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function hideClientError() {
+            if (!clientFormError) {
+                return;
+            }
+
+            clientFormError.textContent = '';
+            clientFormError.classList.add('hidden');
+        }
+
+        refreshRenderedState();
 
         if (coverInput && coverPreview) {
             coverInput.addEventListener('change', () => {
@@ -203,44 +285,174 @@
             });
         }
 
-        document.querySelectorAll('.js-add-lookup-row').forEach((button) => {
-            button.addEventListener('click', () => {
-                const targetId = button.dataset.target;
-                const kind = button.dataset.kind;
-                const container = document.getElementById(targetId);
-                if (!container) {
-                    return;
-                }
-
-                container.appendChild(createLookupRow(kind, {}));
-                buildRelationTypeDatalist();
-            });
-        });
-
         document.addEventListener('click', (event) => {
-            const removeRelationButton = event.target.closest('.js-remove-relation');
-            if (removeRelationButton) {
+            const openModalBtn = event.target.closest('.js-open-lookup-modal');
+            if (openModalBtn) {
                 event.preventDefault();
-                removeRelationButton.closest('.relation-item')?.remove();
+                openLookupModal(openModalBtn.dataset.kind);
+                return;
+            }
+
+            if (event.target === lookupModal) {
+                closeLookupModal();
+                return;
+            }
+
+            const removeRelationBtn = event.target.closest('.js-remove-relation');
+            if (removeRelationBtn) {
+                event.preventDefault();
+                removeRelationBtn.closest('.relation-item')?.remove();
                 return;
             }
 
             const searchItem = event.target.closest('.related-search-item');
             if (searchItem) {
                 event.preventDefault();
-                addRelationFromSearchItem({
-                    id: Number(searchItem.dataset.comicId),
-                    title: searchItem.dataset.comicTitle || ''
-                });
-                if (relatedResults) {
-                    relatedResults.innerHTML = '';
+
+                const relatedComicId = Number(searchItem.dataset.comicId);
+                const relatedComicTitle = searchItem.dataset.comicTitle || '';
+
+                const exists = document.querySelector(`.relation-item[data-related-comic-id="${relatedComicId}"]`);
+                if (!exists) {
+                    document.getElementById('relatedComicRelations')?.appendChild(
+                        createRelationItem({
+                            relatedComicId,
+                            relatedComicTitle,
+                            relationTypeName: ''
+                        })
+                    );
+                }
+
+                relatedResults.innerHTML = '';
+                return;
+            }
+
+            const editLookupBtn = event.target.closest('.js-toggle-lookup-edit');
+            if (editLookupBtn && state.currentModalKind) {
+                event.preventDefault();
+
+                const row = editLookupBtn.closest('.lookup-modal-row');
+                const index = Number(row?.dataset.index);
+                const items = getStateByKind(state.currentModalKind);
+                const item = items[index];
+
+                if (!item) {
+                    return;
+                }
+
+                item.editing = !item.editing;
+                renderLookupModalRows(state.currentModalKind, items, lookupModalSearch?.value || '');
+
+                const renderedRow = document.querySelector(`.lookup-modal-row[data-index="${index}"] .js-lookup-name`);
+                if (item.editing && renderedRow) {
+                    renderedRow.focus();
+                    renderedRow.select();
+                }
+
+                if (state.currentModalKind === 'relationType') {
+                    buildRelationTypeDatalist(state.relationType);
                 }
             }
         });
 
+        if (lookupModalCloseBtn) {
+            lookupModalCloseBtn.addEventListener('click', closeLookupModal);
+        }
+
+        if (lookupModalApplyBtn) {
+            lookupModalApplyBtn.addEventListener('click', () => {
+                refreshRenderedState();
+                closeLookupModal();
+            });
+        }
+
+        if (lookupModalAddBtn) {
+            lookupModalAddBtn.addEventListener('click', () => {
+                if (!state.currentModalKind) {
+                    return;
+                }
+
+                const items = getStateByKind(state.currentModalKind);
+                items.push({
+                    id: null,
+                    name: '',
+                    selected: state.currentModalKind !== 'relationType',
+                    delete: false,
+                    editing: true
+                });
+
+                renderLookupModalRows(state.currentModalKind, items, lookupModalSearch?.value || '');
+            });
+        }
+
+        if (lookupModalSearch) {
+            lookupModalSearch.addEventListener('input', () => {
+                if (!state.currentModalKind) {
+                    return;
+                }
+
+                renderLookupModalRows(state.currentModalKind, getStateByKind(state.currentModalKind), lookupModalSearch.value);
+            });
+        }
+
         document.addEventListener('input', (event) => {
-            if (event.target.classList.contains('relation-type-editor-input')) {
-                buildRelationTypeDatalist();
+            const row = event.target.closest('.lookup-modal-row');
+            if (row && state.currentModalKind) {
+                const index = Number(row.dataset.index);
+                const items = getStateByKind(state.currentModalKind);
+                const item = items[index];
+
+                if (!item) {
+                    return;
+                }
+
+                if (event.target.classList.contains('js-lookup-name')) {
+                    item.name = event.target.value;
+                    if (state.currentModalKind === 'relationType') {
+                        buildRelationTypeDatalist(state.relationType);
+                    }
+                }
+            }
+
+            if (event.target.id === 'releaseYear') {
+                event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4);
+            }
+
+            if (event.target.classList.contains('manual-trim-input')) {
+                event.target.value = event.target.value.replace(/^\s+/, '');
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            const row = event.target.closest('.lookup-modal-row');
+            if (row && state.currentModalKind) {
+                const index = Number(row.dataset.index);
+                const items = getStateByKind(state.currentModalKind);
+                const item = items[index];
+
+                if (!item) {
+                    return;
+                }
+
+                if (event.target.classList.contains('js-lookup-selected')) {
+                    item.selected = event.target.checked;
+                    refreshRenderedState();
+                }
+
+                if (event.target.classList.contains('js-lookup-delete')) {
+                    item.delete = event.target.checked;
+                    if (item.delete) {
+                        item.selected = false;
+                    }
+                    renderLookupModalRows(state.currentModalKind, items, lookupModalSearch?.value || '');
+                    refreshRenderedState();
+                }
+            }
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && lookupModal && !lookupModal.classList.contains('hidden')) {
+                closeLookupModal();
             }
         });
 
@@ -248,7 +460,7 @@
 
         if (relatedSearchInput && relatedResults) {
             relatedSearchInput.addEventListener('input', () => {
-                const query = relatedSearchInput.value.trim();
+                const query = trimEdges(relatedSearchInput.value);
                 const searchUrl = relatedSearchInput.dataset.searchUrl;
                 const excludeComicId = relatedSearchInput.dataset.excludeComicId || '';
 
@@ -306,12 +518,60 @@
             });
         }
 
+        document.querySelectorAll('input[type="text"], textarea').forEach((field) => {
+            field.addEventListener('blur', () => {
+                field.value = trimEdges(field.value);
+            });
+        });
+
         if (form) {
-            form.addEventListener('submit', () => {
-                serializeLookupRows('genreEditorRows', 'genreOperationsJson');
-                serializeLookupRows('tagEditorRows', 'tagOperationsJson');
-                serializeLookupRows('relationTypeEditorRows', 'relationTypeOperationsJson');
-                serializeRelations();
+            form.addEventListener('submit', (event) => {
+                hideClientError();
+
+                document.querySelectorAll('input[type="text"], textarea').forEach((field) => {
+                    field.value = trimEdges(field.value);
+                });
+
+                const releaseYear = document.getElementById('releaseYear');
+                if (releaseYear) {
+                    releaseYear.value = releaseYear.value.replace(/\D/g, '').slice(0, 4);
+
+                    if (!/^\d{4}$/.test(releaseYear.value)) {
+                        event.preventDefault();
+                        showClientError('Год релиза должен быть в формате XXXX.');
+                        return;
+                    }
+
+                    const yearValue = Number(releaseYear.value);
+                    if (yearValue < 1900 || yearValue > 2100) {
+                        event.preventDefault();
+                        showClientError('Год релиза должен быть в диапазоне 1900–2100.');
+                        return;
+                    }
+                }
+
+                renderSelectedChips(state.genre, 'selectedGenresChips', 'selectedGenreInputs', 'genreIds');
+                renderSelectedChips(state.tag, 'selectedTagsChips', 'selectedTagInputs', 'tagIds');
+
+                const genreOperationsJson = document.getElementById('genreOperationsJson');
+                const tagOperationsJson = document.getElementById('tagOperationsJson');
+                const relationTypeOperationsJson = document.getElementById('relationTypeOperationsJson');
+
+                if (genreOperationsJson) {
+                    genreOperationsJson.value = serializeLookupOperations(state.genre, true);
+                }
+                if (tagOperationsJson) {
+                    tagOperationsJson.value = serializeLookupOperations(state.tag, true);
+                }
+                if (relationTypeOperationsJson) {
+                    relationTypeOperationsJson.value = serializeLookupOperations(state.relationType, false);
+                }
+
+                const relationsSerialization = serializeRelations();
+                if (!relationsSerialization.ok) {
+                    event.preventDefault();
+                    showClientError(relationsSerialization.message);
+                }
             });
         }
     });
