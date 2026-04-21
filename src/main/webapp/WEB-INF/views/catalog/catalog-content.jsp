@@ -14,19 +14,24 @@
                 <c:choose>
                     <c:when test="${searchCriteria.viewMode == 'list'}">
                         <div class="list-comic">
-                            <img src="/assets/covers/${comic.cover}" alt="${comic.title}" class="comic-list-cover">
+                            <img src="/assets/covers/${comic.cover}" alt="<c:out value='${comic.title}'/>" class="comic-list-cover">
+
                             <div class="list-info">
-                                <h3><a href="<c:url value='/comics/${comic.id}'/>">${comic.title}</a></h3>
+                                <h3><a href="<c:url value='/comics/${comic.id}'/>"><c:out value="${comic.title}"/></a></h3>
+
                                 <c:if test="${not empty comic.originalTitle}">
-                                  <p class="original-title">(${comic.originalTitle})</p>
+                                    <p class="original-title">(<c:out value="${comic.originalTitle}"/>)</p>
                                 </c:if>
-                                <p class="release"><b>Релиз:</b> ${comic.releaseYear}</p>
-                                <p class="short-desc">${comic.shortDescription}</p>
+
+                                <p class="release"><b>Релиз:</b> <c:out value="${comic.releaseYear}"/></p>
+
+                                <p class="short-desc"><c:out value="${comic.shortDescription}"/></p>
+
                                 <p class="meta">
                                     <span class="rating">★ <fmt:formatNumber value="${comic.avgRating}" pattern="0.00"/></span> |
                                     <span class="genres">
                                         <c:forEach items="${comic.genres}" var="g" varStatus="st">
-                                            ${g.name}<c:if test="${!st.last}">, </c:if>
+                                            <c:out value="${g.name}"/><c:if test="${!st.last}">, </c:if>
                                         </c:forEach>
                                     </span>
                                 </p>
@@ -36,15 +41,19 @@
                     <c:otherwise>
                         <div class="card-comic">
                             <a href="<c:url value='/comics/${comic.id}'/>" class="cover-link">
-                                <img src="/assets/covers/${comic.cover}" alt="${comic.title}">
+                                <img src="/assets/covers/${comic.cover}" alt="<c:out value='${comic.title}'/>">
                             </a>
-                            <h4><a href="<c:url value='/comics/${comic.id}'/>">${comic.title}</a></h4>
+
+                            <h4><a href="<c:url value='/comics/${comic.id}'/>"><c:out value="${comic.title}"/></a></h4>
+
                             <c:if test="${not empty comic.originalTitle}">
-                                <p class="orig-name">(${comic.originalTitle})</p>
+                                <p class="orig-name">(<c:out value="${comic.originalTitle}"/>)</p>
                             </c:if>
-                            <p>${comic.releaseYear}</p>
+
+                            <p><c:out value="${comic.releaseYear}"/></p>
                             <p>★ <fmt:formatNumber value="${comic.avgRating}" pattern="0.00"/></p>
                         </div>
+
                     </c:otherwise>
                 </c:choose>
             </c:forEach>

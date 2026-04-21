@@ -22,7 +22,7 @@ public class AdminUserInitializer implements CommandLineRunner {
     // Пароль: Admin12345!
     private static final String ADMIN_EMAIL = "admin@comic.local";
     private static final String ADMIN_USERNAME = "admin";
-    private static final String ADMIN_PASSWORD = "Admin12345!";
+    private static final String ADMIN_PASSWORD = "Admin12345";
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;

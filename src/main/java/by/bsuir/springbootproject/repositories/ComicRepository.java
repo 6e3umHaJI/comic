@@ -17,12 +17,6 @@ import java.util.Optional;
 @Repository
 public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpecificationExecutor<Comic> {
 
-    List<Comic> findTop10ByOrderByPopularityScoreDesc();
-
-    List<Comic> findTop10ByOrderByUpdatedAtDesc();
-
-    List<Comic> findTop10ByOrderByCreatedAtDesc();
-
     @Query("""
             SELECT cr.relatedComic
             FROM ComicRelation cr
@@ -75,16 +69,6 @@ public interface ComicRepository extends JpaRepository<Comic, Integer>, JpaSpeci
             ORDER BY COUNT(tr.id) DESC
             """)
     List<Object[]> getApprovedLangStatsByComic(@Param("comicId") int comicId);
-
-    @Query("""
-            SELECT ch.id, l.name
-            FROM Translation tr
-            JOIN tr.language l
-            JOIN tr.chapter ch
-            WHERE ch.comic.id = :comicId
-              AND tr.reviewStatus.name = 'Одобрено'
-            """)
-    List<Object[]> getApprovedLangPairsByComic(@Param("comicId") int comicId);
 
     @Query("""
             SELECT COUNT(DISTINCT cr.relatedComic.id)

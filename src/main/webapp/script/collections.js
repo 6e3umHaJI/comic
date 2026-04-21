@@ -2,10 +2,13 @@ const COLLECTIONS_LIMITS = {
     searchQuery: 255
 };
 
-function trimCollectionValue(value, maxLength = COLLECTIONS_LIMITS.searchQuery) {
-    return String(value ?? '').trim().slice(0, maxLength);
+function cutCollectionValue(value, maxLength = COLLECTIONS_LIMITS.searchQuery) {
+    return String(value ?? '').slice(0, maxLength);
 }
 
+function normalizeCollectionValue(value, maxLength = COLLECTIONS_LIMITS.searchQuery) {
+    return String(value ?? '').trim().slice(0, maxLength);
+}
 
 function showInlineNotice(containerId, message, type = 'error') {
     const el = document.getElementById(containerId);
@@ -303,14 +306,14 @@ function bindCollectionsPageEvents() {
 
     if (collectionsSearchInput) {
         collectionsSearchInput.maxLength = COLLECTIONS_LIMITS.searchQuery;
-        collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+        collectionsSearchInput.value = cutCollectionValue(collectionsSearchInput.value);
 
         collectionsSearchInput.addEventListener('input', () => {
-            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+            collectionsSearchInput.value = cutCollectionValue(collectionsSearchInput.value);
         });
 
         collectionsSearchInput.addEventListener('blur', () => {
-            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+            collectionsSearchInput.value = normalizeCollectionValue(collectionsSearchInput.value);
         });
     }
 
@@ -323,8 +326,8 @@ function bindCollectionsPageEvents() {
             activeSectionId,
             0,
             currentViewMode,
-            trimCollectionValue(collectionsSearchInput?.value || ''),
-            collectionsSortField?.value || 'addedAt',
+            normalizeCollectionValue(collectionsSearchInput?.value || ''),
+        collectionsSortField?.value || 'addedAt',
             collectionsSortDirection?.value || 'desc'
         );
     }
@@ -333,7 +336,7 @@ function bindCollectionsPageEvents() {
         e.preventDefault();
 
         if (collectionsSearchInput) {
-            collectionsSearchInput.value = trimCollectionValue(collectionsSearchInput.value);
+            collectionsSearchInput.value = normalizeCollectionValue(collectionsSearchInput.value);
         }
 
         applyCollectionsFilters();

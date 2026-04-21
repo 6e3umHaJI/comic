@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -67,6 +70,10 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
     private final RelationTypeRepository relationTypeRepository;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     @Override
     public ModelAndView getCreatePage(AdminComicForm form, String errorMessage) {
@@ -143,15 +150,21 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         }
 
         comic = comicRepository.saveAndFlush(comic);
+
         ensureCollectionsInitialized(comic);
 
         applyGenres(comic, form);
         applyTags(comic, form);
-        applyRelationTypeOperations(form.getRelationTypeOperationsJson());
 
         comic = comicRepository.saveAndFlush(comic);
 
+        applyRelationTypeOperations(form.getRelationTypeOperationsJson());
+
+        entityManager.flush();
+        entityManager.clear();
+
         rewriteRelations(comic.getId(), form.getRelationsJson());
+
         deleteOldCoverIfUnused(oldCover, comic.getCover());
 
         return comic.getId();
@@ -378,7 +391,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
     private void applyRelationTypeOperations(String json) {
         for (LookupOperation op : parseLookupOperations(json)) {
-            String name = optionalTrimmed(op.getName(), RELATION_TYPE_NAME_MAX_LENGTH);
+            String name = optionalTrimmed(op.getName(), 50);
 
             if (op.getId() != null) {
                 RelationType relationType = relationTypeRepository.findById(op.getId()).orElse(null);
@@ -387,15 +400,27 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
                 }
 
                 if (Boolean.TRUE.equals(op.getDelete())) {
-                    jdbcTemplate.update("update comic_relations set relation_type_id = null where relation_type_id = ?", op.getId());
-                    relationTypeRepository.delete(relationType);
+                    jdbcTemplate.update("delete from comic_relations where relation_type_id = ?", op.getId());
+                    jdbcTemplate.update("delete from relation_types where relation_type_id = ?", op.getId());
                     continue;
                 }
 
                 if (!name.isBlank()) {
-                    relationType.setName(name);
-                    relationTypeRepository.save(relationType);
+                    RelationType existingByName = relationTypeRepository.findByNameIgnoreCase(name).orElse(null);
+
+                    if (existingByName != null && !existingByName.getId().equals(relationType.getId())) {
+                        jdbcTemplate.update(
+                                "update comic_relations set relation_type_id = ? where relation_type_id = ?",
+                                existingByName.getId(),
+                                relationType.getId()
+                        );
+                        jdbcTemplate.update("delete from relation_types where relation_type_id = ?", relationType.getId());
+                    } else {
+                        relationType.setName(name);
+                        relationTypeRepository.saveAndFlush(relationType);
+                    }
                 }
+
                 continue;
             }
 
@@ -404,7 +429,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
             }
 
             relationTypeRepository.findByNameIgnoreCase(name)
-                    .orElseGet(() -> relationTypeRepository.save(RelationType.builder().name(name).build()));
+                    .orElseGet(() -> relationTypeRepository.saveAndFlush(RelationType.builder().name(name).build()));
         }
     }
 

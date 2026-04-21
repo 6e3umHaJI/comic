@@ -4,6 +4,7 @@ import by.bsuir.springbootproject.entities.PasswordResetCode;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -18,7 +19,7 @@ public interface PasswordResetCodeRepository extends JpaRepository<PasswordReset
         where u.id = :userId and prc.used = false
         order by prc.createdAt desc
     """)
-    Optional<PasswordResetCode> findTopActiveByUserId(Integer userId);
+    Optional<PasswordResetCode> findTopActiveByUserId(@Param("userId") Integer userId);
 
     @Modifying
     @Query("""
@@ -26,5 +27,5 @@ public interface PasswordResetCodeRepository extends JpaRepository<PasswordReset
         set prc.used = true
         where prc.user.id = :userId and prc.used = false
     """)
-    void invalidateAllByUserId(Integer userId);
+    void invalidateAllByUserId(@Param("userId") Integer userId);
 }

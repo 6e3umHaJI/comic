@@ -12,9 +12,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedTypes"
-                           value="${t.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedTypes, ','), t.name)}">checked</c:if> />
-                    <span>${t.name}</span>
+                           value="<c:out value='${t.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedTypes, ','), t.name)}">checked</c:if> />
+                    <span><c:out value="${t.name}"/></span>
                 </label>
             </c:forEach>
         </div>
@@ -28,9 +28,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedComicStatuses"
-                           value="${s.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedComicStatuses, ','), s.name)}">checked</c:if> />
-                    <span>${s.name}</span>
+                           value="<c:out value='${s.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedComicStatuses, ','), s.name)}">checked</c:if> />
+                    <span><c:out value="${s.name}"/></span>
                 </label>
             </c:forEach>
         </div>
@@ -44,9 +44,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedAgeRatings"
-                           value="${ar.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedAgeRatings, ','), ar.name)}">checked</c:if> />
-                    <span>${ar.name}</span>
+                           value="<c:out value='${ar.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedAgeRatings, ','), ar.name)}">checked</c:if> />
+                    <span><c:out value="${ar.name}"/></span>
                 </label>
             </c:forEach>
         </div>
@@ -113,9 +113,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedGenres"
-                           value="${g.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedGenres, ','), g.name)}">checked</c:if> />
-                    <span>${g.name}</span>
+                           value="<c:out value='${g.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedGenres, ','), g.name)}">checked</c:if> />
+                    <span><c:out value="${g.name}"/></span>
                 </label>
             </c:forEach>
         </div>
@@ -142,9 +142,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedTags"
-                           value="${t.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedTags, ','), t.name)}">checked</c:if> />
-                    <span>${t.name}</span>
+                           value="<c:out value='${t.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedTags, ','), t.name)}">checked</c:if> />
+                    <span><c:out value="${t.name}"/></span>
                 </label>
             </c:forEach>
         </div>
@@ -171,9 +171,9 @@
                     <input class="check-ui"
                            type="checkbox"
                            name="selectedLanguages"
-                           value="${lang.name}"
-                           <c:if test="${fn:contains(fn:join(searchCriteria.selectedLanguages, ','), lang.name)}">checked</c:if>>
-                    <span>${lang.name}</span>
+                           value="<c:out value='${lang.name}'/>"
+                        <c:if test="${fn:contains(fn:join(searchCriteria.selectedLanguages, ','), lang.name)}">checked</c:if>>
+                    <span><c:out value="${lang.name}"/></span>
                 </label>
             </c:forEach>
         </div>

@@ -5,7 +5,7 @@
 
 <html data-theme="light">
 <head>
-    <title>${comic.title}</title>
+    <title><c:out value="${comic.title}"/></title>
     <jsp:include page="/WEB-INF/views/dependencies.jsp" />
     <jsp:include page="/WEB-INF/views/theme-init.jsp"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,7 +20,7 @@
      data-context-path="${pageContext.request.contextPath}"
      data-translation-id="${translation.id}"
      data-comic-id="${comic.id}"
-     data-comic-title="${comic.title}"
+     data-comic-title="<c:out value='${comic.title}'/>"
      data-chapter-number="${translation.chapter.chapterNumber}"
      data-language-name="${translation.language.name}"
      data-total-pages="${totalPages}"
@@ -44,7 +44,7 @@
     <main class="main container comic-page">
         <div class="comic-left">
             <img src="${pageContext.request.contextPath}/assets/covers/${comic.cover}"
-                 alt="${comic.title}" class="comic-cover">
+                 alt="<c:out value='${comic.title}'/>" class="comic-cover">
 
             <div class="comic-meta">
                 <div class="comic-meta-block">
@@ -260,8 +260,7 @@
         <div class="comic-right">
             <div class="comic-title-row">
                 <div class="comic-title-left">
-                    <div class="comic-title">${comic.title}</div>
-
+                   <div class="comic-title"><c:out value="${comic.title}"/></div>
                     <sec:authorize access="hasRole('ADMIN')">
                         <a href="<c:url value='/admin/comics/${comic.id}/edit'/>"
                            class="btn btn-outline icon-only-btn comic-edit-btn"

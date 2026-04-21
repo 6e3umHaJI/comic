@@ -28,6 +28,16 @@ public class AuthController {
     @GetMapping("/login")
     public String loginPage(HttpServletRequest request, Model model) {
         model.addAttribute("isLogged", request.getUserPrincipal() != null);
+
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            Object authStatusMessage = session.getAttribute("authStatusMessage");
+            if (authStatusMessage != null) {
+                model.addAttribute("authStatusMessage", authStatusMessage.toString());
+                session.removeAttribute("authStatusMessage");
+            }
+        }
+
         return "auth/login";
     }
 
@@ -37,7 +47,7 @@ public class AuthController {
                 session.getAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
 
         if (pending == null) {
-            return "redirect:" + "/auth/login";
+            return "redirect:/auth/login";
         }
 
         model.addAttribute("pendingGoogle", pending);
@@ -56,11 +66,12 @@ public class AuthController {
                 session.getAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
 
         if (pending == null) {
-            return "redirect:" + "/auth/login";
+            return "redirect:/auth/login";
         }
 
         if (bindingResult.hasErrors()) {
             model.addAttribute("pendingGoogle", pending);
+            model.addAttribute("registerError", getFirstErrorMessage(bindingResult));
             return "auth/register-google";
         }
 
@@ -68,7 +79,7 @@ public class AuthController {
             authService.completeGoogleRegistration(pending, form);
             session.removeAttribute(GoogleOAuth2SuccessHandler.PENDING_GOOGLE_REGISTRATION_SESSION_KEY);
             session.setAttribute("authSuccessMessage", "Аккаунт создан. Теперь войдите по логину и паролю.");
-            return "redirect:" + "/auth/login" + "?registered=true";
+            return "redirect:/auth/login?registered=true";
         } catch (IllegalArgumentException | IllegalStateException e) {
             model.addAttribute("pendingGoogle", pending);
             model.addAttribute("registerError", e.getMessage());
@@ -78,7 +89,7 @@ public class AuthController {
 
     @GetMapping("/logout-success")
     public String logoutSuccess() {
-        return "redirect:" + "/home";
+        return "redirect:/home";
     }
 
     @GetMapping("/access-required")
@@ -89,5 +100,12 @@ public class AuthController {
     @ModelAttribute("authPrincipal")
     public Authentication authPrincipal() {
         return SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    private String getFirstErrorMessage(BindingResult bindingResult) {
+        if (bindingResult.getFieldError() != null) {
+            return bindingResult.getFieldError().getDefaultMessage();
+        }
+        return "Проверьте введённые данные.";
     }
 }

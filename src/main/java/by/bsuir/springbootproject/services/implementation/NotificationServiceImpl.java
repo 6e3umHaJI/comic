@@ -13,7 +13,6 @@ import by.bsuir.springbootproject.entities.Translation;
 import by.bsuir.springbootproject.repositories.*;
 import by.bsuir.springbootproject.services.NotificationService;
 import java.util.Objects;
-import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -626,7 +625,7 @@ public class NotificationServiceImpl implements NotificationService {
                 continue;
             }
 
-            if (builder.length() > 0) {
+            if (!builder.isEmpty()) {
                 builder.append(" • ");
             }
 

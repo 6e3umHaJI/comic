@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Notification n set n.isRead = true where n.id in :ids and n.isRead = false")
-    void markAsReadByIds(List<Integer> ids);
+    void markAsReadByIds(@Param("ids") List<Integer> ids);
 
     Optional<Notification> findByIdAndUser_Id(Integer id, Integer userId);
 }

@@ -3,6 +3,7 @@ package by.bsuir.springbootproject.repositories;
 import by.bsuir.springbootproject.entities.UserSection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,8 +15,6 @@ public interface UserSectionRepository extends JpaRepository<UserSection, Intege
     boolean existsByUserIdAndNameIgnoreCase(Integer userId, String name);
 
     boolean existsByUserIdAndNameIgnoreCaseAndIdNot(Integer userId, String name, Integer id);
-
-    long countByUserId(Integer userId);
 
     long countByUserIdAndIsDefaultFalse(Integer userId);
 
@@ -29,6 +28,5 @@ public interface UserSectionRepository extends JpaRepository<UserSection, Intege
     group by us
     order by us.isDefault desc, us.name asc
     """)
-    List<Object[]> findAllWithCountsByUserId(Integer userId);
-
+    List<Object[]> findAllWithCountsByUserId(@Param("userId") Integer userId);
 }

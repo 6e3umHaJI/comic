@@ -7,21 +7,20 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ComicNotificationSubscriptionRepository extends JpaRepository<ComicNotificationSubscription, Integer> {
-
-    Optional<ComicNotificationSubscription> findByUser_IdAndComic_Id(Integer userId, Integer comicId);
 
     boolean existsByUser_IdAndComic_Id(Integer userId, Integer comicId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ComicNotificationSubscription s where s.user.id = :userId and s.comic.id = :comicId")
-    int deleteByUserIdAndComicId(Integer userId, Integer comicId);
+    int deleteByUserIdAndComicId(@Param("userId") Integer userId,
+                                 @Param("comicId") Integer comicId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
@@ -32,7 +31,8 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
                     """,
             nativeQuery = true
     )
-    int insertIgnore(Integer userId, Integer comicId);
+    int insertIgnore(@Param("userId") Integer userId,
+                     @Param("comicId") Integer comicId);
 
     @EntityGraph(attributePaths = {"comic"})
     @Query(
@@ -60,7 +60,9 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
                       )
                     """
     )
-    Page<ComicNotificationSubscription> findPageByUserIdAndQuery(Integer userId, String q, Pageable pageable);
+    Page<ComicNotificationSubscription> findPageByUserIdAndQuery(@Param("userId") Integer userId,
+                                                                 @Param("q") String q,
+                                                                 Pageable pageable);
 
     @EntityGraph(attributePaths = {"user", "comic"})
     List<ComicNotificationSubscription> findByComic_Id(Integer comicId);

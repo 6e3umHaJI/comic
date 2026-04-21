@@ -8,7 +8,11 @@
         searchQuery: 255
     };
 
-    function trimToMax(value, maxLength) {
+    function cutToMax(value, maxLength) {
+        return String(value ?? '').slice(0, maxLength);
+    }
+
+    function normalizeForSubmit(value, maxLength) {
         return String(value ?? '').trim().slice(0, maxLength);
     }
 
@@ -92,7 +96,7 @@
         }
 
         input.maxLength = LIMITS.searchQuery;
-        input.value = trimToMax(input.value, LIMITS.searchQuery);
+        input.value = cutToMax(input.value, LIMITS.searchQuery);
 
         if (input.dataset.limitBound === 'true') {
             return;
@@ -101,11 +105,11 @@
         input.dataset.limitBound = 'true';
 
         input.addEventListener('input', () => {
-            input.value = trimToMax(input.value, LIMITS.searchQuery);
+            input.value = cutToMax(input.value, LIMITS.searchQuery);
         });
 
         input.addEventListener('blur', () => {
-            input.value = trimToMax(input.value, LIMITS.searchQuery);
+            input.value = normalizeForSubmit(input.value, LIMITS.searchQuery);
         });
     }
 
@@ -322,7 +326,7 @@
 
         const searchInput = form.querySelector('input[name="q"]');
         if (searchInput) {
-            searchInput.value = trimToMax(searchInput.value, LIMITS.searchQuery);
+            searchInput.value = normalizeForSubmit(searchInput.value, LIMITS.searchQuery);
         }
 
         const url = new URL(form.action || window.location.pathname, window.location.origin);
@@ -330,7 +334,7 @@
 
         formData.forEach((value, key) => {
             const stringValue = key === 'q'
-                ? trimToMax(value, LIMITS.searchQuery)
+                ? normalizeForSubmit(value, LIMITS.searchQuery)
                 : String(value).trim();
 
             if (stringValue.length > 0) {

@@ -8,7 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequiredArgsConstructor
@@ -46,6 +50,8 @@ public class PasswordResetController {
         if (bindingResult.hasErrors()) {
             model.addAttribute("verifyForm", new PasswordResetVerifyForm());
             model.addAttribute("step", STEP_REQUEST);
+            model.addAttribute("status", getFirstErrorMessage(bindingResult));
+            model.addAttribute("statusColor", STATUS_COLOR_RED);
             return "auth/password-reset";
         }
 
@@ -76,7 +82,9 @@ public class PasswordResetController {
             model.addAttribute("requestForm", new PasswordResetRequestForm());
             model.addAttribute("step", STEP_VERIFY);
             model.addAttribute("login", login);
-            model.addAttribute("maskedEmail", passwordResetService.maskEmail(login));
+            model.addAttribute("maskedEmail", safeMaskEmail(login));
+            model.addAttribute("status", getFirstErrorMessage(bindingResult));
+            model.addAttribute("statusColor", STATUS_COLOR_RED);
             return "auth/password-reset";
         }
 
@@ -88,15 +96,30 @@ public class PasswordResetController {
                     verifyForm.getRepeatPassword()
             );
 
-            return "redirect:" + "/auth" + "/login" + "?resetSuccess=true";
+            return "redirect:/auth/login?resetSuccess=true";
         } catch (RuntimeException e) {
             model.addAttribute("requestForm", new PasswordResetRequestForm());
             model.addAttribute("step", STEP_VERIFY);
             model.addAttribute("login", login);
-            model.addAttribute("maskedEmail", passwordResetService.maskEmail(login));
+            model.addAttribute("maskedEmail", safeMaskEmail(login));
             model.addAttribute("status", e.getMessage());
             model.addAttribute("statusColor", STATUS_COLOR_RED);
             return "auth/password-reset";
+        }
+    }
+
+    private String getFirstErrorMessage(BindingResult bindingResult) {
+        if (bindingResult.getFieldError() != null) {
+            return bindingResult.getFieldError().getDefaultMessage();
+        }
+        return "Проверьте введённые данные.";
+    }
+
+    private String safeMaskEmail(String login) {
+        try {
+            return passwordResetService.maskEmail(login);
+        } catch (RuntimeException e) {
+            return "";
         }
     }
 }

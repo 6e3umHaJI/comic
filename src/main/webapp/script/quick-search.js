@@ -28,7 +28,11 @@
         requestId: 0
     };
 
-    function trimToMax(value, maxLength = LIMITS.query) {
+    function cutToMax(value, maxLength = LIMITS.query) {
+        return String(value ?? '').slice(0, maxLength);
+    }
+
+    function normalizeForSubmit(value, maxLength = LIMITS.query) {
         return String(value ?? '').trim().slice(0, maxLength);
     }
 
@@ -184,8 +188,7 @@
     }
 
     function fetchSearchResults(append = false) {
-        input.value = trimToMax(input.value);
-        const query = trimToMax(input.value);
+        const query = normalizeForSubmit(input.value);
 
         if (!query) {
             results.innerHTML = '';
@@ -262,12 +265,12 @@
     });
 
     input?.addEventListener('input', () => {
-        input.value = trimToMax(input.value);
+        input.value = cutToMax(input.value);
         debouncedSearch();
     });
 
     input?.addEventListener('blur', () => {
-        input.value = trimToMax(input.value);
+        input.value = normalizeForSubmit(input.value);
     });
 
     moreBtn?.addEventListener('click', () => {

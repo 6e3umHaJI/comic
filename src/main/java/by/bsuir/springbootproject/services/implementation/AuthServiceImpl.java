@@ -8,6 +8,7 @@ import by.bsuir.springbootproject.entities.UserSection;
 import by.bsuir.springbootproject.repositories.UserRepository;
 import by.bsuir.springbootproject.repositories.UserRoleRepository;
 import by.bsuir.springbootproject.repositories.UserSectionRepository;
+import by.bsuir.springbootproject.security.AuthInputValidationUtils;
 import by.bsuir.springbootproject.services.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,20 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalStateException("Email Google-аккаунта не подтвержден.");
         }
 
+        String normalizedUsername = AuthInputValidationUtils.normalize(form.getUsername());
+
+        if (!AuthInputValidationUtils.isValidUsername(normalizedUsername)) {
+            throw new IllegalArgumentException(AuthInputValidationUtils.getUsernameValidationMessage());
+        }
+
+        if (!AuthInputValidationUtils.isValidPassword(form.getPassword())) {
+            throw new IllegalArgumentException(AuthInputValidationUtils.getPasswordValidationMessage());
+        }
+
+        if (!AuthInputValidationUtils.isValidPassword(form.getConfirmPassword())) {
+            throw new IllegalArgumentException(AuthInputValidationUtils.getPasswordValidationMessage());
+        }
+
         if (!form.getPassword().equals(form.getConfirmPassword())) {
             throw new IllegalArgumentException("Пароли не совпадают.");
         }
@@ -48,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Пользователь с такой почтой уже существует.");
         }
 
-        if (userRepository.existsByUsername(form.getUsername())) {
+        if (userRepository.existsByUsername(normalizedUsername)) {
             throw new IllegalArgumentException("Такой никнейм уже занят.");
         }
 
@@ -57,7 +72,7 @@ public class AuthServiceImpl implements AuthService {
 
         User user = User.builder()
                 .email(pending.getEmail())
-                .username(form.getUsername())
+                .username(normalizedUsername)
                 .passwordHash(passwordEncoder.encode(form.getPassword()))
                 .role(userRole)
                 .canPropose(false)
@@ -66,7 +81,6 @@ public class AuthServiceImpl implements AuthService {
         User savedUser = userRepository.save(user);
         createDefaultSections(savedUser);
         return savedUser;
-
     }
 
     private void createDefaultSections(User user) {
@@ -81,5 +95,4 @@ public class AuthServiceImpl implements AuthService {
             );
         }
     }
-
 }

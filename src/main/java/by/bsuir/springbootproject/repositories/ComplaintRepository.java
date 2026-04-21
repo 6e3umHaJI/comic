@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -60,9 +61,9 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       )
                     """
     )
-    Page<Complaint> findAdminComicComplaints(Integer typeId,
-                                             String q,
-                                             Collection<String> visibleStatuses,
+    Page<Complaint> findAdminComicComplaints(@Param("typeId") Integer typeId,
+                                             @Param("q") String q,
+                                             @Param("visibleStatuses") Collection<String> visibleStatuses,
                                              Pageable pageable);
 
     @EntityGraph(attributePaths = {"user", "type", "status"})
@@ -114,8 +115,8 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       )
                     """
     )
-    Page<Complaint> findAdminTranslationComplaints(Integer typeId,
-                                                   String q,
-                                                   Collection<String> visibleStatuses,
+    Page<Complaint> findAdminTranslationComplaints(@Param("typeId") Integer typeId,
+                                                   @Param("q") String q,
+                                                   @Param("visibleStatuses") Collection<String> visibleStatuses,
                                                    Pageable pageable);
 }

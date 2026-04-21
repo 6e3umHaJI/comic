@@ -4,6 +4,7 @@ import by.bsuir.springbootproject.entities.PasswordResetCode;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.repositories.PasswordResetCodeRepository;
 import by.bsuir.springbootproject.repositories.UserRepository;
+import by.bsuir.springbootproject.security.AuthInputValidationUtils;
 import by.bsuir.springbootproject.services.MailService;
 import by.bsuir.springbootproject.services.PasswordResetService;
 import jakarta.transaction.Transactional;
@@ -36,7 +37,9 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     @Override
     public String sendCode(String login) {
-        User user = findUser(login)
+        String normalizedLogin = validateAndNormalizeLogin(login);
+
+        User user = findUser(normalizedLogin)
                 .orElseThrow(() -> new RuntimeException("Если такой аккаунт существует, код будет отправлен"));
 
         passwordResetCodeRepository.invalidateAllByUserId(user.getId());
@@ -59,11 +62,21 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     @Override
     public void resetPassword(String login, String code, String newPassword, String repeatPassword) {
+        String normalizedLogin = validateAndNormalizeLogin(login);
+
+        if (!AuthInputValidationUtils.isValidPassword(newPassword)) {
+            throw new RuntimeException(AuthInputValidationUtils.getPasswordValidationMessage());
+        }
+
+        if (!AuthInputValidationUtils.isValidPassword(repeatPassword)) {
+            throw new RuntimeException(AuthInputValidationUtils.getPasswordValidationMessage());
+        }
+
         if (!newPassword.equals(repeatPassword)) {
             throw new RuntimeException("Пароли не совпадают");
         }
 
-        User user = findUser(login)
+        User user = findUser(normalizedLogin)
                 .orElseThrow(() -> new RuntimeException("Если такой аккаунт существует, код будет отправлен"));
 
         PasswordResetCode resetCode = passwordResetCodeRepository.findTopActiveByUserId(user.getId())
@@ -96,9 +109,21 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     @Override
     public String maskEmail(String login) {
-        User user = findUser(login)
+        String normalizedLogin = validateAndNormalizeLogin(login);
+
+        User user = findUser(normalizedLogin)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         return maskEmailInternal(user.getEmail());
+    }
+
+    private String validateAndNormalizeLogin(String login) {
+        String normalized = AuthInputValidationUtils.normalize(login);
+
+        if (!AuthInputValidationUtils.isValidLogin(normalized)) {
+            throw new RuntimeException(AuthInputValidationUtils.getLoginValidationMessage(normalized));
+        }
+
+        return normalized;
     }
 
     private Optional<User> findUser(String login) {
@@ -106,7 +131,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             return Optional.empty();
         }
 
-        String normalized = login.trim();
+        String normalized = AuthInputValidationUtils.normalize(login);
 
         if (normalized.contains("@")) {
             return userRepository.findByEmailIgnoreCase(normalized);
@@ -122,7 +147,9 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     private String maskEmailInternal(String email) {
         int at = email.indexOf('@');
-        if (at <= 1) return "***" + email.substring(at);
+        if (at <= 1) {
+            return "***" + email.substring(at);
+        }
 
         String name = email.substring(0, at);
         String domain = email.substring(at);

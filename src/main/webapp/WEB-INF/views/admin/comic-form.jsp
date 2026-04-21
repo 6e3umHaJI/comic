@@ -37,8 +37,8 @@
               class="admin-comic-form"
               novalidate>
 
-            <input type="hidden" name="comicId" value="${form.comicId}">
-            <input type="hidden" name="currentCover" value="${form.currentCover}">
+            <input type="hidden" name="comicId" value="<c:out value='${form.comicId}'/>">
+            <input type="hidden" name="currentCover" value="<c:out value='${form.currentCover}'/>">
             <input type="hidden" name="genreOperationsJson" id="genreOperationsJson" value="<c:out value='${form.genreOperationsJson}'/>">
             <input type="hidden" name="tagOperationsJson" id="tagOperationsJson" value="<c:out value='${form.tagOperationsJson}'/>">
             <input type="hidden" name="relationTypeOperationsJson" id="relationTypeOperationsJson" value="<c:out value='${form.relationTypeOperationsJson}'/>">
@@ -81,12 +81,12 @@
 
                     <div class="admin-field-group">
                         <label for="title">Название *</label>
-                        <input type="text" id="title" name="title" value="${form.title}" maxlength="255" required>
+                        <input type="text" id="title" name="title" value="<c:out value='${form.title}'/>" maxlength="255" required>
                     </div>
 
                     <div class="admin-field-group">
                         <label for="originalTitle">Оригинальное название</label>
-                        <input type="text" id="originalTitle" name="originalTitle" value="${form.originalTitle}" maxlength="255">
+                        <input type="text" id="originalTitle" name="originalTitle" value="<c:out value='${form.originalTitle}'/>" maxlength="255">
                     </div>
 
                     <div class="admin-field-group">
@@ -94,7 +94,7 @@
                         <input type="text"
                                id="releaseYear"
                                name="releaseYear"
-                               value="${form.releaseYear}"
+                               value="<c:out value='${form.releaseYear}'/>"
                                maxlength="4"
                                inputmode="numeric"
                                pattern="[0-9]{4}"
@@ -138,12 +138,12 @@
 
                     <div class="admin-field-group">
                         <label for="shortDescription">Краткое описание *</label>
-                        <textarea id="shortDescription" name="shortDescription" rows="4" maxlength="500" required>${form.shortDescription}</textarea>
+                        <textarea id="shortDescription" name="shortDescription" rows="4" maxlength="500" required><c:out value="${form.shortDescription}"/></textarea>
                     </div>
 
                     <div class="admin-field-group">
                         <label for="fullDescription">Описание *</label>
-                        <textarea id="fullDescription" name="fullDescription" rows="8" maxlength="2000" required>${form.fullDescription}</textarea>
+                        <textarea id="fullDescription" name="fullDescription" rows="8" maxlength="2000" required><c:out value="${form.fullDescription}"/></textarea>
                     </div>
                 </section>
 
@@ -193,11 +193,11 @@
                         <c:forEach var="relation" items="${form.relationItems}">
                             <div class="relation-item" data-related-comic-id="${relation.relatedComicId}">
                                 <div class="relation-item-main">
-                                    <div class="relation-item-title">${relation.relatedComicTitle}</div>
-                                    <input type="hidden" class="relation-comic-id" value="${relation.relatedComicId}">
+                                    <div class="relation-item-title"><c:out value="${relation.relatedComicTitle}"/></div>
+                                    <input type="hidden" class="relation-comic-id" value="<c:out value='${relation.relatedComicId}'/>">
                                     <input type="text"
                                            class="relation-type-name manual-trim-input"
-                                           value="${relation.relationTypeName}"
+                                           value="<c:out value='${relation.relationTypeName}'/>"
                                            list="relationTypeNames"
                                            maxlength="50"
                                            placeholder="Метка связи *">
@@ -247,7 +247,7 @@
             <c:forEach var="genre" items="${genres}">
                 <div class="lookup-source-row"
                      data-id="${genre.id}"
-                     data-name="${genre.name}"
+                     data-name="<c:out value='${genre.name}'/>"
                      data-selected="${form.genreIds != null && form.genreIds.contains(genre.id)}"></div>
             </c:forEach>
         </div>
@@ -256,7 +256,7 @@
             <c:forEach var="tag" items="${tags}">
                 <div class="lookup-source-row"
                      data-id="${tag.id}"
-                     data-name="${tag.name}"
+                     data-name="<c:out value='${tag.name}'/>"
                      data-selected="${form.tagIds != null && form.tagIds.contains(tag.id)}"></div>
             </c:forEach>
         </div>
@@ -265,9 +265,10 @@
             <c:forEach var="relationType" items="${relationTypes}">
                 <div class="lookup-source-row"
                      data-id="${relationType.id}"
-                     data-name="${relationType.name}"></div>
+                     data-name="<c:out value='${relationType.name}'/>"></div>
             </c:forEach>
         </div>
+
     </main>
 
     <jsp:include page="/WEB-INF/views/footer.jsp"/>

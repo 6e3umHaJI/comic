@@ -31,7 +31,11 @@ const BOOLEAN_FIELDS = [
     'strictLanguageMatch'
 ];
 
-function trimToMax(value, maxLength) {
+function cutToMax(value, maxLength) {
+    return String(value ?? '').slice(0, maxLength);
+}
+
+function normalizeForSubmit(value, maxLength) {
     return String(value ?? '').trim().slice(0, maxLength);
 }
 
@@ -117,13 +121,13 @@ function applyCatalogInputLimits(scope = document) {
     const catalogSearchInput = scope.querySelector('.search-form input[name="keyWords"]');
     if (catalogSearchInput) {
         catalogSearchInput.maxLength = LIMITS.catalogSearchQuery;
-        catalogSearchInput.value = trimToMax(catalogSearchInput.value, LIMITS.catalogSearchQuery);
+        catalogSearchInput.value = cutToMax(catalogSearchInput.value, LIMITS.catalogSearchQuery);
     }
 
     scope.querySelectorAll('.filter-search').forEach((input) => {
         const limit = getFilterSearchLimit(input);
         input.maxLength = limit;
-        input.value = trimToMax(input.value, limit);
+        input.value = cutToMax(input.value, limit);
     });
 
     scope.querySelectorAll('input[name="avgRatingFrom"], input[name="avgRatingTo"]').forEach((input) => {
@@ -253,6 +257,15 @@ document.querySelector('.filter-panel')?.addEventListener('submit', (e) => {
     const releaseYearFrom = form.querySelector('input[name="releaseYearFrom"]');
     const releaseYearTo = form.querySelector('input[name="releaseYearTo"]');
 
+    const catalogSearchInput = document.querySelector('.search-form input[name="keyWords"]');
+    if (catalogSearchInput) {
+        catalogSearchInput.value = normalizeForSubmit(catalogSearchInput.value, LIMITS.catalogSearchQuery);
+    }
+
+    form.querySelectorAll('.filter-search').forEach((input) => {
+        input.value = normalizeForSubmit(input.value, getFilterSearchLimit(input));
+    });
+
     if (avgRatingFrom) {
         avgRatingFrom.value = finalizeRatingValue(avgRatingFrom.value);
     }
@@ -305,7 +318,7 @@ document.querySelector('.search-form')?.addEventListener('submit', (e) => {
 
     const searchInput = e.target.querySelector('input[name="keyWords"]');
     if (searchInput) {
-        searchInput.value = trimToMax(searchInput.value, LIMITS.catalogSearchQuery);
+        searchInput.value = normalizeForSubmit(searchInput.value, LIMITS.catalogSearchQuery);
     }
 
     const data = new FormData(e.target);
@@ -317,7 +330,7 @@ document.querySelectorAll('.filter-search').forEach((input) => {
         const currentInput = e.target;
         const limit = getFilterSearchLimit(currentInput);
 
-        currentInput.value = trimToMax(currentInput.value, limit);
+        currentInput.value = cutToMax(currentInput.value, limit);
 
         const value = currentInput.value.toLowerCase();
         const options = currentInput.parentElement.querySelectorAll('.filter-options label');
@@ -331,9 +344,20 @@ document.querySelectorAll('.filter-search').forEach((input) => {
     input.addEventListener('blur', (e) => {
         const currentInput = e.target;
         const limit = getFilterSearchLimit(currentInput);
-        currentInput.value = trimToMax(currentInput.value, limit);
+        currentInput.value = normalizeForSubmit(currentInput.value, limit);
     });
 });
+
+const catalogSearchInput = document.querySelector('.search-form input[name="keyWords"]');
+if (catalogSearchInput) {
+    catalogSearchInput.addEventListener('input', () => {
+        catalogSearchInput.value = cutToMax(catalogSearchInput.value, LIMITS.catalogSearchQuery);
+    });
+
+    catalogSearchInput.addEventListener('blur', () => {
+        catalogSearchInput.value = normalizeForSubmit(catalogSearchInput.value, LIMITS.catalogSearchQuery);
+    });
+}
 
 document.querySelectorAll('input[name="avgRatingFrom"], input[name="avgRatingTo"]').forEach((input) => {
     input.addEventListener('input', () => {

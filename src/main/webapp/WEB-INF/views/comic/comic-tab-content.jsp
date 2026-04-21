@@ -10,13 +10,15 @@
             <c:when test="${empty comic.fullDescription}">
                 <p class="muted">Описание отсутствует.</p>
             </c:when>
+
             <c:when test="${fn:length(comic.fullDescription) > 400}">
-                <p id="descShort">${fn:substring(comic.fullDescription, 0, 400)}...</p>
-                <p id="descFull" class="hidden">${comic.fullDescription}</p>
+                <p id="descShort"><c:out value="${fn:substring(comic.fullDescription, 0, 400)}"/>...</p>
+                <p id="descFull" class="hidden"><c:out value="${comic.fullDescription}"/></p>
                 <button id="toggleDesc" class="btn btn-outline">Показать полностью</button>
             </c:when>
+
             <c:otherwise>
-                <p>${comic.fullDescription}</p>
+                <p><c:out value="${comic.fullDescription}"/></p>
             </c:otherwise>
         </c:choose>
 
@@ -49,16 +51,16 @@
         <c:if test="${not empty similarComics}">
             <h3 style="margin-top:25px;">Похожие комиксы</h3>
 
-
             <div class="related-carousel">
                 <c:forEach var="s" items="${similarComics}">
                     <div class="related-comic">
                         <a href="<c:url value='/comics/${s.id}'/>" style="display:block;">
                             <div class="cover-wrap">
-                                <img src="${pageContext.request.contextPath}/assets/covers/${s.cover}" alt="${s.title}">
+                                <img src="${pageContext.request.contextPath}/assets/covers/${s.cover}" alt="<c:out value='${s.title}'/>">
                                 <span class="rating-badge">★ <fmt:formatNumber value="${s.avgRating}" pattern="0.00"/></span>
                             </div>
-                            <p>${s.title}</p>
+
+                            <p><c:out value="${s.title}"/></p>
                         </a>
                     </div>
                 </c:forEach>

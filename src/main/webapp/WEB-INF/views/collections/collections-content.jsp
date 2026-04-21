@@ -39,8 +39,8 @@
                         class="collection-tab ${section.id == activeSection.id ? 'active' : ''}"
                         data-section-id="${section.id}">
                     <span class="collection-tab-main">
-                        <span class="collection-tab-name">${section.name}</span>
-                        <span class="collection-tab-count">(${section.comicsCount})</span>
+                        <span class="collection-tab-name"><c:out value="${section.name}"/></span>
+                        <span class="collection-tab-count">(<c:out value="${section.comicsCount}"/>)</span>
                     </span>
                 </button>
             </c:forEach>
@@ -50,14 +50,14 @@
     <section class="collections-main"
              data-active-section-id="${activeSection.id}"
              data-view-mode="${viewMode}"
-             data-search-query="${q}"
+             data-search-query="<c:out value='${q}'/>"
              data-sort-field="${sortField}"
              data-sort-direction="${sortDirection}">
 
         <div class="collections-main-head">
             <div class="collections-main-title-wrap">
                 <div class="collections-title-row">
-                    <h3>${activeSection.name}</h3>
+                    <h3><c:out value="${activeSection.name}"/></h3>
 
                     <c:if test="${!activeSection.isDefault}">
                         <div class="collections-title-tools">
@@ -91,7 +91,7 @@
                         <input type="text"
                                id="renameSectionInput"
                                class="auth-input"
-                               value="${activeSection.name}"
+                               value="<c:out value='${activeSection.name}'/>"
                                maxlength="100">
                         <button type="button"
                                 class="btn btn-outline"
@@ -201,16 +201,19 @@
                                     </label>
 
                                     <img src="<c:url value='/assets/covers/${comic.cover}'/>"
-                                         alt="${comic.title}"
+                                         alt="<c:out value='${comic.title}'/>"
                                          class="comic-list-cover">
 
                                     <div class="list-info">
-                                        <h3><a href="<c:url value='/comics/${comic.id}'/>">${comic.title}</a></h3>
+                                        <h3><a href="<c:url value='/comics/${comic.id}'/>"><c:out value="${comic.title}"/></a></h3>
+
                                         <c:if test="${not empty comic.originalTitle}">
-                                            <p class="original-title">(${comic.originalTitle})</p>
+                                            <p class="original-title">(<c:out value="${comic.originalTitle}"/>)</p>
                                         </c:if>
-                                        <p class="release"><b>Релиз:</b> ${comic.releaseYear}</p>
-                                        <p class="short-desc">${comic.shortDescription}</p>
+
+                                        <p class="release"><b>Релиз:</b> <c:out value="${comic.releaseYear}"/></p>
+                                        <p class="short-desc"><c:out value="${comic.shortDescription}"/></p>
+
                                         <p class="meta">
                                             <span class="rating">★ <fmt:formatNumber value="${comic.avgRating}" pattern="0.00"/></span>
                                         </p>
@@ -227,13 +230,17 @@
                                     </label>
 
                                     <a href="<c:url value='/comics/${comic.id}'/>" class="cover-link">
-                                        <img src="<c:url value='/assets/covers/${comic.cover}'/>" alt="${comic.title}">
+                                        <img src="<c:url value='/assets/covers/${comic.cover}'/>" alt="<c:out value='${comic.title}'/>">
                                     </a>
-                                    <h4><a href="<c:url value='/comics/${comic.id}'/>">${comic.title}</a></h4>
+
+                                    <h4><a href="<c:url value='/comics/${comic.id}'/>"><c:out value="${comic.title}"/></a></h4>
+
                                     <c:if test="${not empty comic.originalTitle}">
-                                        <p class="orig-name">(${comic.originalTitle})</p>
+                                        <p class="orig-name">(<c:out value="${comic.originalTitle}"/>)</p>
                                     </c:if>
-                                    <p>${comic.releaseYear}</p>
+
+                                    <p><c:out value="${comic.releaseYear}"/></p>
+
                                     <p>★ <fmt:formatNumber value="${comic.avgRating}" pattern="0.00"/></p>
                                 </div>
                             </c:otherwise>

@@ -28,7 +28,7 @@
                         class="collection-choice-btn ${selectedSectionIds.contains(section.id) ? 'selected' : ''}"
                         data-section-id="${section.id}"
                         aria-pressed="${selectedSectionIds.contains(section.id) ? 'true' : 'false'}">
-                    <span class="collection-choice-name">${section.name}</span>
+                    <span class="collection-choice-name"><c:out value="${section.name}"/></span>
                 </button>
             </c:forEach>
         </div>
