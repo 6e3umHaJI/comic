@@ -18,6 +18,13 @@ public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
             from Chapter c
             where c.comic.id = :comicId
               and (:q = '' or str(c.chapterNumber) like concat(:q, '%'))
+              and exists (
+                    select 1
+                    from Translation t
+                    join t.reviewStatus rs
+                    where t.chapter = c
+                      and rs.name = 'Одобрено'
+              )
             """)
     Page<Chapter> searchByComicIdAndQuery(@Param("comicId") Integer comicId,
                                           @Param("q") String q,
@@ -44,5 +51,4 @@ public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
     Optional<Chapter> findByComic_IdAndChapterNumber(Integer comicId, Integer chapterNumber);
 
     long countByComic_Id(Integer comicId);
-
 }

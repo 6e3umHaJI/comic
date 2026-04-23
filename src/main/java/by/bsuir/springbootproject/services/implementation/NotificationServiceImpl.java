@@ -626,7 +626,7 @@ public class NotificationServiceImpl implements NotificationService {
             }
 
             if (!builder.isEmpty()) {
-                builder.append(" • ");
+                builder.append(" - ");
             }
 
             builder.append(value);

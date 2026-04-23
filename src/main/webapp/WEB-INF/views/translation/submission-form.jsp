@@ -33,19 +33,11 @@
                 </a>
             </div>
 
-            <c:if test="${not empty errorMessage}">
-                <div class="status-banner status-banner-error">
-                    <c:out value="${errorMessage}"/>
-                </div>
-            </c:if>
-
             <c:if test="${!isAdmin}">
                 <div class="status-banner status-banner-muted">
                     Переводов на проверке: <strong>${pendingCount}</strong> / <strong>${pendingLimit}</strong>
                 </div>
             </c:if>
-
-            <div id="chapterSubmissionClientStatus" class="status-banner status-banner-error hidden"></div>
 
             <form id="chapterSubmissionForm"
                   class="chapter-upload-card"
@@ -86,7 +78,7 @@
                             </c:forEach>
                         </select>
                         <div class="chapter-upload-hint">
-                            Можно выбрать только существующий номер для этого языка или следующий по порядку.
+                            Можно выбрать только номер главы с уже одобренным переводом на этом языке или следующую после него.
                         </div>
                     </div>
 
@@ -153,6 +145,11 @@
                 <div class="chapter-upload-actions">
                     <button type="submit" class="btn">Сохранить</button>
                     <a href="<c:url value='/comics/${comic.id}?tab=chapters'/>" class="btn btn-outline">Отмена</a>
+                </div>
+
+                <div id="chapterSubmissionClientStatus"
+                     class="status-banner status-banner-error chapter-upload-form-status ${not empty errorMessage ? '' : 'hidden'}">
+                    <c:out value="${errorMessage}"/>
                 </div>
             </form>
         </div>

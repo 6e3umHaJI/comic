@@ -64,7 +64,8 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private static final int USER_PENDING_LIMIT = 5;
     private static final int MAX_PAGE_COUNT = 200;
     private static final long MAX_FILE_SIZE_BYTES = 1024L * 1024L;
-    private static final int MODERATION_PAGE_SIZE = 20;
+    private static final int MAX_SEARCH_QUERY_LENGTH = 255;
+    private static final int MODERATION_PAGE_SIZE = 10;
 
     private static final Pattern PAGE_FILE_PATTERN =
             Pattern.compile("^(\\d{1,3})\\.[A-Za-z0-9]{1,10}$", Pattern.CASE_INSENSITIVE);
@@ -289,16 +290,27 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         mv.addObject("isAdmin", admin);
         mv.addObject("isOwner", owner);
         mv.addObject("canModerate", admin && STATUS_PENDING.equals(translation.getReviewStatus().getName()));
+        mv.addObject("revokeRightsChecked",
+                translation.getUser() != null && Boolean.FALSE.equals(translation.getUser().getCanPropose()));
         mv.addObject("successMessage", successMessage);
         mv.addObject("errorMessage", errorMessage);
         return mv;
     }
 
+
     @Override
-    public ModelAndView getModerationPage(int page) {
-        Page<Translation> pendingPage = translationRepository.findModerationPageByStatusName(
+    public ModelAndView getModerationPage(String q, String sortDirection, int page) {
+        String normalizedQ = normalizeSearchQuery(q);
+        String normalizedSortDirection = normalizeSortDirection(sortDirection);
+
+        Sort sort = "asc".equals(normalizedSortDirection)
+                ? Sort.by("createdAt").ascending().and(Sort.by("id").ascending())
+                : Sort.by("createdAt").descending().and(Sort.by("id").descending());
+
+        Page<Translation> pendingPage = translationRepository.findModerationPageByStatusNameAndQuery(
                 STATUS_PENDING,
-                PageRequest.of(Math.max(page, 0), MODERATION_PAGE_SIZE, Sort.by(Sort.Direction.ASC, "createdAt"))
+                normalizedQ,
+                PageRequest.of(Math.max(page, 0), MODERATION_PAGE_SIZE, sort)
         );
 
         Map<Integer, Long> pageCounts = pendingPage.getContent()
@@ -311,9 +323,52 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
                 ));
 
         ModelAndView mv = new ModelAndView(VIEW_REVIEW_LIST);
+        fillModerationModel(mv, pendingPage, pageCounts, normalizedQ, normalizedSortDirection);
+        return mv;
+    }
+    private void fillModerationModel(
+            ModelAndView mv,
+            Page<Translation> pendingPage,
+            Map<Integer, Long> pageCounts,
+            String q,
+            String sortDirection
+    ) {
+        int totalPages = pendingPage.getTotalPages();
+        int currentPage = totalPages == 0 ? 1 : pendingPage.getNumber() + 1;
+
+        int beginPage = Math.max(1, currentPage - 2);
+        int endPage = Math.min(Math.max(totalPages, 1), currentPage + 2);
+
+        if (endPage - beginPage < 4) {
+            beginPage = Math.max(1, endPage - 4);
+            endPage = Math.min(Math.max(totalPages, 1), beginPage + 4);
+        }
+
+        mv.addObject("translations", pendingPage.getContent());
         mv.addObject("pendingPage", pendingPage);
         mv.addObject("pageCounts", pageCounts);
-        return mv;
+        mv.addObject("q", q == null ? "" : q);
+        mv.addObject("sortDirection", "asc".equalsIgnoreCase(sortDirection) ? "asc" : "desc");
+        mv.addObject("currentPage", currentPage);
+        mv.addObject("currentPageZeroBased", Math.max(pendingPage.getNumber(), 0));
+        mv.addObject("totalPages", totalPages);
+        mv.addObject("beginPage", beginPage);
+        mv.addObject("endPage", endPage);
+    }
+
+    private String normalizeSearchQuery(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = value.trim();
+        return normalized.length() > MAX_SEARCH_QUERY_LENGTH
+                ? normalized.substring(0, MAX_SEARCH_QUERY_LENGTH)
+                : normalized;
+    }
+
+    private String normalizeSortDirection(String value) {
+        return "asc".equalsIgnoreCase(value) ? "asc" : "desc";
     }
 
     @Override
@@ -358,13 +413,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             throw new IllegalStateException("Этот перевод уже был рассмотрен.");
         }
 
-        ReviewStatus rejectedStatus = reviewStatusRepository.findByName(STATUS_REJECTED)
-                .orElseThrow(() -> new IllegalStateException("Статус «Отклонено» не найден."));
-
         String normalizedReason = normalizeRejectReason(reason);
-
-        translation.setReviewStatus(rejectedStatus);
-        translationRepository.save(translation);
 
         if (translation.getUser() != null) {
             notificationService.notifyChapterRejected(translation.getUser().getId(), translation, normalizedReason);
@@ -379,7 +428,10 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
                 );
             }
         }
+
+        deleteRejectedTranslation(translation);
     }
+
 
     private void ensureUserCanSubmit(User user) {
         if (user == null) {
@@ -417,7 +469,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         }
 
         List<Integer> existing = new ArrayList<>(new LinkedHashSet<>(
-                translationRepository.findDistinctChapterNumbersByComicAndLanguage(comicId, languageId)
+                translationRepository.findDistinctApprovedChapterNumbersByComicAndLanguage(comicId, languageId)
         ));
         existing.sort(Integer::compareTo);
 
@@ -429,6 +481,44 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         List<Integer> result = new ArrayList<>(existing);
         result.add(next);
         return result;
+    }
+
+    private void deleteRejectedTranslation(Translation translation) {
+        Integer translationId = translation.getId();
+        Chapter chapter = translation.getChapter();
+        Comic comic = chapter != null ? chapter.getComic() : null;
+        Integer chapterId = chapter != null ? chapter.getId() : null;
+
+        List<ComicPage> storedPages = comicPageRepository.findByTranslationIdOrderByPageNumberAsc(translationId);
+        List<String> fileNames = storedPages.stream()
+                .map(ComicPage::getImagePath)
+                .filter(StringUtils::hasText)
+                .toList();
+
+        if (!storedPages.isEmpty()) {
+            comicPageRepository.deleteAll(storedPages);
+            comicPageRepository.flush();
+        }
+
+        translationRepository.delete(translation);
+        translationRepository.flush();
+
+        deleteStoredFiles(fileNames);
+        cleanupEmptyChapter(chapter, comic, chapterId);
+    }
+
+    private void cleanupEmptyChapter(Chapter chapter, Comic comic, Integer chapterId) {
+        if (chapter == null || chapterId == null || translationRepository.countByChapter_Id(chapterId) > 0) {
+            return;
+        }
+
+        chapterRepository.delete(chapter);
+        chapterRepository.flush();
+
+        if (comic != null && comic.getId() != null) {
+            comic.setChaptersCount((int) chapterRepository.countByComic_Id(comic.getId()));
+            comicRepository.save(comic);
+        }
     }
 
     private String normalizeTitle(String value) {

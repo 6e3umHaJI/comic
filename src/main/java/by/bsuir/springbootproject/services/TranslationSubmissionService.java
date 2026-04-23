@@ -16,7 +16,7 @@ public interface TranslationSubmissionService {
 
     ModelAndView getPreviewPage(Integer translationId, User viewer, String successMessage, String errorMessage);
 
-    ModelAndView getModerationPage(int page);
+    ModelAndView getModerationPage(String q, String sortDirection, int page);
 
     void approve(Integer translationId, User admin);
 

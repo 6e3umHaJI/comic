@@ -72,7 +72,7 @@
                 <a class="reader-comic-link" href="<c:url value='/comics/${comic.id}'/>">${comic.title}</a>
                 <div class="reader-subtitle">
                     Глава ${translation.chapter.chapterNumber}
-                    <span class="reader-dot">•</span>
+                    <span class="reader-dot">-</span>
                     ${translation.language.name}
                 </div>
             </div>

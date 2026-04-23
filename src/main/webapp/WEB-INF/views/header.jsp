@@ -103,7 +103,7 @@
                             </a>
                             <a href="<c:url value='/admin/translations/review'/>" class="profile-dropdown-item">
                                 <span class="profile-menu-icon"
-                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/book.svg"/>'); mask-image:url('<c:url value="/assets/icons/book.svg"/>');"></span>
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/paper.svg"/>'); mask-image:url('<c:url value="/assets/icons/paper.svg"/>');"></span>
                                 <span class="profile-dropdown-item-main">
                                     <span>Проверка переводов</span>
                                 </span>

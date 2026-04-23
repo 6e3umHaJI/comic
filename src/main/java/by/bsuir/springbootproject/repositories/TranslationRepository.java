@@ -149,12 +149,15 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     select distinct ch.chapterNumber
     from Translation t
     join t.chapter ch
+    join t.reviewStatus rs
     where ch.comic.id = :comicId
       and t.language.id = :languageId
+      and rs.name = 'Одобрено'
     order by ch.chapterNumber asc
     """)
-    List<Integer> findDistinctChapterNumbersByComicAndLanguage(@Param("comicId") Integer comicId,
-                                                               @Param("languageId") Integer languageId);
+    List<Integer> findDistinctApprovedChapterNumbersByComicAndLanguage(@Param("comicId") Integer comicId,
+                                                                       @Param("languageId") Integer languageId);
+
 
     @Query("""
     select count(t)
@@ -164,6 +167,8 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
       and rs.name = 'Одобрено'
     """)
     long countApprovedByChapterId(@Param("chapterId") Integer chapterId);
+
+    long countByChapter_Id(Integer chapterId);
 
     @Query("""
     select distinct t
@@ -178,27 +183,45 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     """)
     Optional<Translation> findSubmissionPreviewById(@Param("id") Integer id);
 
+    @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus", "user"})
     @Query(
             value = """
-        select t
-        from Translation t
-        join fetch t.chapter ch
-        join fetch ch.comic c
-        join fetch t.language l
-        join fetch t.translationType tt
-        join fetch t.reviewStatus rs
-        left join fetch t.user u
-        where rs.name = :statusName
-        order by t.createdAt asc, t.id asc
-        """,
+            select t
+            from Translation t
+            join t.reviewStatus rs
+            join t.chapter ch
+            join ch.comic c
+            left join t.user u
+            where rs.name = :statusName
+              and (
+                    :q = ''
+                    or lower(c.title) like lower(concat('%', :q, '%'))
+                    or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                    or lower(t.title) like lower(concat('%', :q, '%'))
+                    or lower(u.username) like lower(concat('%', :q, '%'))
+              )
+            """,
             countQuery = """
-        select count(t)
-        from Translation t
-        join t.reviewStatus rs
-        where rs.name = :statusName
-        """
+            select count(t)
+            from Translation t
+            join t.reviewStatus rs
+            join t.chapter ch
+            join ch.comic c
+            left join t.user u
+            where rs.name = :statusName
+              and (
+                    :q = ''
+                    or lower(c.title) like lower(concat('%', :q, '%'))
+                    or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                    or lower(t.title) like lower(concat('%', :q, '%'))
+                    or lower(u.username) like lower(concat('%', :q, '%'))
+              )
+            """
     )
-    Page<Translation> findModerationPageByStatusName(@Param("statusName") String statusName, Pageable pageable);
+    Page<Translation> findModerationPageByStatusNameAndQuery(@Param("statusName") String statusName,
+                                                             @Param("q") String q,
+                                                             Pageable pageable);
+
 
     @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus"})
     @Query(

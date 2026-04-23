@@ -4,6 +4,7 @@ import by.bsuir.springbootproject.dto.TranslationSubmissionForm;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -85,7 +86,10 @@ public class TranslationSubmissionController {
     }
 
     @GetMapping("/admin/translations/review")
-    public ModelAndView moderationPage(@RequestParam(defaultValue = "0") int page,
+    public ModelAndView moderationPage(@RequestParam(defaultValue = "") String q,
+                                       @RequestParam(defaultValue = "desc") String sortDirection,
+                                       @RequestParam(defaultValue = "0") int page,
+                                       HttpServletRequest request,
                                        RedirectAttributes redirectAttributes) {
         User user = securityContextUtils.getUserFromContext().orElse(null);
         if (!isAdmin(user)) {
@@ -93,7 +97,10 @@ public class TranslationSubmissionController {
             return new ModelAndView("redirect:/home");
         }
 
-        return translationSubmissionService.getModerationPage(page);
+        ModelAndView mv = translationSubmissionService.getModerationPage(q, sortDirection, page);
+        boolean ajax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
+        mv.setViewName(ajax ? "admin/translation-review-content" : "admin/translation-review-list");
+        return mv;
     }
 
     @PostMapping("/admin/translations/{translationId}/approve")
@@ -111,7 +118,6 @@ public class TranslationSubmissionController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             redirectAttributes.addFlashAttribute("uploadError", e.getMessage());
         }
-
         return new ModelAndView("redirect:/translations/" + translationId + "/preview");
     }
 
@@ -128,12 +134,11 @@ public class TranslationSubmissionController {
 
         try {
             translationSubmissionService.reject(translationId, user, reason, revokeRights);
-            redirectAttributes.addFlashAttribute("uploadMessage", "Перевод отклонён.");
+            redirectAttributes.addFlashAttribute("uploadMessage", "Перевод отклонён и удалён.");
         } catch (IllegalArgumentException | IllegalStateException e) {
             redirectAttributes.addFlashAttribute("uploadError", e.getMessage());
         }
-
-        return new ModelAndView("redirect:/translations/" + translationId + "/preview");
+        return new ModelAndView("redirect:/admin/translations/review");
     }
 
     private boolean isAdmin(User user) {

@@ -268,7 +268,7 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
                 : "Глава или перевод были удалены";
 
         String targetSubtitle = translation != null
-                ? "Глава " + translation.getChapter().getChapterNumber() + " • " + translation.getLanguage().getName()
+                ? "Глава " + translation.getChapter().getChapterNumber() + " - " + translation.getLanguage().getName()
                 : "Объект недоступен";
 
         String targetUrl = translation != null ? "/read/" + translation.getId() : null;
@@ -300,7 +300,7 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
 
         if (comic.getReleaseYear() != null) {
             if (subtitle.length() > 0) {
-                subtitle.append(" • ");
+                subtitle.append(" - ");
             }
             subtitle.append(comic.getReleaseYear());
         }

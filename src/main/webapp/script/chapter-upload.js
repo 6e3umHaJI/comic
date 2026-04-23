@@ -23,6 +23,7 @@
     const statusBox = document.getElementById('chapterSubmissionClientStatus');
     const autoTranslate = document.getElementById('autoTranslate');
     const readingDirectionField = document.getElementById('readingDirectionField');
+    const submitButton = form?.querySelector('button[type="submit"]');
 
     const originalLanguageOptions = languageSelect
         ? Array.from(languageSelect.options).map((option) => ({
@@ -32,13 +33,19 @@
         : [];
 
     function showStatus(message) {
-        if (!statusBox) return;
-        statusBox.textContent = message;
+        if (!statusBox) {
+            return;
+        }
+
+        statusBox.textContent = String(message ?? '').trim();
         statusBox.classList.remove('hidden');
     }
 
     function hideStatus() {
-        if (!statusBox) return;
+        if (!statusBox) {
+            return;
+        }
+
         statusBox.textContent = '';
         statusBox.classList.add('hidden');
     }
@@ -52,9 +59,12 @@
     }
 
     function rebuildLanguageOptions() {
-        if (!languageSearch || !languageSelect) return;
+        if (!languageSearch || !languageSelect) {
+            return;
+        }
 
         languageSearch.value = limitOnly(languageSearch.value, LIMITS.languageSearch);
+
         const query = languageSearch.value.trim().toLowerCase();
         const selectedValue = languageSelect.value;
 
@@ -133,10 +143,11 @@
     }
 
     function renderFilesList() {
-        if (!filesList || !fileInput) return;
+        if (!filesList || !fileInput) {
+            return;
+        }
 
         const validation = validateFiles(fileInput.files);
-
         if (!validation.ok) {
             filesList.textContent = validation.message;
             filesList.classList.add('chapter-upload-files-empty');
@@ -171,7 +182,9 @@
         try {
             const response = await fetch(
                 `${root.dataset.optionsUrl}?languageId=${encodeURIComponent(languageSelect.value)}`,
-                { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+                {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }
             );
 
             if (!response.ok) {
@@ -203,13 +216,55 @@
     }
 
     function syncAutoTranslateField() {
-        if (!autoTranslate || !readingDirectionField) return;
+        if (!autoTranslate || !readingDirectionField) {
+            return;
+        }
+
         readingDirectionField.classList.toggle('hidden', !autoTranslate.checked);
     }
 
-    languageSearch?.addEventListener('input', () => {
+    function setSubmittingState(isSubmitting) {
+        if (!submitButton) {
+            return;
+        }
+
+        submitButton.disabled = isSubmitting;
+        submitButton.textContent = isSubmitting ? 'Сохранение...' : 'Сохранить';
+    }
+
+    function syncChapterOptionsFromServerHtml(html) {
+        if (!chapterSelect || !html) {
+            return;
+        }
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const serverChapterSelect = doc.getElementById('chapterNumber');
+        if (!serverChapterSelect) {
+            return;
+        }
+
+        chapterSelect.innerHTML = serverChapterSelect.innerHTML;
+        chapterSelect.value = serverChapterSelect.value;
+    }
+
+    function extractServerError(html) {
+        if (!html) {
+            return '';
+        }
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const serverStatus = doc.getElementById('chapterSubmissionClientStatus');
+        if (serverStatus) {
+            return serverStatus.textContent.trim();
+        }
+
+        const fallback = doc.querySelector('.status-banner-error');
+        return fallback ? fallback.textContent.trim() : '';
+    }
+
+    languageSearch?.addEventListener('input', async () => {
         rebuildLanguageOptions();
-        loadChapterOptions();
+        await loadChapterOptions();
     });
 
     languageSelect?.addEventListener('change', loadChapterOptions);
@@ -226,28 +281,62 @@
     fileInput?.addEventListener('change', renderFilesList);
     autoTranslate?.addEventListener('change', syncAutoTranslateField);
 
-    form?.addEventListener('submit', (event) => {
+    form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
         hideStatus();
 
         if (titleInput) {
             titleInput.value = trimAndLimit(titleInput.value, LIMITS.title);
             if (!titleInput.value) {
-                event.preventDefault();
                 showStatus('Введите название перевода.');
                 return;
             }
         }
 
         if (!languageSelect || !languageSelect.value) {
-            event.preventDefault();
             showStatus('Выберите язык перевода.');
             return;
         }
 
         const validation = validateFiles(fileInput?.files);
         if (!validation.ok) {
-            event.preventDefault();
             showStatus(validation.message);
+            return;
+        }
+
+        setSubmittingState(true);
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (response.redirected) {
+                window.location.assign(response.url);
+                return;
+            }
+
+            const html = await response.text();
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            syncChapterOptionsFromServerHtml(html);
+
+            const serverError = extractServerError(html);
+            if (serverError) {
+                showStatus(serverError);
+                return;
+            }
+
+            window.location.reload();
+        } catch (_) {
+            showStatus('Не удалось сохранить перевод. Попробуйте ещё раз.');
+        } finally {
+            setSubmittingState(false);
         }
     });
 

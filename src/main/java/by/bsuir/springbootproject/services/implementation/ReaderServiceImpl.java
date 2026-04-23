@@ -3,22 +3,27 @@ package by.bsuir.springbootproject.services.implementation;
 import by.bsuir.springbootproject.dto.ContinueReadingInfo;
 import by.bsuir.springbootproject.dto.ReaderData;
 import by.bsuir.springbootproject.entities.ComicPage;
+import by.bsuir.springbootproject.entities.ReadProgress;
+import by.bsuir.springbootproject.entities.ReadProgressId;
 import by.bsuir.springbootproject.entities.Translation;
+import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.repositories.ChapterRepository;
 import by.bsuir.springbootproject.repositories.ComicPageRepository;
+import by.bsuir.springbootproject.repositories.ReadProgressRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
+import by.bsuir.springbootproject.repositories.UserRepository;
 import by.bsuir.springbootproject.services.ReaderService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,23 +35,25 @@ public class ReaderServiceImpl implements ReaderService {
 
     private final TranslationRepository translationRepository;
     private final ComicPageRepository comicPageRepository;
-    private final JdbcTemplate jdbcTemplate;
     private final SecurityContextUtils securityContextUtils;
     private final ChapterRepository chapterRepository;
+    private final ReadProgressRepository readProgressRepository;
+    private final UserRepository userRepository;
 
     @Override
     public ReaderData getReaderData(Integer translationId, boolean allowUnapprovedPreview) {
-        Translation translation = loadTranslationForReader(translationId, allowUnapprovedPreview);
+        LoadedTranslation loadedTranslation = loadTranslationForReader(translationId, allowUnapprovedPreview);
+        Translation translation = loadedTranslation.translation();
 
         List<ComicPage> pages = comicPageRepository.findByTranslationIdOrderByPageNumberAsc(translationId);
         if (pages.isEmpty()) {
-            throw new RuntimeException("Страницы перевода отсутствуют: " + translationId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Страницы перевода отсутствуют: " + translationId);
         }
 
         Translation prev = null;
         Translation next = null;
 
-        if (!allowUnapprovedPreview) {
+        if (!loadedTranslation.previewMode()) {
             Integer comicId = translation.getChapter().getComic().getId();
             Integer chapterNumber = translation.getChapter().getChapterNumber();
             Integer languageId = translation.getLanguage().getId();
@@ -67,15 +74,56 @@ public class ReaderServiceImpl implements ReaderService {
         );
     }
 
-    private Translation loadTranslationForReader(Integer translationId, boolean allowUnapprovedPreview) {
-        return (allowUnapprovedPreview
-                ? translationRepository.findReaderPreviewById(translationId)
-                : translationRepository.findReaderTranslationById(translationId))
-                .orElseThrow(() -> new RuntimeException(
-                        allowUnapprovedPreview
-                                ? "Перевод не найден: " + translationId
-                                : "Перевод не найден или не одобрен: " + translationId
+    private LoadedTranslation loadTranslationForReader(Integer translationId, boolean allowUnapprovedPreview) {
+        if (allowUnapprovedPreview) {
+            Translation previewTranslation = translationRepository.findReaderPreviewById(translationId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Перевод не найден: " + translationId
+                    ));
+
+            validatePreviewAccess(previewTranslation);
+            return new LoadedTranslation(previewTranslation, true);
+        }
+
+        Optional<Translation> approvedTranslation = translationRepository.findReaderTranslationById(translationId);
+        if (approvedTranslation.isPresent()) {
+            return new LoadedTranslation(approvedTranslation.get(), false);
+        }
+
+        Translation previewTranslation = translationRepository.findReaderPreviewById(translationId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Перевод не найден: " + translationId
                 ));
+
+        validatePreviewAccess(previewTranslation);
+        return new LoadedTranslation(previewTranslation, true);
+    }
+
+    private void validatePreviewAccess(Translation translation) {
+        boolean allowed = securityContextUtils.getUserFromContext()
+                .map(user -> isAdmin(user) || isOwner(user, translation))
+                .orElse(false);
+
+        if (!allowed) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "У вас нет доступа к этому переводу");
+        }
+    }
+
+    private boolean isOwner(User user, Translation translation) {
+        return user != null
+                && user.getId() != null
+                && translation.getUser() != null
+                && translation.getUser().getId() != null
+                && user.getId().equals(translation.getUser().getId());
+    }
+
+    private boolean isAdmin(User user) {
+        return user != null
+                && user.getRole() != null
+                && user.getRole().getName() != null
+                && Set.of("ADMIN", "ROLE_ADMIN").contains(user.getRole().getName().trim().toUpperCase(Locale.ROOT));
     }
 
     private Translation resolveAdjacentTranslation(Integer comicId, Integer targetChapterNumber, Integer languageId) {
@@ -127,49 +175,38 @@ public class ReaderServiceImpl implements ReaderService {
         }
 
         return securityContextUtils.getUserFromContext()
-                .<Set<Integer>>map(user -> {
-                    String placeholders = translationIds.stream()
-                            .map(id -> "?")
-                            .collect(Collectors.joining(","));
-
-                    List<Object> params = new ArrayList<>();
-                    params.add(user.getId());
-                    params.addAll(translationIds);
-
-                    return new HashSet<>(jdbcTemplate.query(
-                            "select translation_id from read_progress where user_id = ? and translation_id in (" + placeholders + ")",
-                            (rs, rowNum) -> rs.getInt("translation_id"),
-                            params.toArray()
-                    ));
-                })
+                .map(user -> readProgressRepository.findByUser_IdAndTranslation_IdIn(user.getId(), translationIds).stream()
+                        .map(readProgress -> readProgress.getTranslation().getId())
+                        .collect(Collectors.toSet()))
                 .orElse(Set.of());
     }
 
     @Override
     @Transactional
     public void markTranslationOpenedIfAuthenticated(Integer translationId) {
-        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
-                insert into read_progress(user_id, translation_id, current_page, updated_at)
-                values (?, ?, 1, now())
-                on conflict (user_id, translation_id) do nothing
-                """, user.getId(), translationId));
+        securityContextUtils.getUserFromContext().ifPresent(user -> {
+            ReadProgressId id = new ReadProgressId(user.getId(), translationId);
+            if (readProgressRepository.existsById(id)) {
+                return;
+            }
+
+            ReadProgress readProgress = new ReadProgress();
+            readProgress.setId(id);
+            readProgress.setUser(userRepository.getReferenceById(user.getId()));
+            readProgress.setTranslation(translationRepository.getReferenceById(translationId));
+            readProgress.setCurrentPage(1);
+            readProgress.setUpdatedAt(LocalDateTime.now());
+
+            readProgressRepository.save(readProgress);
+        });
     }
 
     @Override
     public Integer getSavedPageIfAuthenticated(Integer translationId) {
         return securityContextUtils.getUserFromContext()
-                .map(user -> {
-                    try {
-                        Integer page = jdbcTemplate.queryForObject("""
-                                select current_page
-                                from read_progress
-                                where user_id = ? and translation_id = ?
-                                """, Integer.class, user.getId(), translationId);
-                        return page != null && page > 0 ? page : 1;
-                    } catch (EmptyResultDataAccessException e) {
-                        return 1;
-                    }
-                })
+                .flatMap(user -> readProgressRepository.findByUser_IdAndTranslation_Id(user.getId(), translationId))
+                .map(ReadProgress::getCurrentPage)
+                .filter(page -> page != null && page > 0)
                 .orElse(1);
     }
 
@@ -180,13 +217,21 @@ public class ReaderServiceImpl implements ReaderService {
             return;
         }
 
-        securityContextUtils.getUserFromContext().ifPresent(user -> jdbcTemplate.update("""
-                insert into read_progress(user_id, translation_id, current_page, updated_at)
-                values (?, ?, ?, now())
-                on conflict (user_id, translation_id) do update
-                set current_page = excluded.current_page,
-                    updated_at = now()
-                """, user.getId(), translationId, page));
+        securityContextUtils.getUserFromContext().ifPresent(user -> {
+            ReadProgress readProgress = readProgressRepository.findByUser_IdAndTranslation_Id(user.getId(), translationId)
+                    .orElseGet(() -> {
+                        ReadProgress newProgress = new ReadProgress();
+                        newProgress.setId(new ReadProgressId(user.getId(), translationId));
+                        newProgress.setUser(userRepository.getReferenceById(user.getId()));
+                        newProgress.setTranslation(translationRepository.getReferenceById(translationId));
+                        return newProgress;
+                    });
+
+            readProgress.setCurrentPage(page);
+            readProgress.setUpdatedAt(LocalDateTime.now());
+
+            readProgressRepository.save(readProgress);
+        });
     }
 
     @Override
@@ -204,24 +249,18 @@ public class ReaderServiceImpl implements ReaderService {
     }
 
     private Optional<ReadProgressSnapshot> findLastReadProgress(Integer userId, Integer comicId) {
-        try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject("""
-                    select rp.translation_id, rp.current_page
-                    from read_progress rp
-                    join translations t on t.translation_id = rp.translation_id
-                    join chapters ch on ch.chapter_id = t.chapter_id
-                    where rp.user_id = ? and ch.comic_id = ?
-                    order by rp.updated_at desc, rp.translation_id desc
-                    limit 1
-                    """, (rs, rowNum) -> new ReadProgressSnapshot(
-                    rs.getInt("translation_id"),
-                    rs.getInt("current_page")
-            ), userId, comicId));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return readProgressRepository.findLatestByUserIdAndComicId(userId, comicId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(progress -> new ReadProgressSnapshot(
+                        progress.getTranslation().getId(),
+                        progress.getCurrentPage()
+                ));
     }
 
     private record ReadProgressSnapshot(Integer translationId, Integer currentPage) {
+    }
+
+    private record LoadedTranslation(Translation translation, boolean previewMode) {
     }
 }
