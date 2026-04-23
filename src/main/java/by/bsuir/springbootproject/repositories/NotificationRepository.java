@@ -15,17 +15,31 @@ import java.util.Optional;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
-
-    @EntityGraph(attributePaths = {"type", "comic", "chapter", "translation", "translation.language", "translation.user", "actorUser"})
-    Page<Notification> findByUser_Id(Integer userId, Pageable pageable);
-
-    long countByUser_Id(Integer userId);
-
     long countByUser_IdAndIsReadFalse(Integer userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Notification n set n.isRead = true where n.id in :ids and n.isRead = false")
     void markAsReadByIds(@Param("ids") List<Integer> ids);
 
+    @EntityGraph(attributePaths = {"type", "comic", "chapter", "translation", "translation.language", "translation.user", "actorUser"})
+    Page<Notification> findByUser_Id(Integer userId, Pageable pageable);
+
+    long countByUser_Id(Integer userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Notification n set n.isRead = true where n.user.id = :userId and n.isRead = false")
+    void markAllAsReadByUserId(@Param("userId") Integer userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Notification n
+            set n.translation = null,
+                n.linkPath = null,
+                n.isClickable = false
+            where n.translation.id = :translationId
+            """)
+    void detachDeletedTranslation(@Param("translationId") Integer translationId);
+
     Optional<Notification> findByIdAndUser_Id(Integer id, Integer userId);
+
 }

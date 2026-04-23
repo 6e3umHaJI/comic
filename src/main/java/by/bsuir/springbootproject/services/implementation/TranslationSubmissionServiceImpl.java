@@ -9,14 +9,7 @@ import by.bsuir.springbootproject.entities.ReviewStatus;
 import by.bsuir.springbootproject.entities.Translation;
 import by.bsuir.springbootproject.entities.TranslationType;
 import by.bsuir.springbootproject.entities.User;
-import by.bsuir.springbootproject.repositories.ChapterRepository;
-import by.bsuir.springbootproject.repositories.ComicPageRepository;
-import by.bsuir.springbootproject.repositories.ComicRepository;
-import by.bsuir.springbootproject.repositories.LanguageRepository;
-import by.bsuir.springbootproject.repositories.ReviewStatusRepository;
-import by.bsuir.springbootproject.repositories.TranslationRepository;
-import by.bsuir.springbootproject.repositories.TranslationTypeRepository;
-import by.bsuir.springbootproject.repositories.UserRepository;
+import by.bsuir.springbootproject.repositories.*;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +73,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private final ReviewStatusRepository reviewStatusRepository;
     private final TranslationTypeRepository translationTypeRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -416,12 +410,17 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         String normalizedReason = normalizeRejectReason(reason);
 
         if (translation.getUser() != null) {
-            notificationService.notifyChapterRejected(translation.getUser().getId(), translation, normalizedReason);
+            notificationService.notifyChapterRejected(
+                    translation.getUser().getId(),
+                    translation,
+                    normalizedReason
+            );
 
-            if (revokeRights) {
+            if (revokeRights && Boolean.TRUE.equals(translation.getUser().getCanPropose())) {
                 User uploader = translation.getUser();
                 uploader.setCanPropose(false);
                 userRepository.save(uploader);
+
                 notificationService.notifyUploadRightsRevoked(
                         uploader.getId(),
                         "Вам ограничили возможность добавлять главы."
@@ -431,7 +430,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
         deleteRejectedTranslation(translation);
     }
-
 
     private void ensureUserCanSubmit(User user) {
         if (user == null) {
@@ -485,39 +483,37 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
     private void deleteRejectedTranslation(Translation translation) {
         Integer translationId = translation.getId();
-        Chapter chapter = translation.getChapter();
-        Comic comic = chapter != null ? chapter.getComic() : null;
-        Integer chapterId = chapter != null ? chapter.getId() : null;
+        Integer chapterId = translation.getChapter() != null ? translation.getChapter().getId() : null;
+        Integer comicId = translation.getChapter() != null && translation.getChapter().getComic() != null
+                ? translation.getChapter().getComic().getId()
+                : null;
 
-        List<ComicPage> storedPages = comicPageRepository.findByTranslationIdOrderByPageNumberAsc(translationId);
-        List<String> fileNames = storedPages.stream()
+        List<String> fileNames = comicPageRepository.findByTranslationIdOrderByPageNumberAsc(translationId)
+                .stream()
                 .map(ComicPage::getImagePath)
                 .filter(StringUtils::hasText)
                 .toList();
 
-        if (!storedPages.isEmpty()) {
-            comicPageRepository.deleteAll(storedPages);
-            comicPageRepository.flush();
-        }
-
-        translationRepository.delete(translation);
-        translationRepository.flush();
+        notificationRepository.detachDeletedTranslation(translationId);
+        comicPageRepository.deleteAllByTranslationId(translationId);
+        translationRepository.deleteHardById(translationId);
 
         deleteStoredFiles(fileNames);
-        cleanupEmptyChapter(chapter, comic, chapterId);
+        cleanupEmptyChapter(chapterId, comicId);
     }
 
-    private void cleanupEmptyChapter(Chapter chapter, Comic comic, Integer chapterId) {
-        if (chapter == null || chapterId == null || translationRepository.countByChapter_Id(chapterId) > 0) {
+    private void cleanupEmptyChapter(Integer chapterId, Integer comicId) {
+        if (chapterId == null || translationRepository.countByChapter_Id(chapterId) > 0) {
             return;
         }
 
-        chapterRepository.delete(chapter);
-        chapterRepository.flush();
+        chapterRepository.deleteById(chapterId);
 
-        if (comic != null && comic.getId() != null) {
-            comic.setChaptersCount((int) chapterRepository.countByComic_Id(comic.getId()));
-            comicRepository.save(comic);
+        if (comicId != null) {
+            comicRepository.findById(comicId).ifPresent(comic -> {
+                comic.setChaptersCount((int) chapterRepository.countByComic_Id(comicId));
+                comicRepository.save(comic);
+            });
         }
     }
 

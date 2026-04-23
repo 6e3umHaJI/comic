@@ -555,12 +555,14 @@ public class NotificationServiceImpl implements NotificationService {
         String message = safeMessage(notification.getMessage());
         Integer chapterNumber = resolveChapterNumber(notification);
         String languageName = resolveLanguageName(notification);
-        String authorName = resolveActorUsername(notification);
+        String translationTypeName = resolveTranslationTypeName(notification);
+        String authorName = shouldHideTranslationAuthor(notification) ? null : resolveActorUsername(notification);
 
         return switch (typeName) {
             case TYPE_NEW_TRANSLATION -> joinDetails(
                     chapterNumber != null ? "Глава " + chapterNumber : null,
                     hasText(languageName) ? "Язык: " + languageName : null,
+                    hasText(translationTypeName) ? "Тип: " + translationTypeName : null,
                     hasText(authorName) ? "Автор: " + authorName : null,
                     message
             );
@@ -603,6 +605,27 @@ public class NotificationServiceImpl implements NotificationService {
             return notification.getTranslation().getLanguage().getName();
         }
         return notification.getLanguageNameSnapshot();
+    }
+
+    private String resolveTranslationTypeName(Notification notification) {
+        if (notification.getTranslation() != null
+                && notification.getTranslation().getTranslationType() != null
+                && hasText(notification.getTranslation().getTranslationType().getName())) {
+            return notification.getTranslation().getTranslationType().getName();
+        }
+
+        return null;
+    }
+
+    private boolean shouldHideTranslationAuthor(Notification notification) {
+        String translationTypeName = resolveTranslationTypeName(notification);
+        if (!hasText(translationTypeName)) {
+            return false;
+        }
+
+        String normalized = translationTypeName.trim().toLowerCase();
+        return normalized.contains("автомат")
+                || normalized.contains("официал");
     }
 
     private String resolveActorUsername(Notification notification) {

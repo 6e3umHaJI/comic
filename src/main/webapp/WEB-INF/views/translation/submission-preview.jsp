@@ -125,14 +125,23 @@
                                       maxlength="300"
                                       placeholder="Опишите причину отклонения"></textarea>
 
+                            <c:set var="userAlreadyRevoked" value="${translation.user != null and translation.user.canPropose == false}"/>
+
                             <label class="chapter-upload-check">
                                 <input type="checkbox"
                                        name="revokeRights"
                                        value="true"
                                        class="check-ui"
-                                       ${revokeRightsChecked ? 'checked' : ''}>
+                                       ${userAlreadyRevoked ? 'checked disabled' : ''}>
                                 <span>Лишить пользователя права на добавление глав</span>
                             </label>
+
+                            <c:if test="${userAlreadyRevoked}">
+                                <div class="chapter-upload-hint">
+                                    Пользователь уже не может добавлять новые переводы.
+                                </div>
+                            </c:if>
+
 
                             <button type="submit" class="btn btn-outline">Отклонить</button>
                         </form>

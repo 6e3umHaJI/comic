@@ -212,9 +212,6 @@
                         <c:url var="comicNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
                     </c:otherwise>
                 </c:choose>
-                <c:if test="${not empty uploadError}">
-                    <div class="status-banner status-banner-error"><c:out value="${uploadError}"/></div>
-                </c:if>
 
                 <c:if test="${not empty uploadMessage}">
                     <div class="status-banner status-banner-success"><c:out value="${uploadMessage}"/></div>
@@ -247,7 +244,18 @@
                 </div>
 
                 <div class="comic-secondary-actions">
-                    <a href="<c:url value='/comics/${comic.id}/chapters/new'/>" class="btn add-chapter-btn">Добавить главу</a>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <a href="<c:url value='/comics/${comic.id}/chapters/new'/>"
+                           class="btn add-chapter-btn">
+                            Добавить главу
+                        </a>
+
+                        <div id="addChapterStatus"
+                             class="status-banner status-banner-error"
+                             style="${not empty uploadError ? 'margin:0;' : 'display:none; margin:0;'}">
+                            <c:out value="${uploadError}"/>
+                        </div>
+                    </div>
 
                     <button type="button"
                             id="comicComplaintBtn"
@@ -345,6 +353,69 @@
       const holder = document.getElementById("comicPage");
       const comicId = holder.dataset.comicId;
       const ctx = holder.dataset.contextPath || "";
+
+      const addChapterBtn = document.querySelector(".add-chapter-btn");
+      const addChapterStatus = document.getElementById("addChapterStatus");
+
+      function showAddChapterStatus(message) {
+          if (!addChapterStatus) return;
+          addChapterStatus.textContent = (message || "Не удалось открыть форму добавления главы.").trim();
+          addChapterStatus.style.display = "block";
+      }
+
+      function hideAddChapterStatus() {
+          if (!addChapterStatus) return;
+          addChapterStatus.textContent = "";
+          addChapterStatus.style.display = "none";
+      }
+
+      function extractAddChapterError(html) {
+          if (!html) return "";
+          const tmp = document.createElement("div");
+          tmp.innerHTML = html;
+
+          const statusNode = tmp.querySelector("#addChapterStatus")
+              || tmp.querySelector(".status-banner-error");
+
+          return statusNode ? statusNode.textContent.trim() : "";
+      }
+
+      if (addChapterBtn) {
+          addChapterBtn.addEventListener("click", async (e) => {
+              e.preventDefault();
+              hideAddChapterStatus();
+
+              try {
+                  const response = await fetch(addChapterBtn.href, {
+                      headers: { "X-Requested-With": "XMLHttpRequest" }
+                  });
+
+                  const html = await response.text();
+
+                  if (response.redirected) {
+                      const redirectedUrl = new URL(response.url, window.location.origin);
+                      const loginPath = (ctx || "") + "/auth/login";
+
+                      if (redirectedUrl.pathname === loginPath) {
+                          window.location.assign(response.url);
+                          return;
+                      }
+
+                      const errorMessage = extractAddChapterError(html)
+                          || "Не удалось открыть форму добавления главы.";
+
+                      showAddChapterStatus(errorMessage);
+                      return;
+                  }
+
+                  window.location.assign(addChapterBtn.href);
+              } catch (error) {
+                  console.error("Ошибка открытия формы добавления главы:", error);
+                  showAddChapterStatus("Не удалось открыть форму добавления главы.");
+              }
+          });
+      }
+
 
       let relatedPage = 0;
       function fetchRelated() {
