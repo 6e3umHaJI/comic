@@ -47,7 +47,10 @@ public class WebSecurityConfig {
                         .requestMatchers(
                                 "/profile/**",
                                 "/collections/**",
-                                "/notifications/**"
+                                "/notifications/**",
+                                "/comics/*/chapters/new",
+                                "/comics/*/chapters/options",
+                                "/translations/*/preview"
                         ).authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()

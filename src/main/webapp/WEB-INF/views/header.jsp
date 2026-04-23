@@ -78,11 +78,11 @@
                             </span>
                         </a>
 
-                        <a href="#" class="profile-dropdown-item">
+                        <a href="<c:url value='/profile/translations'/>" class="profile-dropdown-item">
                             <span class="profile-menu-icon"
                                   style="-webkit-mask-image:url('<c:url value="/assets/icons/upload.svg"/>'); mask-image:url('<c:url value="/assets/icons/upload.svg"/>');"></span>
                             <span class="profile-dropdown-item-main">
-                                <span>Мои главы</span>
+                                <span>Мои переводы</span>
                             </span>
                         </a>
 
@@ -101,7 +101,13 @@
                                     <span>Добавить комикс</span>
                                 </span>
                             </a>
-
+                            <a href="<c:url value='/admin/translations/review'/>" class="profile-dropdown-item">
+                                <span class="profile-menu-icon"
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/book.svg"/>'); mask-image:url('<c:url value="/assets/icons/book.svg"/>');"></span>
+                                <span class="profile-dropdown-item-main">
+                                    <span>Проверка переводов</span>
+                                </span>
+                            </a>
                         </sec:authorize>
 
                     </div>

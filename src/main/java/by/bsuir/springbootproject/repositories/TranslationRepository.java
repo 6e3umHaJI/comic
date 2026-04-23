@@ -3,6 +3,7 @@ package by.bsuir.springbootproject.repositories;
 import by.bsuir.springbootproject.entities.Translation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -140,4 +141,107 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
         """)
     List<Translation> findApprovedAnyLanguageByComicAndChapterNumber(@Param("comicId") Integer comicId,
                                                                      @Param("chapterNumber") Integer chapterNumber);
+    long countByUser_Id(Integer userId);
+
+    long countByUser_IdAndReviewStatus_Name(Integer userId, String reviewStatusName);
+
+    @Query("""
+    select distinct ch.chapterNumber
+    from Translation t
+    join t.chapter ch
+    where ch.comic.id = :comicId
+      and t.language.id = :languageId
+    order by ch.chapterNumber asc
+    """)
+    List<Integer> findDistinctChapterNumbersByComicAndLanguage(@Param("comicId") Integer comicId,
+                                                               @Param("languageId") Integer languageId);
+
+    @Query("""
+    select count(t)
+    from Translation t
+    join t.reviewStatus rs
+    where t.chapter.id = :chapterId
+      and rs.name = 'Одобрено'
+    """)
+    long countApprovedByChapterId(@Param("chapterId") Integer chapterId);
+
+    @Query("""
+    select distinct t
+    from Translation t
+    join fetch t.chapter ch
+    join fetch ch.comic c
+    join fetch t.language l
+    join fetch t.translationType tt
+    join fetch t.reviewStatus rs
+    left join fetch t.user u
+    where t.id = :id
+    """)
+    Optional<Translation> findSubmissionPreviewById(@Param("id") Integer id);
+
+    @Query(
+            value = """
+        select t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join fetch t.translationType tt
+        join fetch t.reviewStatus rs
+        left join fetch t.user u
+        where rs.name = :statusName
+        order by t.createdAt asc, t.id asc
+        """,
+            countQuery = """
+        select count(t)
+        from Translation t
+        join t.reviewStatus rs
+        where rs.name = :statusName
+        """
+    )
+    Page<Translation> findModerationPageByStatusName(@Param("statusName") String statusName, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus"})
+    @Query(
+            value = """
+                select t
+                from Translation t
+                join t.chapter ch
+                join ch.comic c
+                where t.user.id = :userId
+                  and (
+                      :q = ''
+                      or lower(c.title) like lower(concat('%', :q, '%'))
+                      or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                  )
+                """,
+            countQuery = """
+                select count(t)
+                from Translation t
+                join t.chapter ch
+                join ch.comic c
+                where t.user.id = :userId
+                  and (
+                      :q = ''
+                      or lower(c.title) like lower(concat('%', :q, '%'))
+                      or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                  )
+                """
+    )
+    Page<Translation> findUserUploadedPage(@Param("userId") Integer userId,
+                                           @Param("q") String q,
+                                           Pageable pageable);
+
+    @Query("""
+        select t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join fetch t.translationType tt
+        left join fetch t.user u
+        left join fetch t.reviewStatus rs
+        where t.id = :id
+        """)
+    Optional<Translation> findReaderPreviewById(@Param("id") Integer id);
+
 }

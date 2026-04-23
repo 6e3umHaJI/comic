@@ -35,24 +35,28 @@ public class ReaderServiceImpl implements ReaderService {
     private final ChapterRepository chapterRepository;
 
     @Override
-    public ReaderData getReaderData(Integer translationId) {
-        Translation translation = translationRepository.findReaderTranslationById(translationId)
-                .orElseThrow(() -> new RuntimeException("Перевод не найден или не одобрен: " + translationId));
+    public ReaderData getReaderData(Integer translationId, boolean allowUnapprovedPreview) {
+        Translation translation = loadTranslationForReader(translationId, allowUnapprovedPreview);
 
         List<ComicPage> pages = comicPageRepository.findByTranslationIdOrderByPageNumberAsc(translationId);
         if (pages.isEmpty()) {
             throw new RuntimeException("Страницы перевода отсутствуют: " + translationId);
         }
 
-        Integer comicId = translation.getChapter().getComic().getId();
-        Integer chapterNumber = translation.getChapter().getChapterNumber();
-        Integer languageId = translation.getLanguage().getId();
+        Translation prev = null;
+        Translation next = null;
 
-        Integer prevChapterNumber = chapterRepository.findPrevChapterNumber(comicId, chapterNumber).orElse(null);
-        Integer nextChapterNumber = chapterRepository.findNextChapterNumber(comicId, chapterNumber).orElse(null);
+        if (!allowUnapprovedPreview) {
+            Integer comicId = translation.getChapter().getComic().getId();
+            Integer chapterNumber = translation.getChapter().getChapterNumber();
+            Integer languageId = translation.getLanguage().getId();
 
-        Translation prev = resolveAdjacentTranslation(comicId, prevChapterNumber, languageId);
-        Translation next = resolveAdjacentTranslation(comicId, nextChapterNumber, languageId);
+            Integer prevChapterNumber = chapterRepository.findPrevChapterNumber(comicId, chapterNumber).orElse(null);
+            Integer nextChapterNumber = chapterRepository.findNextChapterNumber(comicId, chapterNumber).orElse(null);
+
+            prev = resolveAdjacentTranslation(comicId, prevChapterNumber, languageId);
+            next = resolveAdjacentTranslation(comicId, nextChapterNumber, languageId);
+        }
 
         return new ReaderData(
                 translation.getChapter().getComic(),
@@ -61,6 +65,17 @@ public class ReaderServiceImpl implements ReaderService {
                 prev,
                 next
         );
+    }
+
+    private Translation loadTranslationForReader(Integer translationId, boolean allowUnapprovedPreview) {
+        return (allowUnapprovedPreview
+                ? translationRepository.findReaderPreviewById(translationId)
+                : translationRepository.findReaderTranslationById(translationId))
+                .orElseThrow(() -> new RuntimeException(
+                        allowUnapprovedPreview
+                                ? "Перевод не найден: " + translationId
+                                : "Перевод не найден или не одобрен: " + translationId
+                ));
     }
 
     private Translation resolveAdjacentTranslation(Integer comicId, Integer targetChapterNumber, Integer languageId) {
@@ -150,7 +165,6 @@ public class ReaderServiceImpl implements ReaderService {
                                 from read_progress
                                 where user_id = ? and translation_id = ?
                                 """, Integer.class, user.getId(), translationId);
-
                         return page != null && page > 0 ? page : 1;
                     } catch (EmptyResultDataAccessException e) {
                         return 1;
@@ -184,6 +198,11 @@ public class ReaderServiceImpl implements ReaderService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public void markChapterReadIfAuthenticated(Integer chapterId) {
+    }
+
     private Optional<ReadProgressSnapshot> findLastReadProgress(Integer userId, Integer comicId) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject("""
@@ -191,8 +210,7 @@ public class ReaderServiceImpl implements ReaderService {
                     from read_progress rp
                     join translations t on t.translation_id = rp.translation_id
                     join chapters ch on ch.chapter_id = t.chapter_id
-                    where rp.user_id = ?
-                      and ch.comic_id = ?
+                    where rp.user_id = ? and ch.comic_id = ?
                     order by rp.updated_at desc, rp.translation_id desc
                     limit 1
                     """, (rs, rowNum) -> new ReadProgressSnapshot(

@@ -853,3 +853,19 @@
     background: var(--card) !important;
     color: var(--accent);
 }
+
+.status-banner {
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.status-banner-error {
+    background: rgba(231, 76, 60, 0.16);
+    border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
+.status-banner-success {
+    background: rgba(46, 204, 113, 0.16);
+    border: 1px solid rgba(46, 204, 113, 0.4);
+}

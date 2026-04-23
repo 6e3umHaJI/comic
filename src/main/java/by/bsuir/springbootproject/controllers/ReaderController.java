@@ -1,6 +1,7 @@
 package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.ReaderData;
+import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.services.CollectionService;
 import by.bsuir.springbootproject.services.ComplaintService;
 import by.bsuir.springbootproject.services.NotificationService;
@@ -30,24 +31,37 @@ public class ReaderController {
     @GetMapping("/{translationId}")
     public String openReader(@PathVariable Integer translationId,
                              @RequestParam(required = false) Integer page,
+                             @RequestParam(name = "preview", defaultValue = "false") boolean preview,
                              HttpServletRequest request,
                              Model model) {
-        ReaderData data = readerService.getReaderData(translationId);
+
+        boolean isAdmin = securityContextUtils.getUserFromContext()
+                .map(User::getRole)
+                .map(role -> role != null && "ADMIN".equalsIgnoreCase(role.getName()))
+                .orElse(false);
+
+        boolean previewMode = preview && isAdmin;
+
+        ReaderData data = readerService.getReaderData(translationId, previewMode);
 
         int totalPages = data.getPages().size();
         int initialPage = page != null
                 ? Math.min(Math.max(page, 1), totalPages)
-                : Math.min(Math.max(readerService.getSavedPageIfAuthenticated(translationId), 1), totalPages);
+                : (previewMode
+                   ? 1
+                   : Math.min(Math.max(readerService.getSavedPageIfAuthenticated(translationId), 1), totalPages));
 
-        readerService.markTranslationOpenedIfAuthenticated(translationId);
+        if (!previewMode) {
+            readerService.markTranslationOpenedIfAuthenticated(translationId);
+        }
 
         boolean isLogged = request.getUserPrincipal() != null;
         boolean inCollections = false;
         boolean isNotificationsEnabled = false;
 
-        if (isLogged) {
+        if (isLogged && !previewMode) {
             Integer userId = securityContextUtils.getUserFromContext()
-                    .map(by.bsuir.springbootproject.entities.User::getId)
+                    .map(User::getId)
                     .orElse(null);
 
             if (userId != null) {
@@ -66,7 +80,9 @@ public class ReaderController {
         model.addAttribute("isLogged", isLogged);
         model.addAttribute("inCollections", inCollections);
         model.addAttribute("isNotificationsEnabled", isNotificationsEnabled);
+        model.addAttribute("isPreviewMode", previewMode);
         model.addAttribute("complaintTypes", complaintService.getComplaintTypesForScope("TRANSLATION"));
+
         return "reader/reader-page";
     }
 
@@ -82,7 +98,6 @@ public class ReaderController {
     @ResponseBody
     public Map<String, Object> getChapterLanguages(@PathVariable Integer chapterId) {
         List<String> languages = readerService.getApprovedLanguagesByChapterId(chapterId);
-
         return Map.of(
                 "chapterId", chapterId,
                 "languages", languages

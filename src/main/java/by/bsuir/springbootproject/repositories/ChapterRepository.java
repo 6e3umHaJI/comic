@@ -41,4 +41,8 @@ public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
     Optional<Integer> findNextChapterNumber(@Param("comicId") Integer comicId,
                                             @Param("chapterNumber") Integer chapterNumber);
 
+    Optional<Chapter> findByComic_IdAndChapterNumber(Integer comicId, Integer chapterNumber);
+
+    long countByComic_Id(Integer comicId);
+
 }

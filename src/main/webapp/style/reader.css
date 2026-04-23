@@ -775,6 +775,17 @@ reader-vertical.fit-height .reader-vertical-image {
     z-index: 4001;
 }
 
+.reader-translation-notice {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(217, 71, 71, 0.25);
+    background: rgba(217, 71, 71, 0.10);
+    color: var(--text);
+    text-align: left;
+    line-height: 1.45;
+}
+
 .tr-modal {
     width: min(560px, 92vw);
     max-width: 560px;
@@ -824,10 +835,37 @@ reader-vertical.fit-height .reader-vertical-image {
 
 .translation-list {
     list-style: none;
-    padding: 0;
-    margin: 0;
-    max-height: 48vh;
-    overflow-y: auto;
+    padding: 0 30px;
+    margin-top: 6px;
+    text-align: left;
+}
+
+.translation-list li {
+    margin: 4px 0;
+}
+
+.translation-list a {
+    text-decoration: none;
+    color: var(--text);
+}
+
+.translation-list a:hover {
+    text-decoration: underline;
+    color: var(--accent);
+}
+
+.tr-card {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+}
+
+.tr-card:hover {
+    background: rgba(150, 150, 150, 0.08);
+    border-color: var(--accent);
 }
 
 .tr-footer {

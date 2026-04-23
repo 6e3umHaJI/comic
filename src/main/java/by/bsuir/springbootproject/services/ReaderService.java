@@ -7,19 +7,26 @@ import java.util.List;
 import java.util.Set;
 
 public interface ReaderService {
-    ReaderData getReaderData(Integer translationId);
 
-    Integer getFirstAvailableTranslationId(Integer comicId);
+    default ReaderData getReaderData(Integer translationId) {
+        return getReaderData(translationId, false);
+    }
 
-    ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId);
+    ReaderData getReaderData(Integer translationId, boolean allowUnapprovedPreview);
 
-    Set<Integer> getReadTranslationIdsIfAuthenticated(List<Integer> translationIds);
+    void markChapterReadIfAuthenticated(Integer chapterId);
 
     void markTranslationOpenedIfAuthenticated(Integer translationId);
 
     Integer getSavedPageIfAuthenticated(Integer translationId);
 
     void saveProgressIfAuthenticated(Integer translationId, Integer page);
+
+    Integer getFirstAvailableTranslationId(Integer comicId);
+
+    ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId);
+
+    Set<Integer> getReadTranslationIdsIfAuthenticated(List<Integer> translationIds);
 
     List<String> getApprovedLanguagesByChapterId(Integer chapterId);
 }

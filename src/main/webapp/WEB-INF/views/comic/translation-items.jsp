@@ -19,23 +19,35 @@
                     <li class="translation-item">
                         <a class="tr-card${isReadTranslation ? ' is-read' : ''}" href="<c:url value='/read/${t.id}'/>">
                             <div class="tr-card-head">
-                                <div><b>Язык:</b> ${t.language.name}</div>
+                                <div>
+                                    <b>Название перевода:</b>
+                                    <c:choose>
+                                        <c:when test="${not empty t.title}">
+                                            <c:out value="${t.title}"/>
+                                        </c:when>
+                                        <c:otherwise>
+                                            Без названия
+                                        </c:otherwise>
+                                    </c:choose>
+                                </div>
 
                                 <c:if test="${isReadTranslation}">
                                     <span class="tr-read-badge">Читали</span>
                                 </c:if>
                             </div>
 
-                            <div><b>Тип перевода:</b> ${t.translationType.name}</div>
+                            <div><b>Язык:</b> <c:out value="${t.language.name}"/></div>
+
+                            <div><b>Тип перевода:</b> <c:out value="${t.translationType.name}"/></div>
 
                             <c:if test="${t.translationType.name == 'Любительский' and not empty t.user}">
-                                <div><b>Автор перевода:</b> ${t.user.username}</div>
+                                <div><b>Автор перевода:</b> <c:out value="${t.user.username}"/></div>
                             </c:if>
 
                             <div>
                                 <b>Добавлено:</b>
                                 <time class="tr-date" datetime="${t.createdAtIso}">
-                                    ${t.createdAtFormatted}
+                                    <c:out value="${t.createdAtFormatted}"/>
                                 </time>
                             </div>
                         </a>

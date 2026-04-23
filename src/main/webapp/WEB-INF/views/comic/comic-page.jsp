@@ -212,7 +212,13 @@
                         <c:url var="comicNotificationIconUrl" value="/assets/icons/notification-off.svg"/>
                     </c:otherwise>
                 </c:choose>
+                <c:if test="${not empty uploadError}">
+                    <div class="status-banner status-banner-error"><c:out value="${uploadError}"/></div>
+                </c:if>
 
+                <c:if test="${not empty uploadMessage}">
+                    <div class="status-banner status-banner-success"><c:out value="${uploadMessage}"/></div>
+                </c:if>
                 <div class="comic-primary-actions">
                     <button type="button"
                             class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
@@ -241,7 +247,7 @@
                 </div>
 
                 <div class="comic-secondary-actions">
-                    <button class="btn add-chapter-btn">Добавить главу</button>
+                    <a href="<c:url value='/comics/${comic.id}/chapters/new'/>" class="btn add-chapter-btn">Добавить главу</a>
 
                     <button type="button"
                             id="comicComplaintBtn"

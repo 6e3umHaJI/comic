@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ComicPageRepository extends JpaRepository<ComicPage, Integer> {
     List<ComicPage> findByTranslationIdOrderByPageNumberAsc(Integer translationId);
+
+    long countByTranslation_Id(Integer translationId);
 }
