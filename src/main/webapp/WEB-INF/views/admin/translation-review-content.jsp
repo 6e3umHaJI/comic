@@ -12,9 +12,7 @@
         <div class="translation-cabinet-empty"><c:out value="${uploadMessage}"/></div>
     </c:if>
 
-    <c:if test="${not empty uploadError}">
-        <div class="translation-cabinet-empty"><c:out value="${uploadError}"/></div>
-    </c:if>
+
 
     <div class="translation-cabinet-toolbar-row translation-cabinet-search-row">
         <form method="get"

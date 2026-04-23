@@ -176,6 +176,7 @@
                     </div>
                 </div>
 
+                <div class="comic-actions">
                 <c:if test="${(isLogged and not empty continueReading) or not empty startReadingTranslationId}">
                     <c:choose>
                         <c:when test="${continueReading != null}">
@@ -204,6 +205,7 @@
                         </c:otherwise>
                     </c:choose>
                 </c:if>
+                </div>
                 <c:choose>
                     <c:when test="${isNotificationsEnabled}">
                         <c:url var="comicNotificationIconUrl" value="/assets/icons/notification-on.svg"/>
@@ -216,7 +218,7 @@
                 <c:if test="${not empty uploadMessage}">
                     <div class="status-banner status-banner-success"><c:out value="${uploadMessage}"/></div>
                 </c:if>
-                <div class="comic-primary-actions">
+                <div class="comic-actions">
                     <button type="button"
                             class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
                             data-comic-id="${comic.id}"
@@ -243,30 +245,29 @@
                     </button>
                 </div>
 
-                <div class="comic-secondary-actions">
-                    <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="comic-actions">
                         <a href="<c:url value='/comics/${comic.id}/chapters/new'/>"
                            class="btn add-chapter-btn">
                             Добавить главу
                         </a>
 
-                        <div id="addChapterStatus"
-                             class="status-banner status-banner-error"
-                             style="${not empty uploadError ? 'margin:0;' : 'display:none; margin:0;'}">
-                            <c:out value="${uploadError}"/>
-                        </div>
+                        <button type="button"
+                                id="comicComplaintBtn"
+                                class="btn btn-outline icon-only-btn complaint-action-btn js-open-complaint-modal"
+                                data-authenticated="${isLogged}"
+                                data-target-id="${comic.id}"
+                                title="Пожаловаться"
+                                aria-label="Пожаловаться">
+                            <span class="btn-icon"
+                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
+                        </button>
+                </div>
+                <div class="comic-actions">
+                    <div id="addChapterStatus"
+                          class="status-banner status-banner-error"
+                          style="${not empty uploadError ? 'margin:0;' : 'display:none; margin:0;'}">
+                          <c:out value="${uploadError}"/>
                     </div>
-
-                    <button type="button"
-                            id="comicComplaintBtn"
-                            class="btn btn-outline icon-only-btn complaint-action-btn js-open-complaint-modal"
-                            data-authenticated="${isLogged}"
-                            data-target-id="${comic.id}"
-                            title="Пожаловаться"
-                            aria-label="Пожаловаться">
-                        <span class="btn-icon"
-                              style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
-                    </button>
                 </div>
             </div>
         </div>

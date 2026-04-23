@@ -6,6 +6,7 @@ import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,16 +29,26 @@ public class TranslationSubmissionController {
     private final SecurityContextUtils securityContextUtils;
 
     @GetMapping("/comics/{comicId}/chapters/new")
-    public ModelAndView createPage(@PathVariable Integer comicId,
-                                   RedirectAttributes redirectAttributes) {
+    public Object createPage(@PathVariable Integer comicId,
+                             HttpServletRequest request,
+                             RedirectAttributes redirectAttributes) {
         User user = securityContextUtils.getUserFromContext().orElse(null);
+        boolean ajax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
+
         if (user == null) {
+            if (ajax) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("AUTH_REQUIRED");
+            }
             return new ModelAndView("redirect:/auth/login");
         }
 
         try {
             return translationSubmissionService.getCreatePage(comicId, user, null, null);
         } catch (IllegalArgumentException | IllegalStateException e) {
+            if (ajax) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+            }
+
             redirectAttributes.addFlashAttribute("uploadError", e.getMessage());
             return new ModelAndView("redirect:/comics/" + comicId + "?tab=chapters");
         }
@@ -104,40 +115,99 @@ public class TranslationSubmissionController {
     }
 
     @PostMapping("/admin/translations/{translationId}/approve")
-    public ModelAndView approve(@PathVariable Integer translationId,
-                                RedirectAttributes redirectAttributes) {
+    public Object approve(@PathVariable Integer translationId,
+                          HttpServletRequest request,
+                          RedirectAttributes redirectAttributes) {
         User user = securityContextUtils.getUserFromContext().orElse(null);
+        boolean ajax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
+
         if (!isAdmin(user)) {
+            if (ajax) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "success", false,
+                                "message", "Недостаточно прав."
+                        ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadError", "Недостаточно прав.");
             return new ModelAndView("redirect:/home");
         }
 
         try {
             translationSubmissionService.approve(translationId, user);
+
+            if (ajax) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Перевод подтверждён.",
+                        "statusName", "Одобрено",
+                        "readerUrl", request.getContextPath() + "/read/" + translationId
+                ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadMessage", "Перевод подтверждён.");
         } catch (IllegalArgumentException | IllegalStateException e) {
+            if (ajax) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(
+                                "success", false,
+                                "message", e.getMessage()
+                        ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadError", e.getMessage());
         }
+
         return new ModelAndView("redirect:/translations/" + translationId + "/preview");
     }
 
     @PostMapping("/admin/translations/{translationId}/reject")
-    public ModelAndView reject(@PathVariable Integer translationId,
-                               @RequestParam(required = false, defaultValue = "") String reason,
-                               @RequestParam(required = false, defaultValue = "false") boolean revokeRights,
-                               RedirectAttributes redirectAttributes) {
+    public Object reject(@PathVariable Integer translationId,
+                         @RequestParam(required = false, defaultValue = "") String reason,
+                         @RequestParam(required = false, defaultValue = "false") boolean revokeRights,
+                         HttpServletRequest request,
+                         RedirectAttributes redirectAttributes) {
         User user = securityContextUtils.getUserFromContext().orElse(null);
+        boolean ajax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
+
         if (!isAdmin(user)) {
+            if (ajax) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "success", false,
+                                "message", "Недостаточно прав."
+                        ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadError", "Недостаточно прав.");
             return new ModelAndView("redirect:/home");
         }
 
         try {
             translationSubmissionService.reject(translationId, user, reason, revokeRights);
+
+            if (ajax) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Перевод отклонён и удалён.",
+                        "redirectUrl", request.getContextPath() + "/admin/translations/review"
+                ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadMessage", "Перевод отклонён и удалён.");
         } catch (IllegalArgumentException | IllegalStateException e) {
+            if (ajax) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of(
+                                "success", false,
+                                "message", e.getMessage()
+                        ));
+            }
+
             redirectAttributes.addFlashAttribute("uploadError", e.getMessage());
         }
+
         return new ModelAndView("redirect:/admin/translations/review");
     }
 
