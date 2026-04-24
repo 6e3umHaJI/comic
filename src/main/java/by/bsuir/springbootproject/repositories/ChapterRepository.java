@@ -4,6 +4,7 @@ import by.bsuir.springbootproject.entities.Chapter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,24 +32,31 @@ public interface ChapterRepository extends JpaRepository<Chapter, Integer> {
                                           Pageable pageable);
 
     @Query("""
-        select max(c.chapterNumber)
-        from Chapter c
-        where c.comic.id = :comicId
-          and c.chapterNumber < :chapterNumber
-        """)
+            select max(c.chapterNumber)
+            from Chapter c
+            where c.comic.id = :comicId
+              and c.chapterNumber < :chapterNumber
+            """)
     Optional<Integer> findPrevChapterNumber(@Param("comicId") Integer comicId,
                                             @Param("chapterNumber") Integer chapterNumber);
 
     @Query("""
-        select min(c.chapterNumber)
-        from Chapter c
-        where c.comic.id = :comicId
-          and c.chapterNumber > :chapterNumber
-        """)
+            select min(c.chapterNumber)
+            from Chapter c
+            where c.comic.id = :comicId
+              and c.chapterNumber > :chapterNumber
+            """)
     Optional<Integer> findNextChapterNumber(@Param("comicId") Integer comicId,
                                             @Param("chapterNumber") Integer chapterNumber);
 
     Optional<Chapter> findByComic_IdAndChapterNumber(Integer comicId, Integer chapterNumber);
 
     long countByComic_Id(Integer comicId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from Chapter c
+            where c.comic.id = :comicId
+            """)
+    void deleteAllByComicId(@Param("comicId") Integer comicId);
 }

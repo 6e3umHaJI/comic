@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,16 +28,16 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
                       and (
-                          :q = ''
-                          or exists (
-                              select 1
-                              from Comic cm
-                              where cm.id = c.targetId
-                                and (
-                                    lower(cm.title) like lower(concat('%', :q, '%'))
-                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
-                                )
-                          )
+                           :q = ''
+                           or exists (
+                               select 1
+                               from Comic cm
+                               where cm.id = c.targetId
+                                 and (
+                                      lower(cm.title) like lower(concat('%', :q, '%'))
+                                      or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                 )
+                           )
                       )
                     """,
             countQuery = """
@@ -48,16 +49,16 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
                       and (
-                          :q = ''
-                          or exists (
-                              select 1
-                              from Comic cm
-                              where cm.id = c.targetId
-                                and (
-                                    lower(cm.title) like lower(concat('%', :q, '%'))
-                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
-                                )
-                          )
+                           :q = ''
+                           or exists (
+                               select 1
+                               from Comic cm
+                               where cm.id = c.targetId
+                                 and (
+                                      lower(cm.title) like lower(concat('%', :q, '%'))
+                                      or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                 )
+                           )
                       )
                     """
     )
@@ -77,18 +78,18 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
                       and (
-                          :q = ''
-                          or exists (
-                              select 1
-                              from Translation tr
-                              join tr.chapter ch
-                              join ch.comic cm
-                              where tr.id = c.targetId
-                                and (
-                                    lower(cm.title) like lower(concat('%', :q, '%'))
-                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
-                                )
-                          )
+                           :q = ''
+                           or exists (
+                               select 1
+                               from Translation tr
+                               join tr.chapter ch
+                               join ch.comic cm
+                               where tr.id = c.targetId
+                                 and (
+                                      lower(cm.title) like lower(concat('%', :q, '%'))
+                                      or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                 )
+                           )
                       )
                     """,
             countQuery = """
@@ -100,18 +101,18 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                       and s.name in :visibleStatuses
                       and (:typeId is null or t.id = :typeId)
                       and (
-                          :q = ''
-                          or exists (
-                              select 1
-                              from Translation tr
-                              join tr.chapter ch
-                              join ch.comic cm
-                              where tr.id = c.targetId
-                                and (
-                                    lower(cm.title) like lower(concat('%', :q, '%'))
-                                    or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
-                                )
-                          )
+                           :q = ''
+                           or exists (
+                               select 1
+                               from Translation tr
+                               join tr.chapter ch
+                               join ch.comic cm
+                               where tr.id = c.targetId
+                                 and (
+                                      lower(cm.title) like lower(concat('%', :q, '%'))
+                                      or lower(cm.originalTitle) like lower(concat('%', :q, '%'))
+                                 )
+                           )
                       )
                     """
     )
@@ -119,4 +120,22 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Integer> {
                                                    @Param("q") String q,
                                                    @Param("visibleStatuses") Collection<String> visibleStatuses,
                                                    Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from Complaint c
+            where c.targetId = :targetId
+              and upper(c.type.scope) = upper(:scope)
+            """)
+    void deleteByTargetIdAndScope(@Param("targetId") Integer targetId,
+                                  @Param("scope") String scope);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from Complaint c
+            where c.targetId in :targetIds
+              and upper(c.type.scope) = upper(:scope)
+            """)
+    void deleteByTargetIdsAndScope(@Param("targetIds") Collection<Integer> targetIds,
+                                   @Param("scope") String scope);
 }

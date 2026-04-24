@@ -171,6 +171,18 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
 
     long countByChapter_Id(Integer chapterId);
 
+    @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus", "user"})
+    List<Translation> findAllByChapter_Comic_IdOrderByChapter_ChapterNumberAscIdAsc(Integer comicId);
+
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        delete from Translation t
+        where t.chapter.comic.id = :comicId
+        """)
+    void deleteAllByComicId(@Param("comicId") Integer comicId);
+
+
     @Query("""
     select distinct t
     from Translation t
@@ -183,13 +195,6 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     where t.id = :id
     """)
     Optional<Translation> findSubmissionPreviewById(@Param("id") Integer id);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-        delete from Translation t
-        where t.id = :translationId
-        """)
-    void deleteHardById(@Param("translationId") Integer translationId);
 
     @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus", "user"})
     @Query(
@@ -275,4 +280,33 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
         """)
     Optional<Translation> findReaderPreviewById(@Param("id") Integer id);
 
+    @Query("""
+        select max(ch.chapterNumber)
+        from Translation t
+        join t.chapter ch
+        where ch.comic.id = :comicId
+          and t.language.id = :languageId
+        """)
+    Integer findMaxChapterNumberByComicIdAndLanguageId(@Param("comicId") Integer comicId,
+                                                       @Param("languageId") Integer languageId);
+
+    @Query("""
+        select distinct t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join fetch t.translationType tt
+        join fetch t.reviewStatus rs
+        left join fetch t.user u
+        where t.id = :id
+        """)
+    Optional<Translation> findAdminManageById(@Param("id") Integer id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        delete from Translation t
+        where t.id = :translationId
+        """)
+    void deleteHardById(@Param("translationId") Integer translationId);
 }

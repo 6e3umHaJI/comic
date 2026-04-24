@@ -14,6 +14,8 @@ public interface ComicPageRepository extends JpaRepository<ComicPage, Integer> {
 
     List<ComicPage> findByTranslationIdOrderByPageNumberAsc(Integer translationId);
 
+    List<ComicPage> findByTranslation_Chapter_Comic_IdOrderByTranslation_IdAscPageNumberAsc(Integer comicId);
+
     long countByTranslation_Id(Integer translationId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -22,4 +24,11 @@ public interface ComicPageRepository extends JpaRepository<ComicPage, Integer> {
             where p.translation.id = :translationId
             """)
     void deleteAllByTranslationId(@Param("translationId") Integer translationId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from ComicPage p
+            where p.translation.chapter.comic.id = :comicId
+            """)
+    void deleteAllByComicId(@Param("comicId") Integer comicId);
 }

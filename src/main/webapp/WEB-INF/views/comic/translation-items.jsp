@@ -12,6 +12,7 @@
             <c:when test="${total == 0}">
                 <li class="translation-empty"><em>Нет переводов для выбранного языка.</em></li>
             </c:when>
+
             <c:otherwise>
                 <c:forEach var="t" items="${translations}">
                     <c:set var="isReadTranslation" value="${readTranslationIds.contains(t.id)}"/>
@@ -37,7 +38,6 @@
                             </div>
 
                             <div><b>Язык:</b> <c:out value="${t.language.name}"/></div>
-
                             <div><b>Тип перевода:</b> <c:out value="${t.translationType.name}"/></div>
 
                             <c:if test="${t.translationType.name == 'Любительский' and not empty t.user}">
@@ -51,6 +51,26 @@
                                 </time>
                             </div>
                         </a>
+
+                        <c:if test="${isAdmin}">
+                            <div class="translation-admin-actions">
+                                <a href="<c:url value='/admin/translations/${t.id}/edit'/>" class="btn btn-outline">
+                                    Редактировать
+                                </a>
+
+                                <form action="<c:url value='/admin/translations/${t.id}/delete'/>"
+                                      method="post"
+                                      class="translation-admin-delete-form">
+                                    <button type="button"
+                                            class="btn btn-outline js-admin-delete-translation"
+                                            data-translation-title="<c:out value='${t.title}'/>"
+                                            data-chapter-number="${t.chapter.chapterNumber}"
+                                            data-language-name="<c:out value='${t.language.name}'/>">
+                                        Удалить
+                                    </button>
+                                </form>
+                            </div>
+                        </c:if>
                     </li>
                 </c:forEach>
             </c:otherwise>

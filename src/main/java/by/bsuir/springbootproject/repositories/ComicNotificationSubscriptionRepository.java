@@ -42,9 +42,9 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
                     join s.comic c
                     where s.user.id = :userId
                       and (
-                          :q = ''
-                          or lower(c.title) like lower(concat('%', :q, '%'))
-                          or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                           :q = ''
+                           or lower(c.title) like lower(concat('%', :q, '%'))
+                           or lower(c.originalTitle) like lower(concat('%', :q, '%'))
                       )
                     order by s.createdAt desc, c.id desc
                     """,
@@ -54,9 +54,9 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
                     join s.comic c
                     where s.user.id = :userId
                       and (
-                          :q = ''
-                          or lower(c.title) like lower(concat('%', :q, '%'))
-                          or lower(c.originalTitle) like lower(concat('%', :q, '%'))
+                           :q = ''
+                           or lower(c.title) like lower(concat('%', :q, '%'))
+                           or lower(c.originalTitle) like lower(concat('%', :q, '%'))
                       )
                     """
     )
@@ -66,4 +66,11 @@ public interface ComicNotificationSubscriptionRepository extends JpaRepository<C
 
     @EntityGraph(attributePaths = {"user", "comic"})
     List<ComicNotificationSubscription> findByComic_Id(Integer comicId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from ComicNotificationSubscription s
+            where s.comic.id = :comicId
+            """)
+    void deleteAllByComicId(@Param("comicId") Integer comicId);
 }

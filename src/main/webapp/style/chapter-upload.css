@@ -416,3 +416,122 @@
     }
 }
 
+.admin-pages-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+    margin-bottom: 16px;
+}
+
+.admin-pages-editor {
+    display: grid;
+    gap: 16px;
+}
+
+.admin-page-card {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    box-sizing: border-box;
+}
+
+.admin-page-card-media {
+    width: 100%;
+}
+
+.admin-page-card-image {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
+    background: var(--bg);
+}
+
+.admin-page-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.admin-page-card-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.admin-page-card-file {
+    font-size: 14px;
+    opacity: 0.85;
+    word-break: break-word;
+}
+
+.admin-page-card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-page-card-actions .btn {
+    min-height: 36px;
+    padding: 0 12px;
+}
+
+.admin-confirm-modal-content {
+    width: min(92vw, 520px);
+    max-width: 520px;
+}
+
+.admin-confirm-title {
+    margin: 0 0 12px;
+    font-size: 22px;
+    line-height: 1.2;
+}
+
+.admin-confirm-text {
+    margin: 0;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+.admin-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.admin-confirm-actions form {
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .admin-page-card {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-pages-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-page-card-actions,
+    .admin-confirm-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-page-card-actions .btn,
+    .admin-confirm-actions .btn,
+    .admin-confirm-actions form {
+        width: 100%;
+    }
+}

@@ -124,8 +124,14 @@ public class ComicController {
 
         @SuppressWarnings("unchecked")
         List<Integer> translationIds = (List<Integer>) translationChunkData.get("translationIds");
-
         model.addAttribute("readTranslationIds", readerService.getReadTranslationIdsIfAuthenticated(translationIds));
+
+        boolean isAdmin = securityContextUtils.getUserFromContext()
+                .map(user -> user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName()))
+                .orElse(false);
+        model.addAttribute("isAdmin", isAdmin);
+
         return "comic/translation-items";
     }
+
 }

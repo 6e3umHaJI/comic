@@ -15,6 +15,7 @@ import java.util.Optional;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
+
     long countByUser_IdAndIsReadFalse(Integer userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -40,6 +41,29 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
             """)
     void detachDeletedTranslation(@Param("translationId") Integer translationId);
 
-    Optional<Notification> findByIdAndUser_Id(Integer id, Integer userId);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Notification n
+            set n.chapter = null,
+                n.linkPath = null,
+                n.isClickable = false
+            where n.chapter.id = :chapterId
+            """)
+    void detachDeletedChapter(@Param("chapterId") Integer chapterId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Notification n
+            set n.comic = null,
+                n.chapter = null,
+                n.translation = null,
+                n.linkPath = null,
+                n.isClickable = false
+            where n.comic.id = :comicId
+               or n.chapter.comic.id = :comicId
+               or n.translation.chapter.comic.id = :comicId
+            """)
+    void detachDeletedComic(@Param("comicId") Integer comicId);
+
+    Optional<Notification> findByIdAndUser_Id(Integer id, Integer userId);
 }

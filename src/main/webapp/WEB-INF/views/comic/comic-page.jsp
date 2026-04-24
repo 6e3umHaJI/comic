@@ -215,9 +215,6 @@
                     </c:otherwise>
                 </c:choose>
 
-                <c:if test="${not empty uploadMessage}">
-                    <div class="status-banner status-banner-success"><c:out value="${uploadMessage}"/></div>
-                </c:if>
                 <div class="comic-actions">
                     <button type="button"
                             class="btn btn-outline collection-action-btn js-collection-toggle ${inCollections ? 'is-active' : ''}"
@@ -252,7 +249,6 @@
                             Добавить перевод
                         </a>
 
-
                         <button type="button"
                                 id="comicComplaintBtn"
                                 class="btn btn-outline icon-only-btn complaint-action-btn js-open-complaint-modal"
@@ -264,6 +260,11 @@
                                   style="-webkit-mask-image:url('<c:url value="/assets/icons/complaint.svg"/>'); mask-image:url('<c:url value="/assets/icons/complaint.svg"/>');"></span>
                         </button>
                 </div>
+                <c:if test="${not empty uploadMessage}">
+                   <div class="comic-actions">
+                        <div class="status-banner status-banner-success"><c:out value="${uploadMessage}"/></div>
+                   </div>
+                </c:if>
                 <div class="comic-actions">
                     <div id="addChapterStatus"
                           class="status-banner status-banner-error"
@@ -279,13 +280,27 @@
                 <div class="comic-title-left">
                    <div class="comic-title"><c:out value="${comic.title}"/></div>
                     <sec:authorize access="hasRole('ADMIN')">
-                        <a href="<c:url value='/admin/comics/${comic.id}/edit'/>"
-                           class="btn btn-outline icon-only-btn comic-edit-btn"
-                           title="Редактировать комикс"
-                           aria-label="Редактировать комикс">
-                            <span class="btn-icon"
-                                  style="-webkit-mask-image:url('<c:url value="/assets/icons/edit.svg"/>'); mask-image:url('<c:url value="/assets/icons/edit.svg"/>');"></span>
-                        </a>
+                        <div class="comic-admin-actions">
+                            <a href="<c:url value='/admin/comics/${comic.id}/edit'/>"
+                               class="btn btn-outline icon-only-btn"
+                               title="Редактировать комикс"
+                               aria-label="Редактировать комикс">
+                                <span class="btn-icon"
+                                      style="-webkit-mask-image:url('<c:url value="/assets/icons/edit.svg"/>'); mask-image:url('<c:url value="/assets/icons/edit.svg"/>');"></span>
+                            </a>
+
+                            <form action="<c:url value='/admin/comics/${comic.id}/delete'/>"
+                                  method="post"
+                                  onsubmit="return confirm('Удалить этот комикс вместе со всеми переводами и связями?');">
+                                <button type="submit"
+                                        class="btn btn-outline icon-only-btn"
+                                        title="Удалить комикс"
+                                        aria-label="Удалить комикс">
+                                    <span class="btn-icon"
+                                          style="-webkit-mask-image:url('<c:url value="/assets/icons/trash.svg"/>'); mask-image:url('<c:url value="/assets/icons/trash.svg"/>');"></span>
+                                </button>
+                            </form>
+                        </div>
                     </sec:authorize>
                 </div>
 
@@ -841,13 +856,34 @@
       }
     });
     </script>
+    <div id="adminDeleteTranslationModal" class="modal hidden admin-confirm-modal" aria-modal="true" role="dialog">
+        <div class="modal-content admin-confirm-modal-content">
+            <button type="button"
+                    class="close-button js-close-admin-delete-translation-modal"
+                    aria-label="Закрыть">
+                &times;
+            </button>
 
+            <h3 class="admin-confirm-title">Удалить перевод</h3>
+
+            <p id="adminDeleteTranslationModalText" class="admin-confirm-text"></p>
+
+            <div class="admin-confirm-actions">
+                <button type="button" class="btn btn-outline js-close-admin-delete-translation-modal">Отмена</button>
+
+                <form id="adminDeleteTranslationForm" method="post">
+                    <button type="submit" class="btn">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
     <jsp:include page="/WEB-INF/views/footer.jsp"/>
 </div>
 <jsp:include page="/WEB-INF/views/collections/collection-global-modal.jsp"/>
 <script src="<c:url value='/script/collection-modal.js'/>"></script>
 <jsp:include page="/WEB-INF/views/fragments/complaint-modal.jsp"/>
 <script src="<c:url value='/script/complaint-modal.js'/>"></script>
+<script src="<c:url value='/script/comic-admin-translation-actions.js'/>"></script>
 <script src="<c:url value='/script/comic-add-translation.js'/>"></script>
 </body>
 </html>
