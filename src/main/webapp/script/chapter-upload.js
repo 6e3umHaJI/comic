@@ -6,7 +6,8 @@
         title: 255
     };
 
-    const FILE_PATTERN = /^(\d{1,3})\.[A-Za-z0-9]{1,10}$/i;
+    const FILE_PATTERN = /^(\d{1,3})\.(jpg|webp)$/i;
+    const ALLOWED_MIME_TYPES = ["image/jpeg", "image/webp"];
 
     const root = document.getElementById('chapterSubmissionPage');
     if (!root) {
@@ -121,11 +122,12 @@
             }
 
             if (!FILE_PATTERN.test(file.name || '')) {
-                return { ok: false, message: 'Имена файлов должны быть вида 001.jpg, 002.jpg, 003.jpg и так далее.' };
+                return { ok: false, message: 'Можно загружать только JPG и WEBP с именами вида 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp.' };
             }
 
-            if (!String(file.type || '').toLowerCase().startsWith('image/')) {
-                return { ok: false, message: 'Можно загружать только изображения.' };
+            const mimeType = String(file.type || '').toLowerCase();
+            if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+                return { ok: false, message: 'Можно загружать только файлы JPG и WEBP.' };
             }
         }
 
@@ -135,7 +137,7 @@
 
         for (let i = 0; i < sorted.length; i++) {
             if (sorted[i].pageNumber !== i + 1) {
-                return { ok: false, message: 'Файлы страниц должны идти подряд: 001, 002, 003 и так далее.' };
+                return { ok: false, message: 'Файлы страниц должны идти подряд: 001.jpg, 002.jpg, 003.jpg и так далее.' };
             }
         }
 

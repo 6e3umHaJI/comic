@@ -51,7 +51,7 @@
 
 .translation-cabinet-search-form input[type="text"],
 .translation-cabinet-sort-form select {
-    height: 42px;
+    height: 38px;
     padding: 0 12px;
     border: 1px solid var(--border);
     border-radius: 10px;

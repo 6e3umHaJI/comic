@@ -259,7 +259,7 @@
 .collection-add-btn {
     width: 46px;
     min-width: 46px;
-    height: 42px;
+    height: 38px;
     padding: 0;
     margin: 0;
     border: 1px solid var(--border);
@@ -658,7 +658,7 @@
 }
 
 .search-form .btn {
-    height: 42px;
+    height: 38px;
 }
 
 .collections-bulk-row .btn {

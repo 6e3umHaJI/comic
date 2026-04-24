@@ -57,7 +57,7 @@
 
 .add-chapter-btn {
     width: 100%;
-    height: 42px;
+    height: 38px;
 }
 
 .comic-actions {
@@ -74,11 +74,11 @@
 .notification-action-btn {
     margin-left: 0;
     margin-top: 0;
-    width: 42px;
-    min-width: 42px;
-    max-width: 42px;
-    height: 42px;
-    min-height: 42px;
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    height: 38px;
+    min-height: 38px;
     padding: 0 !important;
 }
 
@@ -748,9 +748,9 @@
 .collection-action-btn {
     margin-top: 0;
     margin-left: 0;
-    height: 42px;
-    min-height: 42px;
-    max-height: 42px;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
     width: auto;
     flex: 1 1 auto;
 }
@@ -874,6 +874,10 @@
     padding: 12px 14px;
     border-radius: 12px;
     margin-bottom: 16px;
+}
+
+.comic-actions .btn{
+    padding: 5px;
 }
 
 .status-banner-error {

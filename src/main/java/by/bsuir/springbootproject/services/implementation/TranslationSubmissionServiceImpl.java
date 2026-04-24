@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -60,8 +61,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private static final int MAX_SEARCH_QUERY_LENGTH = 255;
     private static final int MODERATION_PAGE_SIZE = 10;
 
-    private static final Pattern PAGE_FILE_PATTERN =
-            Pattern.compile("^(\\d{1,3})\\.[A-Za-z0-9]{1,10}$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.(jpg|webp)$", Pattern.CASE_INSENSITIVE);
 
     private static final Path PAGES_STORAGE_DIR = Paths.get("src/main/webapp/assets/pages");
 
@@ -549,6 +549,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         }
 
         List<PageFileCandidate> candidates = new ArrayList<>();
+
         for (MultipartFile file : actualFiles) {
             if (file.getSize() > MAX_FILE_SIZE_BYTES) {
                 throw new IllegalArgumentException("Каждое изображение должно быть не больше 1 МБ.");
@@ -561,12 +562,13 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
             Matcher matcher = PAGE_FILE_PATTERN.matcher(originalName);
             if (!matcher.matches()) {
-                throw new IllegalArgumentException("Имена файлов должны быть вида 001.jpg, 002.jpg, 003.jpg и так далее.");
+                throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP с именами вида 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp.");
             }
 
             String contentType = file.getContentType();
-            if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
-                throw new IllegalArgumentException("Можно загружать только изображения.");
+            String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+            if (!"image/jpeg".equals(normalizedContentType) && !"image/webp".equals(normalizedContentType)) {
+                throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
             }
 
             int pageNumber = Integer.parseInt(matcher.group(1));
@@ -578,7 +580,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         for (int i = 0; i < candidates.size(); i++) {
             int expected = i + 1;
             if (candidates.get(i).pageNumber() != expected) {
-                throw new IllegalArgumentException("Файлы страниц должны идти подряд: 001, 002, 003 и так далее.");
+                throw new IllegalArgumentException("Файлы страниц должны идти подряд: 001.jpg, 002.jpg, 003.jpg и так далее.");
             }
         }
 

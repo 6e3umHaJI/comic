@@ -18,6 +18,10 @@
             return;
         }
 
+        const MAX_FILE_SIZE_BYTES = 1024 * 1024;
+        const ALLOWED_EXTENSIONS = ["jpg", "webp"];
+        const ALLOWED_MIME_TYPES = ["image/jpeg", "image/webp"];
+
         let newPageCounter = 0;
 
         function showStatus(message) {
@@ -43,6 +47,33 @@
             });
         }
 
+        function getFileExtension(fileName) {
+            const parts = String(fileName || "").split(".");
+            return parts.length > 1 ? parts.pop().toLowerCase() : "";
+        }
+
+        function validateSelectedFile(file) {
+            if (!file) {
+                return "Выберите изображение страницы.";
+            }
+
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                return "Каждое изображение должно быть не больше 1 МБ.";
+            }
+
+            const extension = getFileExtension(file.name);
+            if (!ALLOWED_EXTENSIONS.includes(extension)) {
+                return "Можно загружать только файлы JPG и WEBP.";
+            }
+
+            const mimeType = String(file.type || "").toLowerCase();
+            if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+                return "Можно загружать только файлы JPG и WEBP.";
+            }
+
+            return "";
+        }
+
         function updatePreviewFromInput(card, input) {
             if (!card || !input || !input.files || !input.files.length) {
                 return;
@@ -64,7 +95,7 @@
             const input = document.createElement("input");
             input.type = "file";
             input.name = name;
-            input.accept = "image/*";
+            input.accept = ".jpg,.webp,image/jpeg,image/webp";
             input.dataset.role = "page-file";
             input.className = "hidden";
             return input;
@@ -111,6 +142,15 @@
                 if (!input.files || !input.files.length) {
                     return;
                 }
+
+                const validationError = validateSelectedFile(input.files[0]);
+                if (validationError) {
+                    input.value = "";
+                    showStatus(validationError);
+                    return;
+                }
+
+                hideStatus();
                 updatePreviewFromInput(card, input);
             });
         }
@@ -125,6 +165,14 @@
                     input.remove();
                     return;
                 }
+
+                const validationError = validateSelectedFile(input.files[0]);
+                if (validationError) {
+                    input.remove();
+                    showStatus(validationError);
+                    return;
+                }
+
                 onSelected(input);
             });
 
@@ -256,6 +304,15 @@
                 const fileInput = card.querySelector('input[data-role="page-file"]');
                 const hasFile = Boolean(fileInput && fileInput.files && fileInput.files.length > 0);
                 const fileField = hasFile ? fileInput.name : "";
+
+                if (hasFile) {
+                    const validationError = validateSelectedFile(fileInput.files[0]);
+                    if (validationError) {
+                        event.preventDefault();
+                        showStatus(validationError);
+                        return;
+                    }
+                }
 
                 if (!pageIdValue && !hasFile) {
                     event.preventDefault();

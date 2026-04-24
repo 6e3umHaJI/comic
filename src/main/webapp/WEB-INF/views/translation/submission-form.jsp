@@ -126,11 +126,11 @@
                                name="pageFiles"
                                type="file"
                                class="chapter-upload-file"
-                               accept="image/*"
+                               accept=".jpg,.webp,image/jpeg,image/webp"
                                multiple
                                required>
                         <div class="chapter-upload-hint">
-                            До 200 изображений, до 1 МБ каждое. Имена файлов: 001.jpg, 002.jpg, 003.jpg и так далее.
+                            До 200 изображений, до 1 МБ каждое. Разрешены только JPG и WEBP. Имена файлов: 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp и так далее.
                         </div>
                     </div>
                 </div>

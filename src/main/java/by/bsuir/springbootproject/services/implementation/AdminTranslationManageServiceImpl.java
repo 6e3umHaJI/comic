@@ -309,11 +309,24 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
             throw new IllegalArgumentException("Каждое изображение должно быть не больше 1 МБ.");
         }
 
-        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-        if (!contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Можно загружать только изображения.");
+        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().trim();
+        if (!StringUtils.hasText(originalName)) {
+            throw new IllegalArgumentException("У файла страницы должно быть корректное имя.");
+        }
+
+        String extension = StringUtils.getFilenameExtension(originalName);
+        String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+        if (!"jpg".equals(normalizedExtension) && !"webp".equals(normalizedExtension)) {
+            throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
+        }
+
+        String contentType = file.getContentType();
+        String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        if (!"image/jpeg".equals(normalizedContentType) && !"image/webp".equals(normalizedContentType)) {
+            throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
         }
     }
+
 
     private String storePageFile(MultipartFile file) {
         try {
@@ -374,13 +387,19 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
     }
 
     private String extractExtension(String originalName, String contentType) {
-        int dotIndex = originalName.lastIndexOf('.');
-        if (dotIndex >= 0 && dotIndex < originalName.length() - 1) {
-            return originalName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+        String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        if ("image/webp".equals(normalizedContentType)) {
+            return "webp";
         }
 
-        if (StringUtils.hasText(contentType) && contentType.contains("/")) {
-            return contentType.substring(contentType.indexOf('/') + 1).toLowerCase(Locale.ROOT);
+        if ("image/jpeg".equals(normalizedContentType)) {
+            return "jpg";
+        }
+
+        String extension = StringUtils.getFilenameExtension(originalName);
+        String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+        if ("webp".equals(normalizedExtension)) {
+            return "webp";
         }
 
         return "jpg";

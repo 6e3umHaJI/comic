@@ -84,7 +84,7 @@
 
 .admin-complaints-filter-group select,
 .admin-complaints-filter-group input[type="text"] {
-    height: 42px;
+    height: 38px;
     min-width: 230px;
     padding: 0 12px;
     border: 1px solid var(--border);
@@ -292,7 +292,7 @@
 }
 
 .admin-complaint-status-select {
-    height: 42px;
+    height: 38px;
     width: 100%;
     padding: 0 12px;
     border: 1px solid var(--border);

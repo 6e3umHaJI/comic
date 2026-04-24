@@ -159,6 +159,7 @@ a {
     cursor: pointer;
     box-sizing: border-box;
     transition: none;
+    min-height: 38px;
 }
 
 .btn:hover {
@@ -441,7 +442,7 @@ a {
 .collection-add-btn {
     width: 46px;
     min-width: 46px;
-    height: 42px;
+    height: 38px;
     margin: 0;
     padding: 0;
     flex-shrink: 0;
