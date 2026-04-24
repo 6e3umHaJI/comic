@@ -150,10 +150,6 @@
     font-weight: 500;
 }
 
-.collections-text-action:hover {
-    text-decoration: underline;
-}
-
 .collections-rename-inline {
     display: flex;
     gap: 10px;

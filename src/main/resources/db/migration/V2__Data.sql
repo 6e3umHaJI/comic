@@ -79,7 +79,7 @@ INSERT INTO tags (name) VALUES
                             ('Главный герой с пилой'),('Монстры'),('Сверхъестественное'),
                             ('Сильные женщины'),('Кровь'),('Мистика'),('Темное прошлое'),
                             ('Юмор'),('Апокалипсис'),('Сверхспособности');
-
+/*
 -- ПОЛЬЗОВАТЕЛИ
 
 INSERT INTO users (email, username, password_hash, role_id, can_propose) VALUES
@@ -575,5 +575,5 @@ END IF;
 END
 $$;
 
-
+*/
 COMMIT;

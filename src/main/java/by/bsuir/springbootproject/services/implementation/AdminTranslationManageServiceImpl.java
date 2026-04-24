@@ -124,8 +124,6 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
         Translation translation = translationRepository.findAdminManageById(translationId)
                 .orElseThrow(() -> new IllegalArgumentException("Перевод не найден."));
 
-        ensureCanDeleteFromEnd(translation);
-
         Integer comicId = translation.getChapter().getComic().getId();
         Integer chapterId = translation.getChapter().getId();
         Integer chapterNumber = translation.getChapter().getChapterNumber();
@@ -333,17 +331,6 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
             return storedFileName;
         } catch (IOException e) {
             throw new IllegalStateException("Не удалось сохранить страницы перевода.");
-        }
-    }
-
-    private void ensureCanDeleteFromEnd(Translation translation) {
-        Integer comicId = translation.getChapter().getComic().getId();
-        Integer languageId = translation.getLanguage().getId();
-        Integer chapterNumber = translation.getChapter().getChapterNumber();
-
-        Integer maxChapterNumber = translationRepository.findMaxChapterNumberByComicIdAndLanguageId(comicId, languageId);
-        if (maxChapterNumber != null && chapterNumber < maxChapterNumber) {
-            throw new IllegalStateException("Можно удалять только перевод последней доступной главы для этого языка.");
         }
     }
 

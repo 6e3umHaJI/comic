@@ -274,7 +274,6 @@
 }
 
 .translation-list a:hover {
-    text-decoration: underline;
     color: var(--accent);
 }
 
@@ -980,4 +979,38 @@ form {
     .translation-admin-actions form {
         width: 100%;
     }
+}
+
+.admin-confirm-modal-content {
+    position: relative;
+}
+
+.admin-confirm-modal-content .close-button {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+    padding: 0;
+}
+
+.admin-confirm-modal-content .close-button:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.admin-confirm-modal-content .close-button:focus-visible {
+    outline: none;
+    border-color: var(--accent);
 }

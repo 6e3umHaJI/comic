@@ -466,18 +466,20 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             return List.of();
         }
 
-        List<Integer> existing = new ArrayList<>(new LinkedHashSet<>(
+        List<Integer> approvedChapterNumbers = new ArrayList<>(new LinkedHashSet<>(
                 translationRepository.findDistinctApprovedChapterNumbersByComicAndLanguage(comicId, languageId)
         ));
-        existing.sort(Integer::compareTo);
+        approvedChapterNumbers.sort(Integer::compareTo);
 
-        if (existing.isEmpty()) {
-            return List.of(1);
+        int maxAllowedChapterNumber = approvedChapterNumbers.isEmpty()
+                ? 1
+                : approvedChapterNumbers.get(approvedChapterNumbers.size() - 1) + 1;
+
+        List<Integer> result = new ArrayList<>(maxAllowedChapterNumber);
+        for (int i = 1; i <= maxAllowedChapterNumber; i++) {
+            result.add(i);
         }
 
-        int next = existing.get(existing.size() - 1) + 1;
-        List<Integer> result = new ArrayList<>(existing);
-        result.add(next);
         return result;
     }
 

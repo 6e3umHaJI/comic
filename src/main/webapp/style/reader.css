@@ -850,7 +850,6 @@ reader-vertical.fit-height .reader-vertical-image {
 }
 
 .translation-list a:hover {
-    text-decoration: underline;
     color: var(--accent);
 }
 

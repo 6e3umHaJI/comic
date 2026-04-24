@@ -291,15 +291,17 @@
 
                             <form action="<c:url value='/admin/comics/${comic.id}/delete'/>"
                                   method="post"
-                                  onsubmit="return confirm('Удалить этот комикс вместе со всеми переводами и связями?');">
-                                <button type="submit"
-                                        class="btn btn-outline icon-only-btn"
+                                  id="adminDeleteComicSourceForm">
+                                <button type="button"
+                                        class="btn btn-outline icon-only-btn js-open-admin-delete-comic-modal"
+                                        data-comic-title="<c:out value='${comic.title}'/>"
                                         title="Удалить комикс"
                                         aria-label="Удалить комикс">
                                     <span class="btn-icon"
                                           style="-webkit-mask-image:url('<c:url value="/assets/icons/trash.svg"/>'); mask-image:url('<c:url value="/assets/icons/trash.svg"/>');"></span>
                                 </button>
                             </form>
+
                         </div>
                     </sec:authorize>
                 </div>
@@ -872,6 +874,27 @@
                 <button type="button" class="btn btn-outline js-close-admin-delete-translation-modal">Отмена</button>
 
                 <form id="adminDeleteTranslationForm" method="post">
+                    <button type="submit" class="btn">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="adminDeleteComicModal" class="modal hidden admin-confirm-modal" aria-modal="true" role="dialog">
+        <div class="modal-content admin-confirm-modal-content">
+            <button type="button"
+                    class="close-button js-close-admin-delete-comic-modal"
+                    aria-label="Закрыть">
+                &times;
+            </button>
+
+            <h3 class="admin-confirm-title">Удалить комикс</h3>
+
+            <p id="adminDeleteComicModalText" class="admin-confirm-text"></p>
+
+            <div class="admin-confirm-actions">
+                <button type="button" class="btn btn-outline js-close-admin-delete-comic-modal">Отмена</button>
+
+                <form id="adminDeleteComicForm" method="post">
                     <button type="submit" class="btn">Удалить</button>
                 </form>
             </div>
