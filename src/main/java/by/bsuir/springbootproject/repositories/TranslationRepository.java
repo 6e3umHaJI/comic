@@ -183,17 +183,18 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     void deleteAllByComicId(@Param("comicId") Integer comicId);
 
 
+    @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus", "user"})
     @Query("""
-    select distinct t
-    from Translation t
-    join fetch t.chapter ch
-    join fetch ch.comic c
-    join fetch t.language l
-    join fetch t.translationType tt
-    join fetch t.reviewStatus rs
-    left join fetch t.user u
-    where t.id = :id
-    """)
+        select distinct t
+        from Translation t
+        join fetch t.chapter ch
+        join fetch ch.comic c
+        join fetch t.language l
+        join fetch t.translationType tt
+        join fetch t.reviewStatus rs
+        left join fetch t.user u
+        where t.id = :id
+        """)
     Optional<Translation> findSubmissionPreviewById(@Param("id") Integer id);
 
     @EntityGraph(attributePaths = {"chapter", "chapter.comic", "language", "translationType", "reviewStatus", "user"})

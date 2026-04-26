@@ -22,4 +22,10 @@ public class Language extends BaseEntity {
 
     @Column(nullable = false, length = 50)
     private String name;
+
+    @Column(name = "ocr_space_code", length = 20)
+    private String ocrSpaceCode;
+
+    @Column(name = "mymemory_code", length = 10)
+    private String mymemoryCode;
 }

@@ -10,10 +10,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TranslationSubmissionForm {
+
     private Integer comicId;
     private Integer chapterNumber;
     private Integer languageId;
+    private Integer sourceLanguageId;
     private String title;
     private Boolean autoTranslate = false;
-    private String readingDirection = "LTR";
+    private String autoTranslationPreviewToken;
 }

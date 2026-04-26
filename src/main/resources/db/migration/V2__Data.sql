@@ -50,11 +50,16 @@ INSERT INTO translation_types (name) VALUES
                                          ('Любительский'),
                                          ('Автоматический');
 
-INSERT INTO languages (name) VALUES
-                                 ('Русский'),
-                                 ('Английский'),
-                                 ('Корейский'),
-                                 ('Японский');
+INSERT INTO languages (name, ocr_space_code, mymemory_code) VALUES
+                                 ('Русский', 'rus', 'ru'),
+                                 ('Английский', 'eng', 'en'),
+                                 ('Корейский', NULL, NULL),
+                                 ('Японский', NULL, NULL),
+                                 ('Французский','fre','fr'),
+                                 ('Немецкий','ger','de'),
+                                 ('Испанский','spa','es'),
+                                 ('Итальянский','ita','it'),
+                                 ('Португальский','por','pt');
 
 INSERT INTO notification_types (name) VALUES
                                           ('Уведомление от администрации'),

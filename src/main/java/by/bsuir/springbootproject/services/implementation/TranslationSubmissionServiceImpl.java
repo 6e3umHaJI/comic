@@ -10,6 +10,7 @@ import by.bsuir.springbootproject.entities.Translation;
 import by.bsuir.springbootproject.entities.TranslationType;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.repositories.*;
+import by.bsuir.springbootproject.services.AutoTranslationService;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +76,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
+    private final AutoTranslationService autoTranslationService;
 
     @Override
     public ModelAndView getCreatePage(Integer comicId, User user, TranslationSubmissionForm form, String errorMessage) {
@@ -82,7 +84,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
                 .orElseThrow(() -> new IllegalArgumentException("Комикс не найден."));
 
         boolean admin = isAdmin(user);
-
         if (!admin) {
             ensureUserCanSubmit(user);
         }
@@ -92,17 +93,32 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             throw new IllegalStateException("В системе нет доступных языков перевода.");
         }
 
+        List<Language> autoTargetLanguages = languageRepository.findAllByMymemoryCodeIsNotNullOrderByNameAsc();
+        List<Language> sourceLanguages =
+                languageRepository.findAllByOcrSpaceCodeIsNotNullAndMymemoryCodeIsNotNullOrderByNameAsc();
+
         TranslationSubmissionForm actualForm = form != null ? form : new TranslationSubmissionForm();
         actualForm.setComicId(comicId);
 
         if (actualForm.getLanguageId() == null) {
             actualForm.setLanguageId(languages.get(0).getId());
         }
-        if (!StringUtils.hasText(actualForm.getReadingDirection())) {
-            actualForm.setReadingDirection("LTR");
-        }
+
         if (actualForm.getAutoTranslate() == null) {
             actualForm.setAutoTranslate(false);
+        }
+
+        if (admin && actualForm.getSourceLanguageId() == null && !sourceLanguages.isEmpty()) {
+            actualForm.setSourceLanguageId(sourceLanguages.get(0).getId());
+        }
+
+        if (Boolean.TRUE.equals(actualForm.getAutoTranslate())) {
+            boolean targetSupported = autoTargetLanguages.stream()
+                    .anyMatch(language -> language.getId().equals(actualForm.getLanguageId()));
+
+            if (!targetSupported && !autoTargetLanguages.isEmpty()) {
+                actualForm.setLanguageId(autoTargetLanguages.get(0).getId());
+            }
         }
 
         List<Integer> chapterOptions = getAllowedChapterNumbers(comicId, actualForm.getLanguageId());
@@ -114,6 +130,8 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         mv.addObject("comic", comic);
         mv.addObject("form", actualForm);
         mv.addObject("languages", languages);
+        mv.addObject("autoTargetLanguages", autoTargetLanguages);
+        mv.addObject("sourceLanguages", sourceLanguages);
         mv.addObject("chapterOptions", chapterOptions);
         mv.addObject("isAdmin", admin);
         mv.addObject("pendingCount", admin ? 0 : translationRepository.countByUser_IdAndReviewStatus_Name(user.getId(), STATUS_PENDING));
@@ -121,6 +139,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         mv.addObject("errorMessage", errorMessage);
         return mv;
     }
+
 
     @Override
     public Map<String, Object> getChapterOptions(Integer comicId, Integer languageId) {
@@ -145,7 +164,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         }
 
         if (form == null) {
-            throw new IllegalArgumentException("Форма добавления главы не передана.");
+            throw new IllegalArgumentException("Форма добавления перевода не передана.");
         }
 
         Integer languageId = form.getLanguageId();
@@ -154,6 +173,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         if (languageId == null) {
             throw new IllegalArgumentException("Выберите язык перевода.");
         }
+
         if (chapterNumber == null) {
             throw new IllegalArgumentException("Выберите номер главы.");
         }
@@ -170,27 +190,32 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         if (!StringUtils.hasText(title)) {
             throw new IllegalArgumentException("Введите название перевода.");
         }
+
         if (title.length() > 255) {
             throw new IllegalArgumentException("Название перевода не должно превышать 255 символов.");
         }
 
-        if (Boolean.TRUE.equals(form.getAutoTranslate())) {
-            if (!admin) {
-                throw new IllegalArgumentException("Обычные пользователи не могут запрашивать автоматический перевод.");
-            }
-            throw new IllegalStateException("Автоматический перевод пока не подключён.");
+        boolean automatic = admin && Boolean.TRUE.equals(form.getAutoTranslate());
+        if (Boolean.TRUE.equals(form.getAutoTranslate()) && !admin) {
+            throw new IllegalArgumentException("Обычные пользователи не могут запрашивать автоматический перевод.");
         }
 
-        List<PageFileCandidate> sortedFiles = prepareFiles(pageFiles);
+        if (automatic && !StringUtils.hasText(form.getAutoTranslationPreviewToken())) {
+            throw new IllegalArgumentException("Сначала выполните предпросмотр автоматического перевода.");
+        }
+
+        List<PageFileCandidate> sortedFiles = automatic ? List.of() : prepareFiles(pageFiles);
 
         Optional<Chapter> existingChapter = chapterRepository.findByComic_IdAndChapterNumber(comicId, chapterNumber);
         boolean newChapterCreated = existingChapter.isEmpty();
 
         Chapter chapter = existingChapter.orElseGet(() ->
-                chapterRepository.save(Chapter.builder()
-                        .comic(comic)
-                        .chapterNumber(chapterNumber)
-                        .build())
+                chapterRepository.save(
+                        Chapter.builder()
+                                .comic(comic)
+                                .chapterNumber(chapterNumber)
+                                .build()
+                )
         );
 
         long approvedBefore = newChapterCreated ? 0L : translationRepository.countApprovedByChapterId(chapter.getId());
@@ -198,7 +223,11 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         ReviewStatus reviewStatus = reviewStatusRepository.findByName(admin ? STATUS_APPROVED : STATUS_PENDING)
                 .orElseThrow(() -> new IllegalStateException("Статус проверки перевода не найден."));
 
-        TranslationType translationType = translationTypeRepository.findByName(admin ? TYPE_OFFICIAL : TYPE_AMATEUR)
+        String translationTypeName = admin
+                ? (automatic ? TYPE_AUTOMATIC : TYPE_OFFICIAL)
+                : TYPE_AMATEUR;
+
+        TranslationType translationType = translationTypeRepository.findByName(translationTypeName)
                 .orElseThrow(() -> new IllegalStateException("Тип перевода не найден."));
 
         Translation translation = translationRepository.saveAndFlush(
@@ -214,22 +243,44 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         );
 
         List<String> savedFiles = new ArrayList<>();
+
         try {
             Files.createDirectories(PAGES_STORAGE_DIR);
 
             List<ComicPage> pages = new ArrayList<>();
-            for (PageFileCandidate candidate : sortedFiles) {
-                String savedFileName = buildStoredFileName(translation.getId(), candidate.pageNumber(), candidate.file().getOriginalFilename());
-                Path targetPath = PAGES_STORAGE_DIR.resolve(savedFileName).normalize();
 
-                candidate.file().transferTo(targetPath);
-                savedFiles.add(savedFileName);
+            if (automatic) {
+                pages = autoTranslationService.materializePreview(
+                        translation,
+                        form.getAutoTranslationPreviewToken(),
+                        user
+                );
 
-                pages.add(ComicPage.builder()
-                        .translation(translation)
-                        .pageNumber(candidate.pageNumber())
-                        .imagePath(savedFileName)
-                        .build());
+                savedFiles.addAll(
+                        pages.stream()
+                                .map(ComicPage::getImagePath)
+                                .toList()
+                );
+            } else {
+                for (PageFileCandidate candidate : sortedFiles) {
+                    String savedFileName = buildStoredFileName(
+                            translation.getId(),
+                            candidate.pageNumber(),
+                            candidate.file().getOriginalFilename()
+                    );
+
+                    Path targetPath = PAGES_STORAGE_DIR.resolve(savedFileName).normalize();
+                    candidate.file().transferTo(targetPath);
+                    savedFiles.add(savedFileName);
+
+                    pages.add(
+                            ComicPage.builder()
+                                    .translation(translation)
+                                    .pageNumber(candidate.pageNumber())
+                                    .imagePath(savedFileName)
+                                    .build()
+                    );
+                }
             }
 
             comicPageRepository.saveAll(pages);
@@ -260,6 +311,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
         return translation.getId();
     }
+
 
     @Override
     public ModelAndView getPreviewPage(Integer translationId, User viewer, String successMessage, String errorMessage) {
@@ -433,12 +485,12 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
     private void ensureUserCanSubmit(User user) {
         if (user == null) {
-            throw new IllegalStateException("Авторизуйтесь, чтобы добавить главу.");
+            throw new IllegalStateException("Авторизуйтесь, чтобы добавить перевод.");
         }
 
         long totalUserTranslations = translationRepository.countByUser_Id(user.getId());
         if (Boolean.FALSE.equals(user.getCanPropose()) && totalUserTranslations > 0) {
-            throw new IllegalStateException("У вас нет прав на добавление глав.");
+            throw new IllegalStateException("У вас нет прав на добавление переводов.");
         }
 
         long pendingCount = translationRepository.countByUser_IdAndReviewStatus_Name(user.getId(), STATUS_PENDING);

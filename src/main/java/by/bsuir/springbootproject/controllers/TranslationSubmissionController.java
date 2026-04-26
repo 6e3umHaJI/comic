@@ -2,6 +2,7 @@ package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.TranslationSubmissionForm;
 import by.bsuir.springbootproject.entities.User;
+import by.bsuir.springbootproject.services.AutoTranslationService;
 import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -26,6 +28,7 @@ import java.util.Map;
 public class TranslationSubmissionController {
 
     private final TranslationSubmissionService translationSubmissionService;
+    private final AutoTranslationService autoTranslationService;
     private final SecurityContextUtils securityContextUtils;
 
     @GetMapping("/comics/{comicId}/chapters/new")
@@ -66,10 +69,56 @@ public class TranslationSubmissionController {
 
         try {
             Integer translationId = translationSubmissionService.submit(comicId, user, form, pageFiles);
-            redirectAttributes.addFlashAttribute("uploadMessage", "Глава успешно сохранена.");
+            redirectAttributes.addFlashAttribute("uploadMessage", "Перевод успешно сохранён.");
             return new ModelAndView("redirect:/translations/" + translationId + "/preview");
         } catch (IllegalArgumentException | IllegalStateException e) {
             return translationSubmissionService.getCreatePage(comicId, user, form, e.getMessage());
+        }
+    }
+
+    @PostMapping("/admin/comics/{comicId}/chapters/auto-translate/preview")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> buildAutoTranslationPreview(@PathVariable Integer comicId,
+                                                                           @ModelAttribute("form") TranslationSubmissionForm form,
+                                                                           @RequestParam(value = "pageFiles", required = false) MultipartFile[] pageFiles,
+                                                                           @RequestParam(value = "selectedPageNumbers", required = false) List<Integer> selectedPageNumbers,
+                                                                           HttpServletRequest request) {
+        User user = securityContextUtils.getUserFromContext().orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "success", false,
+                    "message", "Авторизуйтесь, чтобы использовать автоматический перевод."
+            ));
+        }
+
+        if (!isAdmin(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "Автоматический перевод доступен только администрации."
+            ));
+        }
+
+        try {
+            Map<String, Object> result = autoTranslationService.buildPreview(
+                    comicId,
+                    user,
+                    form,
+                    pageFiles,
+                    selectedPageNumbers,
+                    request.getContextPath()
+            );
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
         }
     }
 

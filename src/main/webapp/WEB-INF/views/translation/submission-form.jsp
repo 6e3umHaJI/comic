@@ -3,7 +3,7 @@
 
 <html data-theme="light">
 <head>
-    <title>Добавление главы</title>
+    <title>Добавление перевода</title>
     <jsp:include page="/WEB-INF/views/dependencies.jsp"/>
     <jsp:include page="/WEB-INF/views/theme-init.jsp"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,8 +16,8 @@
 
     <main class="main container chapter-upload-page"
           id="chapterSubmissionPage"
-          data-options-url="<c:url value='/comics/${comic.id}/chapters/options'/>">
-
+          data-options-url="<c:url value='/comics/${comic.id}/chapters/options'/>"
+          data-preview-url="<c:url value='/admin/comics/${comic.id}/chapters/auto-translate/preview'/>">
         <div class="chapter-upload-shell">
             <div class="chapter-upload-head">
                 <div class="chapter-upload-head-text">
@@ -44,8 +44,11 @@
                   action="<c:url value='/comics/${comic.id}/chapters/new'/>"
                   method="post"
                   enctype="multipart/form-data">
-
                 <input type="hidden" name="comicId" value="${comic.id}">
+                <input type="hidden"
+                       id="autoTranslationPreviewToken"
+                       name="autoTranslationPreviewToken"
+                       value="<c:out value='${form.autoTranslationPreviewToken}'/>">
 
                 <div class="chapter-upload-grid">
                     <div class="chapter-upload-field">
@@ -61,11 +64,18 @@
                         <label class="chapter-upload-label" for="languageId">Язык перевода</label>
                         <select id="languageId" name="languageId" class="chapter-upload-select" required>
                             <c:forEach var="language" items="${languages}">
-                                <option value="${language.id}" ${form.languageId == language.id ? 'selected' : ''}>
+                                <option value="${language.id}"
+                                        data-auto-translate-supported="${not empty language.mymemoryCode}"
+                                        ${form.languageId == language.id ? 'selected' : ''}>
                                     <c:out value="${language.name}"/>
                                 </option>
                             </c:forEach>
                         </select>
+                        <c:if test="${isAdmin}">
+                            <div class="chapter-upload-hint">
+                                Для автоматического перевода доступны только языки, у которых заполнен код MyMemory.
+                            </div>
+                        </c:if>
                     </div>
 
                     <div class="chapter-upload-field">
@@ -77,6 +87,7 @@
                                 </option>
                             </c:forEach>
                         </select>
+
                         <div class="chapter-upload-hint">
                             Доступны главы от 1 до следующей после последней главы с одобренным переводом на выбранном языке.
                         </div>
@@ -105,18 +116,37 @@
                                        ${form.autoTranslate ? 'checked' : ''}>
                                 <span>Запросить автоматический перевод</span>
                             </label>
+
                             <div class="chapter-upload-hint">
-                                Интерфейс подготовлен, но сам механизм автоматического перевода пока не подключён.
+                                Администратор сначала получает предпросмотр автоматически переведённых страниц, а уже потом сохраняет перевод.
                             </div>
                         </div>
 
-                        <div id="readingDirectionField"
-                             class="chapter-upload-field ${form.autoTranslate ? '' : 'hidden'}">
-                            <label class="chapter-upload-label" for="readingDirection">Направление чтения текста</label>
-                            <select id="readingDirection" name="readingDirection" class="chapter-upload-select">
-                                <option value="LTR" ${form.readingDirection == 'LTR' ? 'selected' : ''}>Слева направо</option>
-                                <option value="RTL" ${form.readingDirection == 'RTL' ? 'selected' : ''}>Справа налево</option>
-                            </select>
+                        <div id="autoTranslateSettings"
+                             class="chapter-upload-field chapter-upload-field-wide ${form.autoTranslate ? '' : 'hidden'}">
+                            <div class="chapter-auto-translate-settings">
+                                <div class="chapter-upload-field chapter-upload-field-wide">
+                                    <label class="chapter-upload-label" for="sourceLanguageId">Язык исходного текста</label>
+                                    <select id="sourceLanguageId" name="sourceLanguageId" class="chapter-upload-select">
+                                        <option value="">Выберите язык</option>
+                                        <c:forEach var="language" items="${sourceLanguages}">
+                                            <option value="${language.id}" ${form.sourceLanguageId == language.id ? 'selected' : ''}>
+                                                <c:out value="${language.name}"/>
+                                            </option>
+                                        </c:forEach>
+                                    </select>
+                                </div>
+
+                                <div class="chapter-auto-preview-actions">
+                                    <button type="button" id="buildAutoPreviewBtn" class="btn btn-outline">
+                                        Построить предпросмотр
+                                    </button>
+
+                                    <div id="autoPreviewQuotaInfo" class="chapter-upload-hint">
+                                        Перед запуском проверяются остатки запросов OCR.space и символов MyMemory.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </c:if>
 
@@ -129,6 +159,7 @@
                                accept=".jpg,.webp,image/jpeg,image/webp"
                                multiple
                                required>
+
                         <div class="chapter-upload-hint">
                             До 200 изображений, до 1 МБ каждое. Разрешены только JPG и WEBP. Имена файлов: 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp и так далее.
                         </div>
@@ -141,6 +172,20 @@
                         Файлы ещё не выбраны.
                     </div>
                 </div>
+
+                <c:if test="${isAdmin}">
+                    <div id="autoPreviewLoading" class="chapter-auto-loading hidden">
+                        <div class="chapter-auto-spinner"></div>
+                        <div class="chapter-auto-loading-text">
+                            Автоматический перевод выполняется. Пожалуйста, подождите…
+                        </div>
+                    </div>
+
+                    <div id="autoPreviewSection" class="chapter-auto-preview hidden">
+                        <div class="chapter-upload-files-title">Предпросмотр автоматического перевода</div>
+                        <div id="autoPreviewGallery" class="chapter-auto-preview-grid"></div>
+                    </div>
+                </c:if>
 
                 <div class="chapter-upload-actions">
                     <button type="submit" class="btn">Сохранить</button>
