@@ -16,8 +16,7 @@
 
     <main class="main container chapter-upload-page"
           id="chapterSubmissionPage"
-          data-options-url="<c:url value='/comics/${comic.id}/chapters/options'/>"
-          data-preview-url="<c:url value='/admin/comics/${comic.id}/chapters/auto-translate/preview'/>">
+          data-options-url="<c:url value='/comics/${comic.id}/chapters/options'/>">
         <div class="chapter-upload-shell">
             <div class="chapter-upload-head">
                 <div class="chapter-upload-head-text">
@@ -45,10 +44,7 @@
                   method="post"
                   enctype="multipart/form-data">
                 <input type="hidden" name="comicId" value="${comic.id}">
-                <input type="hidden"
-                       id="autoTranslationPreviewToken"
-                       name="autoTranslationPreviewToken"
-                       value="<c:out value='${form.autoTranslationPreviewToken}'/>">
+                <div id="selectedPageNumbersHolder"></div>
 
                 <div class="chapter-upload-grid">
                     <div class="chapter-upload-field">
@@ -65,7 +61,7 @@
                         <select id="languageId" name="languageId" class="chapter-upload-select" required>
                             <c:forEach var="language" items="${languages}">
                                 <option value="${language.id}"
-                                        data-auto-translate-supported="${not empty language.mymemoryCode}"
+                                        data-auto-translate-supported="${not empty language.translationCode}"
                                         ${form.languageId == language.id ? 'selected' : ''}>
                                     <c:out value="${language.name}"/>
                                 </option>
@@ -73,7 +69,7 @@
                         </select>
                         <c:if test="${isAdmin}">
                             <div class="chapter-upload-hint">
-                                Для автоматического перевода доступны только языки, у которых заполнен код MyMemory.
+                                При автоматическом переводе в списке остаются только языки с заполненным кодом перевода.
                             </div>
                         </c:if>
                     </div>
@@ -107,43 +103,37 @@
 
                     <c:if test="${isAdmin}">
                         <div class="chapter-upload-field chapter-upload-field-wide">
-                            <label class="chapter-upload-check">
-                                <input id="autoTranslate"
-                                       name="autoTranslate"
-                                       type="checkbox"
-                                       value="true"
-                                       class="chapter-upload-checkbox"
-                                       ${form.autoTranslate ? 'checked' : ''}>
-                                <span>Запросить автоматический перевод</span>
-                            </label>
+                            <div class="chapter-auto-settings">
+                                <label class="chapter-upload-toggle" for="autoTranslate">
+                                    <input
+                                            type="checkbox"
+                                            id="autoTranslate"
+                                            name="autoTranslate"
+                                            value="true"
+                                            <c:if test="${form.autoTranslate}">checked</c:if>
+                                    >
+                                    <span>Запросить автоматический перевод</span>
+                                </label>
+                                <input type="hidden" name="_autoTranslate" value="false">
 
-                            <div class="chapter-upload-hint">
-                                Администратор сначала получает предпросмотр автоматически переведённых страниц, а уже потом сохраняет перевод.
-                            </div>
-                        </div>
+                                <div id="sourceLanguageField"
+                                     class="chapter-auto-panel <c:if test='${not form.autoTranslate}'>hidden</c:if>">
+                                    <div class="chapter-upload-field">
+                                        <label class="chapter-upload-label" for="sourceLanguageId">Язык исходного текста</label>
+                                        <select id="sourceLanguageId" name="sourceLanguageId" class="chapter-upload-select">
+                                            <option value="">Выберите язык</option>
+                                            <c:forEach var="language" items="${sourceLanguages}">
+                                                <option value="${language.id}"
+                                                        ${form.sourceLanguageId == language.id ? 'selected' : ''}>
+                                                    <c:out value="${language.name}"/>
+                                                </option>
+                                            </c:forEach>
+                                        </select>
+                                    </div>
 
-                        <div id="autoTranslateSettings"
-                             class="chapter-upload-field chapter-upload-field-wide ${form.autoTranslate ? '' : 'hidden'}">
-                            <div class="chapter-auto-translate-settings">
-                                <div class="chapter-upload-field chapter-upload-field-wide">
-                                    <label class="chapter-upload-label" for="sourceLanguageId">Язык исходного текста</label>
-                                    <select id="sourceLanguageId" name="sourceLanguageId" class="chapter-upload-select">
-                                        <option value="">Выберите язык</option>
-                                        <c:forEach var="language" items="${sourceLanguages}">
-                                            <option value="${language.id}" ${form.sourceLanguageId == language.id ? 'selected' : ''}>
-                                                <c:out value="${language.name}"/>
-                                            </option>
-                                        </c:forEach>
-                                    </select>
-                                </div>
-
-                                <div class="chapter-auto-preview-actions">
-                                    <button type="button" id="buildAutoPreviewBtn" class="btn btn-outline">
-                                        Построить предпросмотр
-                                    </button>
-
-                                    <div id="autoPreviewQuotaInfo" class="chapter-upload-hint">
-                                        Перед запуском проверяются остатки запросов OCR.space и символов MyMemory.
+                                    <div class="chapter-upload-hint">
+                                        Отметьте в списке ниже только те страницы, которые нужно переводить автоматически.
+                                        Не допускается одинаковый язык исходного текста и язык перевода.
                                     </div>
                                 </div>
                             </div>
@@ -161,7 +151,8 @@
                                required>
 
                         <div class="chapter-upload-hint">
-                            До 200 изображений, до 1 МБ каждое. Разрешены только JPG и WEBP. Имена файлов: 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp и так далее.
+                            До 200 изображений, до 1 МБ каждое. Разрешены только JPG и WEBP.
+                            Имена файлов: 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp и так далее.
                         </div>
                     </div>
                 </div>
@@ -174,16 +165,11 @@
                 </div>
 
                 <c:if test="${isAdmin}">
-                    <div id="autoPreviewLoading" class="chapter-auto-loading hidden">
+                    <div id="autoProcessingLoading" class="chapter-auto-loading hidden">
                         <div class="chapter-auto-spinner"></div>
                         <div class="chapter-auto-loading-text">
-                            Автоматический перевод выполняется. Пожалуйста, подождите…
+                            Автоматический перевод выполняется. Страницы обрабатываются, пожалуйста, подождите…
                         </div>
-                    </div>
-
-                    <div id="autoPreviewSection" class="chapter-auto-preview hidden">
-                        <div class="chapter-upload-files-title">Предпросмотр автоматического перевода</div>
-                        <div id="autoPreviewGallery" class="chapter-auto-preview-grid"></div>
                     </div>
                 </c:if>
 

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS languages (
                                          language_id SERIAL PRIMARY KEY,
                                          name VARCHAR(35) NOT NULL,
                                          ocr_space_code VARCHAR(20),
-                                         mymemory_code VARCHAR(10)
+                                         translation_code VARCHAR(10)
     );
 
 CREATE TABLE IF NOT EXISTS notification_types (

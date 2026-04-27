@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,5 +19,5 @@ public class TranslationSubmissionForm {
     private Integer sourceLanguageId;
     private String title;
     private Boolean autoTranslate = false;
-    private String autoTranslationPreviewToken;
+    private List<Integer> selectedPageNumbers;
 }

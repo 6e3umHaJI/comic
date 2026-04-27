@@ -26,6 +26,6 @@ public class Language extends BaseEntity {
     @Column(name = "ocr_space_code", length = 20)
     private String ocrSpaceCode;
 
-    @Column(name = "mymemory_code", length = 10)
-    private String mymemoryCode;
+    @Column(name = "translation_code", length = 20)
+    private String translationCode;
 }

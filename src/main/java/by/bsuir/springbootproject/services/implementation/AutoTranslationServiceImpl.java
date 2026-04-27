@@ -62,9 +62,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.net.URI;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.nio.file.StandardCopyOption;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.translate.v3.LocationName;
@@ -77,8 +75,6 @@ import com.google.cloud.translate.v3.TranslationServiceClient;
 @RequiredArgsConstructor
 @Transactional
 public class AutoTranslationServiceImpl implements AutoTranslationService {
-    private static final Logger log = LoggerFactory.getLogger(AutoTranslationServiceImpl.class);
-
 
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String OCR_PROVIDER = "OCR_SPACE";
@@ -129,11 +125,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             Map.entry('y', 'у')
     );
 
-    private static final Path PREVIEW_SOURCE_DIR =
-            Paths.get("src/main/webapp/assets/auto-translation/source");
-    private static final Path PREVIEW_RESULT_DIR =
-            Paths.get("src/main/webapp/assets/auto-translation/result");
-    private static final Path PAGES_STORAGE_DIR =
+   private static final Path PAGES_STORAGE_DIR =
             Paths.get("src/main/webapp/assets/pages");
 
     private final ComicRepository comicRepository;
@@ -160,30 +152,33 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     @Value("${gcp.translation.estimated-chars-per-page:3500}")
     private int gcpTranslationEstimatedCharsPerPage;
 
-    @Value("${autotranslation.debug:false}")
-    private boolean autoTranslationDebug;
-
     @Override
-    public Map<String, Object> buildPreview(Integer comicId,
-                                            User admin,
-                                            TranslationSubmissionForm form,
-                                            MultipartFile[] pageFiles,
-                                            List<Integer> selectedPageNumbers,
-                                            String contextPath) {
+    public List<ComicPage> generateTranslationPages(Translation translation,
+                                                    Integer sourceLanguageId,
+                                                    User admin,
+                                                    MultipartFile[] pageFiles,
+                                                    List<Integer> selectedPageNumbers) {
         requireAdmin(admin);
 
-        if (form == null || !Boolean.TRUE.equals(form.getAutoTranslate())) {
-            throw new IllegalArgumentException("Сначала включите автоматический перевод.");
+        if (translation == null || translation.getId() == null) {
+            throw new IllegalArgumentException("Перевод для автоматического перевода не найден.");
         }
 
-        Comic comic = comicRepository.findById(comicId)
-                .orElseThrow(() -> new IllegalArgumentException("Комикс не найден."));
+        if (sourceLanguageId == null) {
+            throw new IllegalArgumentException("Выберите язык исходного текста.");
+        }
 
-        Language targetLanguage = languageRepository.findById(form.getLanguageId())
-                .orElseThrow(() -> new IllegalArgumentException("Язык перевода не найден."));
-
-        Language sourceLanguage = languageRepository.findById(form.getSourceLanguageId())
+        Language sourceLanguage = languageRepository.findById(sourceLanguageId)
                 .orElseThrow(() -> new IllegalArgumentException("Язык исходного текста не найден."));
+
+        Language targetLanguage = translation.getLanguage();
+        if (targetLanguage == null || targetLanguage.getId() == null) {
+            throw new IllegalStateException("Язык перевода не найден.");
+        }
+
+        if (targetLanguage.getId().equals(sourceLanguage.getId())) {
+            throw new IllegalArgumentException("Язык исходного текста и язык перевода должны отличаться.");
+        }
 
         validateLanguageCodes(sourceLanguage, targetLanguage);
 
@@ -209,191 +204,109 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             );
         }
 
-        ensurePreviewDirectories();
+        try {
+            Files.createDirectories(PAGES_STORAGE_DIR);
+        } catch (IOException e) {
+            throw new IllegalStateException("Не удалось подготовить директорию для автоматического перевода.");
+        }
 
-        String token = UUID.randomUUID().toString().replace("-", "");
-        AutoTranslationPreview preview = previewRepository.save(
-                AutoTranslationPreview.builder()
-                        .token(token)
-                        .adminUser(admin)
-                        .comic(comic)
-                        .sourceLanguage(sourceLanguage)
-                        .targetLanguage(targetLanguage)
-                        .expiresAt(LocalDateTime.now().plusHours(12))
-                        .build()
-        );
-
-        List<AutoTranslationPreviewPage> previewPages = new ArrayList<>();
-        List<String> createdFiles = new ArrayList<>();
+        List<String> createdFileNames = new ArrayList<>();
+        List<ComicPage> resultPages = new ArrayList<>();
         int ocrRequestsUsed = 0;
         int translationCharsUsed = 0;
 
         try {
             for (PageFileCandidate candidate : files) {
-                String extension = getFileExtension(candidate.file().getOriginalFilename());
-
-                String sourceFileName = buildPreviewFileName(token, candidate.pageNumber(), "source", extension);
-                Path sourcePath = PREVIEW_SOURCE_DIR.resolve(sourceFileName);
-                candidate.file().transferTo(sourcePath);
-                createdFiles.add(sourcePath.toString());
-
-                String resultFileName = buildPreviewFileName(token, candidate.pageNumber(), "result", extension);
-                Path resultPath = PREVIEW_RESULT_DIR.resolve(resultFileName);
-
-                boolean selected = selectedPages.contains(candidate.pageNumber());
-                boolean translated = false;
-
-                if (selected) {
-                    TranslationResult translationResult = translatePage(
-                            sourcePath,
-                            resultPath,
-                            sourceLanguage,
-                            targetLanguage,
-                            beforeUsage.remainingMyMemoryChars() - translationCharsUsed
-                    );
-                    translated = true;
-                    ocrRequestsUsed += 1;
-                    translationCharsUsed += translationResult.sourceCharacters();
-                } else {
-                    Files.copy(sourcePath, resultPath);
-                }
-
-                createdFiles.add(resultPath.toString());
-
-                previewPages.add(
-                        AutoTranslationPreviewPage.builder()
-                                .preview(preview)
-                                .pageNumber(candidate.pageNumber())
-                                .isSelected(selected)
-                                .isTranslated(translated)
-                                .sourceImagePath(sourceFileName)
-                                .resultImagePath(resultFileName)
-                                .build()
+                Path tempSource = Files.createTempFile(
+                        "auto_src_" + translation.getId() + "_" + candidate.pageNumber() + "_",
+                        ".jpg"
                 );
+                Path tempResult = Files.createTempFile(
+                        "auto_result_" + translation.getId() + "_" + candidate.pageNumber() + "_",
+                        ".jpg"
+                );
+
+                try {
+                    writeMultipartAsJpg(candidate.file(), tempSource);
+
+                    String finalFileName = buildAutoStoredFileName(translation.getId(), candidate.pageNumber());
+                    Path finalPath = PAGES_STORAGE_DIR.resolve(finalFileName);
+                    boolean selected = selectedPages.contains(candidate.pageNumber());
+
+                    if (selected) {
+                        TranslationResult translationResult = translatePage(
+                                tempSource,
+                                tempResult,
+                                sourceLanguage,
+                                targetLanguage,
+                                beforeUsage.remainingMyMemoryChars() - translationCharsUsed
+                        );
+
+                        Files.copy(tempResult, finalPath, StandardCopyOption.REPLACE_EXISTING);
+                        ocrRequestsUsed += 1;
+                        translationCharsUsed += translationResult.sourceCharacters();
+                    } else {
+                        Files.copy(tempSource, finalPath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+
+                    createdFileNames.add(finalFileName);
+                    resultPages.add(
+                            ComicPage.builder()
+                                    .translation(translation)
+                                    .pageNumber(candidate.pageNumber())
+                                    .imagePath(finalFileName)
+                                    .build()
+                    );
+                } finally {
+                    Files.deleteIfExists(tempSource);
+                    Files.deleteIfExists(tempResult);
+                }
             }
 
-            previewPageRepository.saveAll(previewPages);
             applyUsage(ocrRequestsUsed, translationCharsUsed);
-
-            QuotaSnapshot afterUsage = getQuotaSnapshot();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Предпросмотр автоматического перевода готов.");
-            response.put("previewToken", preview.getToken());
-            response.put("remainingOcrRequests", afterUsage.remainingOcrRequests());
-            response.put("remainingMyMemoryChars", afterUsage.remainingMyMemoryChars());
-            response.put("pages", previewPages.stream()
-                    .sorted(Comparator.comparing(AutoTranslationPreviewPage::getPageNumber))
-                    .map(page -> {
-                        Map<String, Object> item = new HashMap<>();
-                        item.put("pageNumber", page.getPageNumber());
-                        item.put("translated", page.getIsTranslated());
-                        item.put("previewUrl", contextPath + "/assets/auto-translation/result/" + page.getResultImagePath());
-                        return item;
-                    })
-                    .toList());
-
-            return response;
-        } catch (ExternalApiException e) {
-            cleanupPreview(preview, createdFiles);
-            notificationService.notifyAdminMessage(admin.getId(), e.getMessage());
-            throw new IllegalStateException(e.getMessage());
+            return resultPages;
         } catch (IOException e) {
-            cleanupPreview(preview, createdFiles);
-            throw new IllegalStateException("Не удалось сохранить файлы предпросмотра автоматического перевода.");
+            deleteFinalFiles(createdFileNames);
+            throw new IllegalStateException("Не удалось сохранить изображения автоматического перевода.");
         } catch (RuntimeException e) {
-            cleanupPreview(preview, createdFiles);
+            deleteFinalFiles(createdFileNames);
             throw e;
         }
     }
 
-
-    @Override
-    public List<ComicPage> materializePreview(Translation translation,
-                                              String previewToken,
-                                              User admin) {
-        requireAdmin(admin);
-
-        if (!StringUtils.hasText(previewToken)) {
-            throw new IllegalArgumentException("Сначала выполните предпросмотр автоматического перевода.");
-        }
-
-        AutoTranslationPreview preview = previewRepository.findByToken(previewToken)
-                .orElseThrow(() -> new IllegalArgumentException("Предпросмотр автоматического перевода не найден."));
-
-        if (Boolean.TRUE.equals(preview.getIsConsumed())) {
-            throw new IllegalStateException("Этот предпросмотр уже был использован. Выполните новый предпросмотр.");
-        }
-
-        if (!preview.getAdminUser().getId().equals(admin.getId())) {
-            throw new IllegalStateException("Этот предпросмотр принадлежит другому администратору.");
-        }
-
-        if (!preview.getComic().getId().equals(translation.getChapter().getComic().getId())) {
-            throw new IllegalStateException("Предпросмотр не соответствует выбранному комиксу.");
-        }
-
-        if (!preview.getTargetLanguage().getId().equals(translation.getLanguage().getId())) {
-            throw new IllegalStateException("Предпросмотр не соответствует выбранному языку перевода.");
-        }
-
-        ensurePreviewDirectories();
-
-        List<AutoTranslationPreviewPage> pages =
-                previewPageRepository.findByPreview_IdOrderByPageNumberAsc(preview.getId());
-
-        if (pages.isEmpty()) {
-            throw new IllegalStateException("В предпросмотре нет подготовленных страниц.");
-        }
-
-        List<String> createdFileNames = new ArrayList<>();
-        List<ComicPage> resultPages = new ArrayList<>();
-
+    private void writeMultipartAsJpg(MultipartFile file, Path targetPath) {
         try {
-            Files.createDirectories(PAGES_STORAGE_DIR);
-
-            for (AutoTranslationPreviewPage page : pages) {
-                Path sourcePath = PREVIEW_RESULT_DIR.resolve(page.getResultImagePath());
-
-                if (!Files.exists(sourcePath)) {
-                    throw new IllegalStateException("Одна из подготовленных страниц предпросмотра не найдена.");
-                }
-
-                String finalFileName = buildStoredFileName(
-                        translation.getId(),
-                        page.getPageNumber(),
-                        page.getResultImagePath()
-                );
-
-                Path targetPath = PAGES_STORAGE_DIR.resolve(finalFileName);
-                Files.copy(sourcePath, targetPath);
-                createdFileNames.add(finalFileName);
-
-                resultPages.add(
-                        ComicPage.builder()
-                                .translation(translation)
-                                .pageNumber(page.getPageNumber())
-                                .imagePath(finalFileName)
-                                .build()
-                );
+            BufferedImage sourceImage = ImageIO.read(file.getInputStream());
+            if (sourceImage == null) {
+                throw new IllegalStateException("Не удалось прочитать исходное изображение для автоматического перевода.");
             }
 
-            preview.setIsConsumed(true);
-            previewRepository.save(preview);
+            BufferedImage rgbImage = new BufferedImage(
+                    sourceImage.getWidth(),
+                    sourceImage.getHeight(),
+                    BufferedImage.TYPE_INT_RGB
+            );
 
-            deletePreviewAssets(pages);
-            previewPageRepository.deleteAll(pages);
-            previewRepository.delete(preview);
+            Graphics2D graphics = rgbImage.createGraphics();
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, rgbImage.getWidth(), rgbImage.getHeight());
+            graphics.drawImage(sourceImage, 0, 0, null);
+            graphics.dispose();
 
-            return resultPages;
+            if (!ImageIO.write(rgbImage, "jpg", targetPath.toFile())) {
+                throw new IllegalStateException("Не удалось сохранить временное JPG-изображение.");
+            }
         } catch (IOException e) {
-            deleteFinalFiles(createdFileNames);
-            throw new IllegalStateException("Не удалось перенести страницы из предпросмотра в перевод.");
-        } catch (RuntimeException e) {
-            deleteFinalFiles(createdFileNames);
-            throw e;
+            throw new IllegalStateException("Не удалось подготовить JPG-файл для OCR.space.");
         }
+    }
+
+    private String buildAutoStoredFileName(Integer translationId, int pageNumber) {
+        return "tr_%d_p%03d_%s.jpg".formatted(
+                translationId,
+                pageNumber,
+                UUID.randomUUID().toString().replace("-", "")
+        );
     }
 
     private TranslationResult translatePage(Path sourcePath,
@@ -561,8 +474,8 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
         String projectId = requireConfiguredGoogleProjectId();
         String location = requireConfiguredGoogleLocation();
-        String sourceCode = normalizeTranslationLanguageCode(sourceLanguage.getMymemoryCode(), "исходного текста");
-        String targetCode = normalizeTranslationLanguageCode(targetLanguage.getMymemoryCode(), "перевода");
+        String sourceCode = normalizeTranslationLanguageCode(sourceLanguage.getTranslationCode(), "исходного текста");
+        String targetCode = normalizeTranslationLanguageCode(targetLanguage.getTranslationCode(), "перевода");
         String parent = LocationName.of(projectId, location).toString();
 
         try (TranslationServiceClient client = TranslationServiceClient.create()) {
@@ -591,14 +504,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 String finalTranslated = HtmlUtils.htmlUnescape(translated).trim();
                 int originalIndex = indexesToTranslate.get(i);
                 result.set(originalIndex, finalTranslated);
-
-                debugTranslation(
-                        sourceLanguage,
-                        targetLanguage,
-                        texts.get(originalIndex),
-                        normalizedTexts.get(originalIndex),
-                        finalTranslated
-                );
             }
 
             return result;
@@ -607,36 +512,12 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     ? e.getMessage()
                     : String.valueOf(e.getStatusCode());
 
-            debugTranslationError(
-                    sourceLanguage,
-                    targetLanguage,
-                    String.join(" || ", texts),
-                    String.join(" || ", normalizedTexts),
-                    errorMessage
-            );
-
             throw new ExternalApiException("Google Cloud Translation вернул ошибку: " + errorMessage);
         } catch (IOException e) {
-            debugTranslationError(
-                    sourceLanguage,
-                    targetLanguage,
-                    String.join(" || ", texts),
-                    String.join(" || ", normalizedTexts),
-                    "Не удалось создать клиент Google Cloud Translation."
-            );
-
             throw new ExternalApiException("Не удалось создать клиент Google Cloud Translation.");
         } catch (ExternalApiException e) {
             throw e;
         } catch (Exception e) {
-            debugTranslationError(
-                    sourceLanguage,
-                    targetLanguage,
-                    String.join(" || ", texts),
-                    String.join(" || ", normalizedTexts),
-                    StringUtils.hasText(e.getMessage()) ? e.getMessage() : "Неизвестная ошибка"
-            );
-
             throw new ExternalApiException("Не удалось получить ответ от Google Cloud Translation.");
         }
     }
@@ -659,12 +540,13 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
     private String normalizeTranslationLanguageCode(String rawCode, String label) {
         String code = stringValue(rawCode).trim().toLowerCase(Locale.ROOT);
-        if (!code.matches("^[a-z]{2}(-[a-z]{2})?$")) {
-            throw new IllegalStateException("Для языка " + label + " не настроен корректный код перевода.");
+
+        if (!StringUtils.hasText(code)) {
+            throw new IllegalStateException("Для языка " + label + " не настроен код перевода.");
         }
+
         return code;
     }
-
 
     private List<WordBox> filterBoxesForSourceLanguage(List<OcrWord> words, Language sourceLanguage) {
         List<WordBox> allBoxes = new ArrayList<>();
@@ -694,7 +576,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .toList();
 
         if (sourceBoxes.isEmpty()) {
-            debugWordFiltering(allBoxes, List.of(), sourceBoxes, sourceLanguage);
             return List.of();
         }
 
@@ -711,7 +592,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         filtered.sort(Comparator.comparingInt(WordBox::top).thenComparingInt(WordBox::left));
-        debugWordFiltering(allBoxes, filtered, sourceBoxes, sourceLanguage);
         return filtered;
     }
 
@@ -721,8 +601,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         List<LineGroup> rawLines = groupRawLines(boxes);
-        debugRawLines(rawLines);
-
         List<Segment> segments = new ArrayList<>();
 
         for (int lineNo = 0; lineNo < rawLines.size(); lineNo++) {
@@ -733,8 +611,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 }
             }
         }
-
-        debugSegments(segments);
 
         if (segments.isEmpty()) {
             return List.of();
@@ -829,7 +705,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             );
 
             phrases.add(new PhraseBox(phraseRect, translationText));
-            debugPhraseGroup(group, joined, translationText, phraseRect);
         }
 
         phrases.sort(Comparator.comparingInt((PhraseBox p) -> p.rect().y).thenComparingInt(p -> p.rect().x));
@@ -1276,7 +1151,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .toList();
 
         if (sorted.size() <= 1) {
-            debugLineSplit(sorted, 0.0, List.of(sorted));
             return List.of(sorted);
         }
 
@@ -1329,7 +1203,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             result.add(current);
         }
 
-        debugLineSplit(sorted, splitThreshold, result);
         return result;
     }
 
@@ -1394,15 +1267,19 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     }
 
     private void validateLanguageCodes(Language sourceLanguage, Language targetLanguage) {
-        String sourceOcrCode = stringValue(sourceLanguage.getOcrSpaceCode()).trim().toLowerCase(Locale.ROOT);
-
-        if (!StringUtils.hasText(sourceOcrCode)) {
+        if (!StringUtils.hasText(stringValue(sourceLanguage.getOcrSpaceCode()).trim())) {
             throw new IllegalStateException("Для языка исходного текста не настроен код OCR.space.");
         }
 
-        normalizeTranslationLanguageCode(sourceLanguage.getMymemoryCode(), "исходного текста");
-        normalizeTranslationLanguageCode(targetLanguage.getMymemoryCode(), "перевода");
+        if (!StringUtils.hasText(stringValue(sourceLanguage.getTranslationCode()).trim())) {
+            throw new IllegalStateException("Для языка исходного текста не настроен код перевода.");
+        }
+
+        if (!StringUtils.hasText(stringValue(targetLanguage.getTranslationCode()).trim())) {
+            throw new IllegalStateException("Для языка перевода не настроен код перевода.");
+        }
     }
+
 
     private Set<Integer> normalizeSelectedPages(List<Integer> selectedPageNumbers,
                                                 List<PageFileCandidate> files) {
@@ -1479,7 +1356,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     private String normalizeSourceToken(String text, Language sourceLanguage) {
         String normalized = stringValue(text).trim();
 
-        if (!"ru".equalsIgnoreCase(sourceLanguage.getMymemoryCode())) {
+        if (!"ru".equalsIgnoreCase(sourceLanguage.getTranslationCode())) {
             return normalized;
         }
 
@@ -1544,7 +1421,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             return false;
         }
 
-        String code = stringValue(language.getMymemoryCode()).toLowerCase(Locale.ROOT);
+        String code = stringValue(language.getTranslationCode()).toLowerCase(Locale.ROOT);
 
         return switch (code) {
             case "ru" -> value.matches(".*[А-Яа-яЁё].*");
@@ -1601,232 +1478,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return builder.toString();
     }
 
-    private void debugWordFiltering(List<WordBox> allBoxes,
-                                    List<WordBox> filtered,
-                                    List<WordBox> sourceBoxes,
-                                    Language sourceLanguage) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        Set<String> filteredIds = filtered.stream()
-                .map(this::boxDebugId)
-                .collect(Collectors.toSet());
-
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== FILTER WORDS START =====");
-        log.info("[AUTO_TRANSLATION_DEBUG] source language = {} | source boxes found = {} | selected boxes = {}",
-                stringValue(sourceLanguage.getName()),
-                sourceBoxes.size(),
-                filtered.size());
-
-        for (WordBox box : allBoxes) {
-            boolean selected = filteredIds.contains(boxDebugId(box));
-            String rawText = stringValue(box.rawText()).trim();
-            String normalizedText = stringValue(box.text()).trim();
-
-            String reason;
-            if (selected && box.sourceWord()) {
-                reason = rawText.equals(normalizedText)
-                        ? "SOURCE_LANGUAGE_TOKEN_SELECTED"
-                        : "SOURCE_LANGUAGE_TOKEN_SELECTED_AFTER_NORMALIZATION";
-            } else if (selected) {
-                reason = "SEPARATOR_SELECTED_NEAR_SOURCE";
-            } else if (box.separator()) {
-                reason = "SEPARATOR_SKIPPED_NOT_NEAR_SOURCE";
-            } else if (!rawText.equals(normalizedText)) {
-                reason = "NORMALIZED_BUT_SKIPPED_NOT_SOURCE_LANGUAGE";
-            } else {
-                reason = "SKIPPED_NOT_SOURCE_LANGUAGE";
-            }
-
-            log.info(
-                    "[AUTO_TRANSLATION_DEBUG] word | selected={} | reason={} | line={} | word={} | raw='{}' | normalized='{}' | rect={}",
-                    selected,
-                    reason,
-                    box.lineIndex(),
-                    box.wordIndex(),
-                    shortDebugText(rawText),
-                    shortDebugText(normalizedText),
-                    rectDebugText(box.toRect())
-            );
-        }
-
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== FILTER WORDS END =====");
-    }
-
-    private void debugRawLines(List<LineGroup> rawLines) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== RAW LINES START =====");
-        for (int i = 0; i < rawLines.size(); i++) {
-            log.info(
-                    "[AUTO_TRANSLATION_DEBUG] raw line {} | rect={} | tokens={}",
-                    i,
-                    rectDebugText(rawLines.get(i).boundingRect()),
-                    tokensDebugText(rawLines.get(i).items())
-            );
-        }
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== RAW LINES END =====");
-    }
-
-    private void debugLineSplit(List<WordBox> sorted, double splitThreshold, List<List<WordBox>> result) {
-        if (!autoTranslationDebug || sorted == null || sorted.isEmpty()) {
-            return;
-        }
-
-        List<String> gaps = new ArrayList<>();
-        for (int i = 0; i < sorted.size() - 1; i++) {
-            WordBox left = sorted.get(i);
-            WordBox right = sorted.get(i + 1);
-            int gap = horizontalGap(left.toRect(), right.toRect());
-            boolean splitHere = !left.separator() && !right.separator() && gap > splitThreshold;
-
-            gaps.add(
-                    "'" + shortDebugText(left.text()) + "' -> '" + shortDebugText(right.text()) + "'"
-                            + " gap=" + gap
-                            + (splitHere ? " [SPLIT]" : "")
-            );
-        }
-
-        List<String> segments = result.stream()
-                .map(this::tokensDebugText)
-                .toList();
-
-        log.info(
-                "[AUTO_TRANSLATION_DEBUG] split line | threshold={} | source={} | gaps={} | segments={}",
-                formatDebugDouble(splitThreshold),
-                tokensDebugText(sorted),
-                gaps,
-                segments
-        );
-    }
-
-    private void debugSegments(List<Segment> segments) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== SEGMENTS START =====");
-        for (int i = 0; i < segments.size(); i++) {
-            Segment segment = segments.get(i);
-            log.info(
-                    "[AUTO_TRANSLATION_DEBUG] segment {} | lineNo={} | rect={} | tokens={}",
-                    i,
-                    segment.lineNo(),
-                    rectDebugText(segment.rect()),
-                    tokensDebugText(segment.items())
-            );
-        }
-        log.info("[AUTO_TRANSLATION_DEBUG] ===== SEGMENTS END =====");
-    }
-
-    private void debugPhraseGroup(List<Segment> group,
-                                  String joinedBeforeClean,
-                                  String translationText,
-                                  Rectangle phraseRect) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        List<String> segmentTexts = group.stream()
-                .map(segment -> tokensDebugText(segment.items()))
-                .toList();
-
-        List<Integer> lineNos = group.stream()
-                .map(Segment::lineNo)
-                .distinct()
-                .toList();
-
-        log.info(
-                "[AUTO_TRANSLATION_DEBUG] phrase | lines={} | rect={} | segments={} | joinedBeforeClean='{}' | translationText='{}'",
-                lineNos,
-                rectDebugText(phraseRect),
-                segmentTexts,
-                shortDebugText(joinedBeforeClean),
-                shortDebugText(translationText)
-        );
-    }
-
-    private void debugTranslation(Language sourceLanguage,
-                                  Language targetLanguage,
-                                  String originalText,
-                                  String normalizedText,
-                                  String translatedText) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        log.info(
-                "[AUTO_TRANSLATION_DEBUG] translation OK | {} -> {} | original='{}' | normalized='{}' | translated='{}'",
-                stringValue(sourceLanguage.getMymemoryCode()),
-                stringValue(targetLanguage.getMymemoryCode()),
-                shortDebugText(originalText),
-                shortDebugText(normalizedText),
-                shortDebugText(translatedText)
-        );
-    }
-
-    private void debugTranslationError(Language sourceLanguage,
-                                       Language targetLanguage,
-                                       String originalText,
-                                       String normalizedText,
-                                       String error) {
-        if (!autoTranslationDebug) {
-            return;
-        }
-
-        log.info(
-                "[AUTO_TRANSLATION_DEBUG] translation ERROR | {} -> {} | original='{}' | normalized='{}' | error='{}'",
-                stringValue(sourceLanguage.getMymemoryCode()),
-                stringValue(targetLanguage.getMymemoryCode()),
-                shortDebugText(originalText),
-                shortDebugText(normalizedText),
-                shortDebugText(error)
-        );
-    }
-
-    private String tokensDebugText(List<WordBox> items) {
-        return items.stream()
-                .map(box -> "'" + shortDebugText(box.text()) + "'")
-                .collect(Collectors.joining(" "));
-    }
-
-    private String rectDebugText(Rectangle rect) {
-        return "[x=%d,y=%d,w=%d,h=%d]".formatted(rect.x, rect.y, rect.width, rect.height);
-    }
-
-    private String shortDebugText(String value) {
-        String text = stringValue(value)
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
-
-        if (text.length() <= 220) {
-            return text;
-        }
-
-        return text.substring(0, 220) + "...";
-    }
-
-    private String boxDebugId(WordBox box) {
-        return box.lineIndex() + ":" + box.wordIndex() + ":" + box.left() + ":" + box.top() + ":" + box.width() + ":" + box.height();
-    }
-
-    private String formatDebugDouble(double value) {
-        return String.format(Locale.ROOT, "%.2f", value);
-    }
-
-    private void ensurePreviewDirectories() {
-        try {
-            Files.createDirectories(PREVIEW_SOURCE_DIR);
-            Files.createDirectories(PREVIEW_RESULT_DIR);
-            Files.createDirectories(PAGES_STORAGE_DIR);
-        } catch (IOException e) {
-            throw new IllegalStateException("Не удалось подготовить директории для автоматического перевода.");
-        }
-    }
-
     private void applyUsage(int ocrRequestsUsed, int translationCharsUsed) {
         YearMonth month = YearMonth.now();
 
@@ -1877,50 +1528,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 ));
     }
 
-    private void cleanupPreview(AutoTranslationPreview preview, List<String> createdFiles) {
-        for (String file : createdFiles) {
-            if (!StringUtils.hasText(file)) {
-                continue;
-            }
-
-            try {
-                Files.deleteIfExists(Path.of(file));
-            } catch (IOException ignored) {
-            }
-        }
-
-        if (preview != null && preview.getId() != null) {
-            previewPageRepository.findByPreview_IdOrderByPageNumberAsc(preview.getId())
-                    .forEach(page -> {
-                        try {
-                            Files.deleteIfExists(PREVIEW_SOURCE_DIR.resolve(page.getSourceImagePath()));
-                        } catch (IOException ignored) {
-                        }
-
-                        try {
-                            Files.deleteIfExists(PREVIEW_RESULT_DIR.resolve(page.getResultImagePath()));
-                        } catch (IOException ignored) {
-                        }
-                    });
-
-            previewRepository.delete(preview);
-        }
-    }
-
-    private void deletePreviewAssets(List<AutoTranslationPreviewPage> pages) {
-        for (AutoTranslationPreviewPage page : pages) {
-            try {
-                Files.deleteIfExists(PREVIEW_SOURCE_DIR.resolve(page.getSourceImagePath()));
-            } catch (IOException ignored) {
-            }
-
-            try {
-                Files.deleteIfExists(PREVIEW_RESULT_DIR.resolve(page.getResultImagePath()));
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
     private void deleteFinalFiles(List<String> fileNames) {
         for (String fileName : fileNames) {
             if (!StringUtils.hasText(fileName)) {
@@ -1932,10 +1539,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             } catch (IOException ignored) {
             }
         }
-    }
-
-    private String buildPreviewFileName(String token, int pageNumber, String type, String extension) {
-        return "preview_" + token + "_p" + String.format("%03d", pageNumber) + "_" + type + "." + extension;
     }
 
     private String buildStoredFileName(Integer translationId, int pageNumber, String originalFilename) {

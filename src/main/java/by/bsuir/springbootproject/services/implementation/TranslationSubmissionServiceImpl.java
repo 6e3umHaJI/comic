@@ -93,9 +93,9 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             throw new IllegalStateException("В системе нет доступных языков перевода.");
         }
 
-        List<Language> autoTargetLanguages = languageRepository.findAllByMymemoryCodeIsNotNullOrderByNameAsc();
-        List<Language> sourceLanguages =
-                languageRepository.findAllByOcrSpaceCodeIsNotNullAndMymemoryCodeIsNotNullOrderByNameAsc();
+        List<Language> autoTargetLanguages = languageRepository.findAllByTranslationCodeIsNotNullOrderByNameAsc();
+        List<Language> sourceLanguages = languageRepository
+                .findAllByOcrSpaceCodeIsNotNullAndTranslationCodeIsNotNullOrderByNameAsc();
 
         TranslationSubmissionForm actualForm = form != null ? form : new TranslationSubmissionForm();
         actualForm.setComicId(comicId);
@@ -112,12 +112,28 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             actualForm.setSourceLanguageId(sourceLanguages.get(0).getId());
         }
 
-        if (Boolean.TRUE.equals(actualForm.getAutoTranslate())) {
+        if (admin && Boolean.TRUE.equals(actualForm.getAutoTranslate())) {
             boolean targetSupported = autoTargetLanguages.stream()
                     .anyMatch(language -> language.getId().equals(actualForm.getLanguageId()));
 
             if (!targetSupported && !autoTargetLanguages.isEmpty()) {
-                actualForm.setLanguageId(autoTargetLanguages.get(0).getId());
+                Language fallback = autoTargetLanguages.get(0);
+                if (actualForm.getSourceLanguageId() != null) {
+                    fallback = autoTargetLanguages.stream()
+                            .filter(language -> !language.getId().equals(actualForm.getSourceLanguageId()))
+                            .findFirst()
+                            .orElse(autoTargetLanguages.get(0));
+                }
+                actualForm.setLanguageId(fallback.getId());
+            }
+
+            if (actualForm.getLanguageId() != null
+                    && actualForm.getSourceLanguageId() != null
+                    && actualForm.getLanguageId().equals(actualForm.getSourceLanguageId())) {
+                autoTargetLanguages.stream()
+                        .filter(language -> !language.getId().equals(actualForm.getSourceLanguageId()))
+                        .findFirst()
+                        .ifPresent(language -> actualForm.setLanguageId(language.getId()));
             }
         }
 
@@ -134,12 +150,23 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         mv.addObject("sourceLanguages", sourceLanguages);
         mv.addObject("chapterOptions", chapterOptions);
         mv.addObject("isAdmin", admin);
-        mv.addObject("pendingCount", admin ? 0 : translationRepository.countByUser_IdAndReviewStatus_Name(user.getId(), STATUS_PENDING));
+        mv.addObject("pendingCount", admin
+                ? 0
+                : translationRepository.countByUser_IdAndReviewStatus_Name(user.getId(), STATUS_PENDING));
         mv.addObject("pendingLimit", USER_PENDING_LIMIT);
         mv.addObject("errorMessage", errorMessage);
         return mv;
     }
 
+    private void validateAutomaticTranslationSelection(TranslationSubmissionForm form, Integer targetLanguageId) {
+        if (form.getSourceLanguageId() == null) {
+            throw new IllegalArgumentException("Выберите язык исходного текста для автоматического перевода.");
+        }
+
+        if (targetLanguageId != null && targetLanguageId.equals(form.getSourceLanguageId())) {
+            throw new IllegalArgumentException("Язык исходного текста и язык перевода должны отличаться.");
+        }
+    }
 
     @Override
     public Map<String, Object> getChapterOptions(Integer comicId, Integer languageId) {
@@ -196,36 +223,37 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         }
 
         boolean automatic = admin && Boolean.TRUE.equals(form.getAutoTranslate());
+
         if (Boolean.TRUE.equals(form.getAutoTranslate()) && !admin) {
             throw new IllegalArgumentException("Обычные пользователи не могут запрашивать автоматический перевод.");
         }
 
-        if (automatic && !StringUtils.hasText(form.getAutoTranslationPreviewToken())) {
-            throw new IllegalArgumentException("Сначала выполните предпросмотр автоматического перевода.");
+        if (automatic) {
+            validateAutomaticTranslationSelection(form, languageId);
         }
 
-        List<PageFileCandidate> sortedFiles = automatic ? List.of() : prepareFiles(pageFiles);
+        List<PageFileCandidate> sortedFiles = prepareFiles(pageFiles);
 
         Optional<Chapter> existingChapter = chapterRepository.findByComic_IdAndChapterNumber(comicId, chapterNumber);
         boolean newChapterCreated = existingChapter.isEmpty();
 
-        Chapter chapter = existingChapter.orElseGet(() ->
-                chapterRepository.save(
-                        Chapter.builder()
-                                .comic(comic)
-                                .chapterNumber(chapterNumber)
-                                .build()
-                )
-        );
+        Chapter chapter = existingChapter.orElseGet(() -> chapterRepository.save(
+                Chapter.builder()
+                        .comic(comic)
+                        .chapterNumber(chapterNumber)
+                        .build()
+        ));
 
         long approvedBefore = newChapterCreated ? 0L : translationRepository.countApprovedByChapterId(chapter.getId());
 
-        ReviewStatus reviewStatus = reviewStatusRepository.findByName(admin ? STATUS_APPROVED : STATUS_PENDING)
+        String reviewStatusName = (!admin || automatic) ? STATUS_PENDING : STATUS_APPROVED;
+
+        ReviewStatus reviewStatus = reviewStatusRepository.findByName(reviewStatusName)
                 .orElseThrow(() -> new IllegalStateException("Статус проверки перевода не найден."));
 
-        String translationTypeName = admin
-                ? (automatic ? TYPE_AUTOMATIC : TYPE_OFFICIAL)
-                : TYPE_AMATEUR;
+        String translationTypeName = automatic
+                ? TYPE_AUTOMATIC
+                : (admin ? TYPE_OFFICIAL : TYPE_AMATEUR);
 
         TranslationType translationType = translationTypeRepository.findByName(translationTypeName)
                 .orElseThrow(() -> new IllegalStateException("Тип перевода не найден."));
@@ -250,10 +278,16 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             List<ComicPage> pages = new ArrayList<>();
 
             if (automatic) {
-                pages = autoTranslationService.materializePreview(
+                MultipartFile[] automaticFiles = sortedFiles.stream()
+                        .map(PageFileCandidate::file)
+                        .toArray(MultipartFile[]::new);
+
+                pages = autoTranslationService.generateTranslationPages(
                         translation,
-                        form.getAutoTranslationPreviewToken(),
-                        user
+                        form.getSourceLanguageId(),
+                        user,
+                        automaticFiles,
+                        form.getSelectedPageNumbers()
                 );
 
                 savedFiles.addAll(
@@ -302,7 +336,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             userRepository.save(user);
         }
 
-        if (admin) {
+        if (admin && !automatic) {
             if (approvedBefore == 0L) {
                 notificationService.notifyNewChapterForSubscribers(chapter);
             }
@@ -311,7 +345,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
         return translation.getId();
     }
-
 
     @Override
     public ModelAndView getPreviewPage(Integer translationId, User viewer, String successMessage, String errorMessage) {

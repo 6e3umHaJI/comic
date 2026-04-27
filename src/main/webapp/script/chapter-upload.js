@@ -23,16 +23,11 @@
     const filesList = document.getElementById("chapterSubmissionFilesList");
     const statusBox = document.getElementById("chapterSubmissionClientStatus");
     const submitButton = form?.querySelector('button[type="submit"]');
-
-    const autoTranslate = document.getElementById("autoTranslate");
-    const autoTranslateSettings = document.getElementById("autoTranslateSettings");
+    const autoTranslateCheckbox = document.getElementById("autoTranslate");
+    const sourceLanguageField = document.getElementById("sourceLanguageField");
     const sourceLanguageSelect = document.getElementById("sourceLanguageId");
-    const buildAutoPreviewBtn = document.getElementById("buildAutoPreviewBtn");
-    const autoPreviewTokenInput = document.getElementById("autoTranslationPreviewToken");
-    const autoPreviewSection = document.getElementById("autoPreviewSection");
-    const autoPreviewGallery = document.getElementById("autoPreviewGallery");
-    const autoPreviewLoading = document.getElementById("autoPreviewLoading");
-    const autoPreviewQuotaInfo = document.getElementById("autoPreviewQuotaInfo");
+    const selectedPageNumbersHolder = document.getElementById("selectedPageNumbersHolder");
+    const loadingBox = document.getElementById("autoProcessingLoading");
 
     const originalLanguageOptions = languageSelect
         ? Array.from(languageSelect.options).map((option) => ({
@@ -41,6 +36,9 @@
             autoTranslateSupported: option.dataset.autoTranslateSupported === "true"
         }))
         : [];
+
+    let renderedFiles = [];
+    const selectedPages = new Set();
 
     function showStatus(message) {
         if (!statusBox) {
@@ -69,27 +67,37 @@
     }
 
     function extractPageNumber(file) {
-        const match = FILE_PATTERN.exec(file.name || "");
+        const match = FILE_PATTERN.exec(file?.name || "");
         return match ? Number(match[1]) : null;
     }
 
+    function getLanguageOptionsForCurrentMode() {
+        if (!autoTranslateCheckbox?.checked) {
+            return originalLanguageOptions;
+        }
+
+        return originalLanguageOptions.filter((item) => item.autoTranslateSupported);
+    }
+
     function rebuildLanguageOptions() {
-        if (!languageSearch || !languageSelect) {
+        if (!languageSelect) {
             return;
         }
 
-        languageSearch.value = limitOnly(languageSearch.value, LIMITS.languageSearch);
+        if (languageSearch) {
+            languageSearch.value = limitOnly(languageSearch.value, LIMITS.languageSearch);
+        }
 
-        const query = languageSearch.value.trim().toLowerCase();
-        const selectedValue = languageSelect.value;
+        const query = String(languageSearch?.value || "").trim().toLowerCase();
+        const currentValue = languageSelect.value;
 
-        const filtered = !query
-            ? originalLanguageOptions
-            : originalLanguageOptions.filter((item) => item.text.toLowerCase().includes(query));
+        const options = getLanguageOptionsForCurrentMode().filter((item) => {
+            return !query || item.text.toLowerCase().includes(query);
+        });
 
         languageSelect.innerHTML = "";
 
-        if (!filtered.length) {
+        if (!options.length) {
             const option = document.createElement("option");
             option.value = "";
             option.textContent = "Ничего не найдено";
@@ -99,36 +107,7 @@
             return;
         }
 
-        filtered.forEach((item) => {
-            const option = document.createElement("option");
-            option.value = item.value;
-            option.textContent = item.text;
-            if (item.value === selectedValue) {
-                option.selected = true;
-            }
-            languageSelect.appendChild(option);
-        });
-
-        if (!Array.from(languageSelect.options).some((option) => option.selected)) {
-            languageSelect.selectedIndex = 0;
-        }
-    }
-
-    function syncAutoTranslateTargetOptions() {
-        if (!languageSelect) {
-            return;
-        }
-
-        const currentValue = languageSelect.value;
-        const shouldFilter = Boolean(autoTranslate?.checked);
-
-        const filtered = shouldFilter
-            ? originalLanguageOptions.filter((item) => item.autoTranslateSupported)
-            : originalLanguageOptions;
-
-        languageSelect.innerHTML = "";
-
-        filtered.forEach((item) => {
+        options.forEach((item) => {
             const option = document.createElement("option");
             option.value = item.value;
             option.textContent = item.text;
@@ -144,14 +123,46 @@
         if (!Array.from(languageSelect.options).some((option) => option.selected) && languageSelect.options.length > 0) {
             languageSelect.selectedIndex = 0;
         }
+
+        ensureDifferentLanguages(true);
     }
 
+    function ensureDifferentLanguages(silent) {
+        if (!autoTranslateCheckbox?.checked || !languageSelect || !sourceLanguageSelect) {
+            return true;
+        }
 
-    function validateFiles(files) {
+        const targetLanguageId = String(languageSelect.value || "");
+        const sourceLanguageId = String(sourceLanguageSelect.value || "");
+
+        if (!targetLanguageId || !sourceLanguageId || targetLanguageId !== sourceLanguageId) {
+            return true;
+        }
+
+        const fallback = Array.from(languageSelect.options).find((option) => {
+            return option.value && option.value !== sourceLanguageId && !option.disabled;
+        });
+
+        if (fallback) {
+            languageSelect.value = fallback.value;
+            return true;
+        }
+
+        if (!silent) {
+            showStatus("Язык исходного текста и язык перевода должны отличаться.");
+        }
+
+        return false;
+    }
+
+    function validateFiles(files, allowEmpty) {
         const actualFiles = Array.from(files || []).filter(Boolean);
 
         if (!actualFiles.length) {
-            return { ok: false, message: "Выберите страницы перевода." };
+            if (allowEmpty) {
+                return { ok: true, files: [] };
+            }
+            return { ok: false, message: "Загрузите страницы перевода." };
         }
 
         if (actualFiles.length > LIMITS.maxPages) {
@@ -177,203 +188,168 @@
         }
 
         const sorted = actualFiles
-            .map((file) => ({ file, pageNumber: extractPageNumber(file) }))
+            .map((file) => ({
+                file,
+                pageNumber: extractPageNumber(file)
+            }))
             .sort((left, right) => left.pageNumber - right.pageNumber);
 
         for (let i = 0; i < sorted.length; i++) {
             if (sorted[i].pageNumber !== i + 1) {
-                return { ok: false, message: "Файлы страниц должны идти подряд: 001.jpg, 002.jpg, 003.jpg и так далее." };
+                return {
+                    ok: false,
+                    message: "Файлы страниц должны идти подряд: 001.jpg, 002.jpg, 003.jpg и так далее."
+                };
             }
         }
 
         return { ok: true, files: sorted };
     }
 
-    function clearAutoPreviewState() {
-        if (autoPreviewTokenInput) {
-            autoPreviewTokenInput.value = "";
-        }
+    function syncSelectedPagesWithRenderedFiles() {
+        const availablePages = new Set(renderedFiles.map((entry) => entry.pageNumber));
 
-        if (autoPreviewGallery) {
-            autoPreviewGallery.innerHTML = "";
-        }
+        Array.from(selectedPages).forEach((pageNumber) => {
+            if (!availablePages.has(pageNumber)) {
+                selectedPages.delete(pageNumber);
+            }
+        });
 
-        if (autoPreviewSection) {
-            autoPreviewSection.classList.add("hidden");
+        if (autoTranslateCheckbox?.checked && renderedFiles.length && selectedPages.size === 0) {
+            renderedFiles.forEach((entry) => selectedPages.add(entry.pageNumber));
         }
     }
 
-    function syncAutoTranslateUi() {
-        if (!autoTranslate || !autoTranslateSettings) {
+    function updateSelectedPageNumbersInputs() {
+        if (!selectedPageNumbersHolder) {
             return;
         }
 
-        const enabled = autoTranslate.checked;
-        autoTranslateSettings.classList.toggle("hidden", !enabled);
+        selectedPageNumbersHolder.innerHTML = "";
 
-        syncAutoTranslateTargetOptions();
-
-        document.querySelectorAll(".chapter-upload-page-check").forEach((checkbox) => {
-            checkbox.disabled = !enabled;
-        });
-
-        if (!enabled) {
-            clearAutoPreviewState();
+        if (!autoTranslateCheckbox?.checked) {
+            return;
         }
+
+        Array.from(selectedPages)
+            .sort((left, right) => left - right)
+            .forEach((pageNumber) => {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "selectedPageNumbers";
+                input.value = String(pageNumber);
+                selectedPageNumbersHolder.appendChild(input);
+            });
     }
 
-    function renderFilesList() {
+    function renderFilesList(showErrors) {
         if (!filesList || !fileInput) {
             return;
         }
 
-        const validation = validateFiles(fileInput.files);
-        if (!validation.ok) {
-            filesList.textContent = validation.message;
+        const hasFiles = Boolean(fileInput.files && fileInput.files.length > 0);
+
+        if (!hasFiles) {
+            renderedFiles = [];
+            selectedPages.clear();
+            updateSelectedPageNumbersInputs();
+            filesList.textContent = "Файлы ещё не выбраны.";
             filesList.classList.add("chapter-upload-files-empty");
-            showStatus(validation.message);
-            clearAutoPreviewState();
             return;
         }
 
-        hideStatus();
-        clearAutoPreviewState();
+        const validation = validateFiles(fileInput.files, false);
+        if (!validation.ok) {
+            renderedFiles = [];
+            selectedPages.clear();
+            updateSelectedPageNumbersInputs();
+            filesList.textContent = validation.message;
+            filesList.classList.add("chapter-upload-files-empty");
+
+            if (showErrors) {
+                showStatus(validation.message);
+            }
+
+            return;
+        }
+
+        renderedFiles = validation.files;
+        syncSelectedPagesWithRenderedFiles();
+        updateSelectedPageNumbersInputs();
+
         filesList.classList.remove("chapter-upload-files-empty");
         filesList.innerHTML = "";
 
-        validation.files.forEach((entry) => {
+        renderedFiles.forEach((entry) => {
             const row = document.createElement("div");
-            row.className = "chapter-upload-file-entry";
+            row.className = "chapter-upload-file-entry" + (autoTranslateCheckbox?.checked ? " is-selectable" : "");
 
             const left = document.createElement("div");
             left.className = "chapter-upload-file-left";
 
-            if (autoTranslate) {
+            if (autoTranslateCheckbox?.checked) {
                 const checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
-                checkbox.className = "chapter-upload-page-check";
+                checkbox.className = "chapter-upload-file-checkbox";
+                checkbox.checked = selectedPages.has(entry.pageNumber);
                 checkbox.dataset.pageNumber = String(entry.pageNumber);
-                checkbox.checked = autoTranslate.checked;
-                checkbox.disabled = !autoTranslate.checked;
-                checkbox.addEventListener("change", clearAutoPreviewState);
+                checkbox.addEventListener("change", () => {
+                    const pageNumber = Number(checkbox.dataset.pageNumber);
+                    if (checkbox.checked) {
+                        selectedPages.add(pageNumber);
+                    } else {
+                        selectedPages.delete(pageNumber);
+                    }
+                    updateSelectedPageNumbersInputs();
+                });
                 left.appendChild(checkbox);
             }
 
-            const labelWrap = document.createElement("div");
+            const info = document.createElement("div");
+            info.className = "chapter-upload-file-meta";
 
-            const name = document.createElement("div");
-            name.className = "chapter-upload-file-name";
-            name.textContent = entry.file.name;
+            const fileName = document.createElement("div");
+            fileName.className = "chapter-upload-file-name";
+            fileName.textContent = entry.file.name;
 
-            const page = document.createElement("div");
-            page.className = "chapter-upload-file-page";
-            page.textContent = `Страница ${entry.pageNumber}`;
+            const pageNumber = document.createElement("div");
+            pageNumber.className = "chapter-upload-file-page";
+            pageNumber.textContent = `Страница ${entry.pageNumber}`;
 
-            labelWrap.append(name, page);
-            left.appendChild(labelWrap);
-
+            info.append(fileName, pageNumber);
+            left.appendChild(info);
             row.appendChild(left);
             filesList.appendChild(row);
         });
     }
 
-    function getSelectedPageNumbers() {
-        if (!autoTranslate || !autoTranslate.checked) {
-            return [];
+    function syncAutoTranslateUi() {
+        const enabled = Boolean(autoTranslateCheckbox?.checked);
+
+        if (sourceLanguageField) {
+            sourceLanguageField.classList.toggle("hidden", !enabled);
         }
 
-        return Array.from(document.querySelectorAll(".chapter-upload-page-check:checked"))
-            .map((input) => Number(input.dataset.pageNumber))
-            .filter((value) => Number.isFinite(value))
-            .sort((left, right) => left - right);
-    }
-
-    function renderPreview(payload) {
-        if (!autoPreviewGallery || !autoPreviewSection) {
-            return;
+        if (loadingBox) {
+            loadingBox.classList.add("hidden");
         }
 
-        autoPreviewGallery.innerHTML = "";
-
-        const pages = Array.isArray(payload.pages) ? payload.pages : [];
-        pages.forEach((page) => {
-            const card = document.createElement("div");
-            card.className = "chapter-auto-preview-card";
-
-            const badge = document.createElement("div");
-            badge.className = "chapter-auto-preview-badge" + (page.translated ? " is-translated" : "");
-            badge.textContent = page.translated
-                ? `Страница ${page.pageNumber} · переведена`
-                : `Страница ${page.pageNumber} · оставлена как есть`;
-
-            const image = document.createElement("img");
-            image.src = page.previewUrl;
-            image.alt = `Предпросмотр страницы ${page.pageNumber}`;
-
-            card.append(badge, image);
-            autoPreviewGallery.appendChild(card);
-        });
-
-        autoPreviewSection.classList.remove("hidden");
-
-        if (autoPreviewQuotaInfo) {
-            autoPreviewQuotaInfo.textContent =
-                `Осталось OCR.space: ${payload.remainingOcrRequests ?? "—"} · Осталось MyMemory: ${payload.remainingMyMemoryChars ?? "—"} символов.`;
-        }
-    }
-
-    function setPreviewLoading(isLoading) {
-        if (autoPreviewLoading) {
-            autoPreviewLoading.classList.toggle("hidden", !isLoading);
-        }
-
-        if (buildAutoPreviewBtn) {
-            buildAutoPreviewBtn.disabled = isLoading;
-            buildAutoPreviewBtn.textContent = isLoading ? "Подождите…" : "Построить предпросмотр";
-        }
-
-        if (submitButton) {
-            submitButton.disabled = isLoading;
-        }
+        rebuildLanguageOptions();
+        renderFilesList(false);
+        updateSelectedPageNumbersInputs();
     }
 
     function setSubmittingState(isSubmitting) {
-        if (!submitButton) {
-            return;
+        if (submitButton) {
+            submitButton.disabled = isSubmitting;
+            submitButton.textContent = isSubmitting
+                ? (autoTranslateCheckbox?.checked ? "Обработка..." : "Сохранение...")
+                : "Сохранить";
         }
 
-        submitButton.disabled = isSubmitting;
-        submitButton.textContent = isSubmitting ? "Сохранение..." : "Сохранить";
-    }
-
-    function syncChapterOptionsFromServerHtml(html) {
-        if (!chapterSelect || !html) {
-            return;
+        if (loadingBox) {
+            loadingBox.classList.toggle("hidden", !(isSubmitting && autoTranslateCheckbox?.checked));
         }
-
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const serverChapterSelect = doc.getElementById("chapterNumber");
-        if (!serverChapterSelect) {
-            return;
-        }
-
-        chapterSelect.innerHTML = serverChapterSelect.innerHTML;
-        chapterSelect.value = serverChapterSelect.value;
-    }
-
-    function extractServerError(html) {
-        if (!html) {
-            return "";
-        }
-
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const serverStatus = doc.getElementById("chapterSubmissionClientStatus");
-        if (serverStatus) {
-            return serverStatus.textContent.trim();
-        }
-
-        const fallback = doc.querySelector(".status-banner-error");
-        return fallback ? fallback.textContent.trim() : "";
     }
 
     async function loadChapterOptions() {
@@ -385,25 +361,27 @@
             const response = await fetch(
                 `${root.dataset.optionsUrl}?languageId=${encodeURIComponent(languageSelect.value)}`,
                 {
-                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
                 }
             );
 
             if (!response.ok) {
-                throw new Error("options load failed");
+                throw new Error("OPTIONS_LOAD_FAILED");
             }
 
             const data = await response.json();
-            const numbers = Array.isArray(data.chapterNumbers) ? data.chapterNumbers : [];
+            const values = Array.isArray(data.chapterNumbers) ? data.chapterNumbers : [];
             const previousValue = chapterSelect.value;
 
             chapterSelect.innerHTML = "";
 
-            numbers.forEach((number) => {
+            values.forEach((value) => {
                 const option = document.createElement("option");
-                option.value = String(number);
-                option.textContent = `Глава ${number}`;
-                if (String(number) === previousValue) {
+                option.value = String(value);
+                option.textContent = `Глава ${value}`;
+                if (String(value) === String(previousValue)) {
                     option.selected = true;
                 }
                 chapterSelect.appendChild(option);
@@ -419,19 +397,30 @@
 
     languageSearch?.addEventListener("input", async () => {
         rebuildLanguageOptions();
-        syncAutoTranslateTargetOptions();
-        clearAutoPreviewState();
         await loadChapterOptions();
     });
 
     languageSelect?.addEventListener("change", async () => {
-        clearAutoPreviewState();
-        syncAutoTranslateTargetOptions();
+        hideStatus();
+
+        if (autoTranslateCheckbox?.checked && !ensureDifferentLanguages(false)) {
+            return;
+        }
+
         await loadChapterOptions();
     });
 
-    chapterSelect?.addEventListener("change", clearAutoPreviewState);
-    sourceLanguageSelect?.addEventListener("change", clearAutoPreviewState);
+    sourceLanguageSelect?.addEventListener("change", async () => {
+        hideStatus();
+
+        if (autoTranslateCheckbox?.checked && !ensureDifferentLanguages(false)) {
+            return;
+        }
+
+        await loadChapterOptions();
+    });
+
+    chapterSelect?.addEventListener("change", hideStatus);
 
     titleInput?.addEventListener("input", () => {
         titleInput.value = limitOnly(titleInput.value, LIMITS.title);
@@ -441,154 +430,80 @@
         titleInput.value = trimAndLimit(titleInput.value, LIMITS.title);
     });
 
-    fileInput?.addEventListener("change", renderFilesList);
-
-    autoTranslate?.addEventListener("change", () => {
-        syncAutoTranslateUi();
-        renderFilesList();
-    });
-
-    buildAutoPreviewBtn?.addEventListener("click", async () => {
+    fileInput?.addEventListener("change", () => {
         hideStatus();
-
-        if (!autoTranslate || !autoTranslate.checked) {
-            showStatus("Сначала включите автоматический перевод.");
-            return;
-        }
-
-        if (!languageSelect?.value) {
-            showStatus("Выберите язык перевода.");
-            return;
-        }
-
-        if (!sourceLanguageSelect?.value) {
-            showStatus("Выберите язык исходного текста.");
-            return;
-        }
-
-        const validation = validateFiles(fileInput?.files);
-        if (!validation.ok) {
-            showStatus(validation.message);
-            return;
-        }
-
-        const selectedPageNumbers = getSelectedPageNumbers();
-        if (!selectedPageNumbers.length) {
-            showStatus("Отметьте хотя бы одну страницу для автоматического перевода.");
-            return;
-        }
-
-        const previewUrl = root.dataset.previewUrl;
-        if (!previewUrl) {
-            showStatus("Не найден адрес предпросмотра автоматического перевода.");
-            return;
-        }
-
-        setPreviewLoading(true);
-        clearAutoPreviewState();
-
-        try {
-            const formData = new FormData(form);
-            formData.delete("selectedPageNumbers");
-            selectedPageNumbers.forEach((value) => formData.append("selectedPageNumbers", String(value)));
-
-            const response = await fetch(previewUrl, {
-                method: "POST",
-                headers: { "X-Requested-With": "XMLHttpRequest" },
-                body: formData
-            });
-
-            const payload = await response.json();
-
-            if (!response.ok || !payload?.success) {
-                throw new Error(payload?.message || "Не удалось построить предпросмотр автоматического перевода.");
-            }
-
-            if (autoPreviewTokenInput) {
-                autoPreviewTokenInput.value = payload.previewToken || "";
-            }
-
-            renderPreview(payload);
-        } catch (error) {
-            showStatus(error.message || "Не удалось построить предпросмотр автоматического перевода.");
-        } finally {
-            setPreviewLoading(false);
-        }
+        renderFilesList(true);
     });
 
-    form?.addEventListener("submit", async (event) => {
-        event.preventDefault();
+    autoTranslateCheckbox?.addEventListener("change", () => {
+        hideStatus();
+        syncAutoTranslateUi();
+    });
+
+    form?.addEventListener("submit", (event) => {
         hideStatus();
 
         if (titleInput) {
             titleInput.value = trimAndLimit(titleInput.value, LIMITS.title);
             if (!titleInput.value) {
+                event.preventDefault();
                 showStatus("Введите название перевода.");
                 return;
             }
         }
 
-        if (!languageSelect || !languageSelect.value) {
+        if (!languageSelect?.value) {
+            event.preventDefault();
             showStatus("Выберите язык перевода.");
             return;
         }
 
-        if (autoTranslate?.checked) {
+        const validation = validateFiles(fileInput?.files, false);
+        if (!validation.ok) {
+            event.preventDefault();
+            showStatus(validation.message);
+            renderFilesList(true);
+            return;
+        }
+
+        if (autoTranslateCheckbox?.checked) {
+            const selectedOption = languageSelect.options[languageSelect.selectedIndex];
+            if (!selectedOption || selectedOption.dataset.autoTranslateSupported !== "true") {
+                event.preventDefault();
+                showStatus("Для автоматического перевода можно выбрать только язык с заполненным кодом перевода.");
+                return;
+            }
+
             if (!sourceLanguageSelect?.value) {
+                event.preventDefault();
                 showStatus("Выберите язык исходного текста.");
                 return;
             }
 
-            if (!autoPreviewTokenInput?.value) {
-                showStatus("Сначала выполните предпросмотр автоматического перевода.");
+            if (!ensureDifferentLanguages(false)) {
+                event.preventDefault();
+                return;
+            }
+
+            if (selectedPages.size === 0) {
+                event.preventDefault();
+                showStatus("Отметьте хотя бы одну страницу для автоматического перевода.");
                 return;
             }
         } else {
-            const validation = validateFiles(fileInput?.files);
-            if (!validation.ok) {
-                showStatus(validation.message);
-                return;
-            }
+            selectedPages.clear();
         }
 
+        updateSelectedPageNumbersInputs();
         setSubmittingState(true);
+    });
 
-        try {
-            const response = await fetch(form.action, {
-                method: "POST",
-                body: new FormData(form),
-                headers: { "X-Requested-With": "XMLHttpRequest" }
-            });
-
-            if (response.redirected) {
-                window.location.assign(response.url);
-                return;
-            }
-
-            const html = await response.text();
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            syncChapterOptionsFromServerHtml(html);
-
-            const serverError = extractServerError(html);
-            if (serverError) {
-                showStatus(serverError);
-                return;
-            }
-
-            window.location.reload();
-        } catch (_) {
-            showStatus("Не удалось сохранить перевод. Попробуйте ещё раз.");
-        } finally {
-            setSubmittingState(false);
-        }
+    window.addEventListener("pageshow", () => {
+        setSubmittingState(false);
     });
 
     rebuildLanguageOptions();
+    renderFilesList(false);
     loadChapterOptions();
     syncAutoTranslateUi();
-    renderFilesList();
 })();

@@ -521,6 +521,10 @@
 }
 
 @media (max-width: 900px) {
+    .chapter-upload-field-checkbox {
+        align-items: stretch;
+    }
+
     .admin-page-card {
         grid-template-columns: 1fr;
     }
@@ -585,29 +589,149 @@
     gap: 14px;
 }
 
-.chapter-auto-preview-actions {
-    display: flex;
+.chapter-upload-check {
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
+    gap: 10px;
+    cursor: pointer;
+    width: fit-content;
 }
 
-.chapter-upload-file-entry {
+.chapter-upload-checkbox {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chapter-upload-field-checkbox {
     display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    min-height: 46px;
+}
+
+.chapter-upload-checkbox {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
-    justify-content: space-between;
-    padding: 10px 12px;
+    gap: 10px;
+    cursor: pointer;
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: var(--card);
+    background: var(--bg);
+    color: var(--text);
+    box-sizing: border-box;
+    line-height: 1.4;
+}
+
+.chapter-upload-checkbox:hover {
+    border-color: var(--accent);
+}
+
+.chapter-upload-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex: 0 0 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chapter-upload-checkbox span {
+    display: block;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.chapter-upload-files-list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 6px;
     box-sizing: border-box;
 }
 
-.chapter-upload-file-left {
+.chapter-upload-files-list.chapter-upload-files-empty {
+    max-height: none;
+    overflow: hidden;
+}
+
+.chapter-upload-files-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chapter-upload-files-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+
+.chapter-auto-settings {
     display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.chapter-upload-toggle {
+    display: inline-flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    line-height: 1.4;
+}
+
+.chapter-upload-toggle:hover {
+    border-color: var(--accent);
+}
+
+.chapter-upload-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex: 0 0 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chapter-auto-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg);
+    box-sizing: border-box;
+}
+
+.chapter-upload-file-entry.is-selectable {
+    align-items: center;
+}
+
+.chapter-upload-file-checkbox {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex: 0 0 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.chapter-upload-file-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     min-width: 0;
 }
 
@@ -620,111 +744,12 @@
     white-space: nowrap;
 }
 
-.chapter-upload-page-check {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-    cursor: pointer;
-}
-
-.chapter-auto-loading {
-    margin-top: 16px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--card);
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.chapter-auto-spinner {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 3px solid rgba(127, 127, 127, 0.25);
-    border-top-color: var(--accent);
-    animation: chapter-auto-spin 0.8s linear infinite;
-    flex: 0 0 auto;
-}
-
-.chapter-auto-loading-text {
-    line-height: 1.45;
-}
-
-.chapter-auto-preview {
-    margin-top: 18px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--card);
-}
-
-.chapter-auto-preview-grid {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-}
-
-.chapter-auto-preview-card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.chapter-auto-preview-card img {
-    width: 100%;
-    display: block;
-    border-radius: 12px;
-    background: var(--bg);
-}
-
-.chapter-auto-preview-badge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    font-size: 13px;
-}
-
-.chapter-auto-preview-badge.is-translated {
-    border-color: var(--accent);
-}
-
-@keyframes chapter-auto-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.hidden {
-    display: none !important;
-}
-
 @media (max-width: 640px) {
-    .chapter-auto-preview-actions {
-        flex-direction: column;
+    .chapter-upload-files-list {
+        max-height: 260px;
+    }
+
+    .chapter-upload-file-entry.is-selectable {
         align-items: stretch;
-    }
-
-    .chapter-auto-preview-actions .btn {
-        width: 100%;
-    }
-
-    .chapter-upload-file-entry {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    .chapter-upload-file-left {
-        align-items: flex-start;
     }
 }

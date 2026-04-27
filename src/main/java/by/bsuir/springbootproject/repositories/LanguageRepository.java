@@ -11,8 +11,7 @@ public interface LanguageRepository extends JpaRepository<Language, Integer> {
 
     List<Language> findAllByOrderByNameAsc();
 
-    List<Language> findAllByMymemoryCodeIsNotNullOrderByNameAsc();
+    List<Language> findAllByTranslationCodeIsNotNullOrderByNameAsc();
 
-    List<Language> findAllByOcrSpaceCodeIsNotNullAndMymemoryCodeIsNotNullOrderByNameAsc();
-
+    List<Language> findAllByOcrSpaceCodeIsNotNullAndTranslationCodeIsNotNullOrderByNameAsc();
 }

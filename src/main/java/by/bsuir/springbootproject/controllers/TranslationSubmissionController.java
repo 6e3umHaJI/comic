@@ -2,7 +2,6 @@ package by.bsuir.springbootproject.controllers;
 
 import by.bsuir.springbootproject.dto.TranslationSubmissionForm;
 import by.bsuir.springbootproject.entities.User;
-import by.bsuir.springbootproject.services.AutoTranslationService;
 import by.bsuir.springbootproject.services.TranslationSubmissionService;
 import by.bsuir.springbootproject.utils.SecurityContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +27,6 @@ import java.util.Map;
 public class TranslationSubmissionController {
 
     private final TranslationSubmissionService translationSubmissionService;
-    private final AutoTranslationService autoTranslationService;
     private final SecurityContextUtils securityContextUtils;
 
     @GetMapping("/comics/{comicId}/chapters/new")
@@ -61,11 +59,14 @@ public class TranslationSubmissionController {
     public ModelAndView submit(@PathVariable Integer comicId,
                                @ModelAttribute("form") TranslationSubmissionForm form,
                                @RequestParam(value = "pageFiles", required = false) MultipartFile[] pageFiles,
+                               @RequestParam(value = "selectedPageNumbers", required = false) List<Integer> selectedPageNumbers,
                                RedirectAttributes redirectAttributes) {
         User user = securityContextUtils.getUserFromContext().orElse(null);
         if (user == null) {
             return new ModelAndView("redirect:/auth/login");
         }
+
+        form.setSelectedPageNumbers(selectedPageNumbers);
 
         try {
             Integer translationId = translationSubmissionService.submit(comicId, user, form, pageFiles);
@@ -73,52 +74,6 @@ public class TranslationSubmissionController {
             return new ModelAndView("redirect:/translations/" + translationId + "/preview");
         } catch (IllegalArgumentException | IllegalStateException e) {
             return translationSubmissionService.getCreatePage(comicId, user, form, e.getMessage());
-        }
-    }
-
-    @PostMapping("/admin/comics/{comicId}/chapters/auto-translate/preview")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> buildAutoTranslationPreview(@PathVariable Integer comicId,
-                                                                           @ModelAttribute("form") TranslationSubmissionForm form,
-                                                                           @RequestParam(value = "pageFiles", required = false) MultipartFile[] pageFiles,
-                                                                           @RequestParam(value = "selectedPageNumbers", required = false) List<Integer> selectedPageNumbers,
-                                                                           HttpServletRequest request) {
-        User user = securityContextUtils.getUserFromContext().orElse(null);
-
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "success", false,
-                    "message", "Авторизуйтесь, чтобы использовать автоматический перевод."
-            ));
-        }
-
-        if (!isAdmin(user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "success", false,
-                    "message", "Автоматический перевод доступен только администрации."
-            ));
-        }
-
-        try {
-            Map<String, Object> result = autoTranslationService.buildPreview(
-                    comicId,
-                    user,
-                    form,
-                    pageFiles,
-                    selectedPageNumbers,
-                    request.getContextPath()
-            );
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
-            ));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
-            ));
         }
     }
 

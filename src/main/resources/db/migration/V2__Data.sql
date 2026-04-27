@@ -50,7 +50,7 @@ INSERT INTO translation_types (name) VALUES
                                          ('Любительский'),
                                          ('Автоматический');
 
-INSERT INTO languages (name, ocr_space_code, mymemory_code) VALUES
+INSERT INTO languages (name, ocr_space_code, translation_code) VALUES
                                  ('Русский', 'rus', 'ru'),
                                  ('Английский', 'eng', 'en'),
                                  ('Корейский', NULL, NULL),
