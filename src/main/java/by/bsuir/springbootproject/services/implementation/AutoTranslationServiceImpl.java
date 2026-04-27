@@ -63,15 +63,26 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.net.URI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.translate.v3.LocationName;
+import com.google.cloud.translate.v3.TranslateTextRequest;
+import com.google.cloud.translate.v3.TranslateTextResponse;
+import com.google.cloud.translate.v3.TranslationServiceClient;
+
+
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AutoTranslationServiceImpl implements AutoTranslationService {
+    private static final Logger log = LoggerFactory.getLogger(AutoTranslationServiceImpl.class);
 
 
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String OCR_PROVIDER = "OCR_SPACE";
-    private static final String MYMEMORY_PROVIDER = "MYMEMORY";
+    private static final String GOOGLE_TRANSLATE_PROVIDER = "GOOGLE_CLOUD_TRANSLATE";
 
     private static final int MAX_PAGE_COUNT = 200;
     private static final long MAX_FILE_SIZE_BYTES = 1024L * 1024L;
@@ -134,17 +145,23 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     @Value("${ocrspace.api.key:}")
     private String ocrApiKey;
 
-    @Value("${mymemory.email:}")
-    private String myMemoryEmail;
-
     @Value("${ocrspace.monthly-request-limit:25000}")
     private int ocrMonthlyRequestLimit;
 
-    @Value("${mymemory.monthly-char-limit:50000}")
-    private int myMemoryMonthlyCharLimit;
+    @Value("${gcp.translation.project-id:}")
+    private String gcpTranslationProjectId;
 
-    @Value("${mymemory.estimated-chars-per-page:3500}")
-    private int myMemoryEstimatedCharsPerPage;
+    @Value("${gcp.translation.location:global}")
+    private String gcpTranslationLocation;
+
+    @Value("${gcp.translation.monthly-char-limit:500000}")
+    private int gcpTranslationMonthlyCharLimit;
+
+    @Value("${gcp.translation.estimated-chars-per-page:3500}")
+    private int gcpTranslationEstimatedCharsPerPage;
+
+    @Value("${autotranslation.debug:false}")
+    private boolean autoTranslationDebug;
 
     @Override
     public Map<String, Object> buildPreview(Integer comicId,
@@ -183,10 +200,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             );
         }
 
-        int estimatedChars = selectedPages.size() * Math.max(1, myMemoryEstimatedCharsPerPage);
+        int estimatedChars = selectedPages.size() * Math.max(1, gcpTranslationEstimatedCharsPerPage);
         if (estimatedChars > beforeUsage.remainingMyMemoryChars()) {
             throw new IllegalStateException(
-                    "На MyMemory, скорее всего, не хватит символов для перевода выбранных страниц. Нужно примерно: "
+                    "На Google Cloud Translation, скорее всего, не хватит символов для перевода выбранных страниц. Нужно примерно: "
                             + estimatedChars
                             + ", доступно: " + beforeUsage.remainingMyMemoryChars() + "."
             );
@@ -383,7 +400,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                             Path resultPath,
                                             Language sourceLanguage,
                                             Language targetLanguage,
-                                            int remainingMyMemoryChars) {
+                                            int remainingGoogleChars) {
         BufferedImage originalImage = readImage(sourcePath);
 
         List<OcrWord> ocrWords = runOcr(sourcePath, sourceLanguage);
@@ -411,30 +428,26 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .mapToInt(String::length)
                 .sum();
 
-        if (sourceCharsUsed > remainingMyMemoryChars) {
+        if (sourceCharsUsed > remainingGoogleChars) {
             throw new IllegalStateException(
-                    "После OCR выяснилось, что на MyMemory не хватает символов для перевода. "
-                            + "Для текущих страниц доступно: " + remainingMyMemoryChars
+                    "После OCR выяснилось, что на Google Cloud Translation не хватает лимита символов. "
+                            + "Для текущих страниц доступно: " + remainingGoogleChars
                             + ", нужно: " + sourceCharsUsed + "."
             );
         }
 
-        List<String> translatedTexts = new ArrayList<>();
-        for (PhraseBox phrase : phrases) {
-            translatedTexts.add(
-                    translateWithMyMemory(
-                            phrase.translationText(),
-                            sourceLanguage,
-                            targetLanguage
-                    )
-            );
-        }
+        List<String> translatedTexts = translateWithGoogleCloud(
+                phrases.stream().map(PhraseBox::translationText).toList(),
+                sourceLanguage,
+                targetLanguage
+        );
 
         BufferedImage rendered = renderTranslatedTexts(erasedImage, phrases, translatedTexts);
         writeImage(rendered, resultPath);
 
         return new TranslationResult(sourceCharsUsed);
     }
+
 
     private List<OcrWord> runOcr(Path imagePath, Language sourceLanguage) {
         String apiKey = requireConfiguredOcrApiKey();
@@ -519,91 +532,139 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
-    private String translateWithMyMemory(String text,
-                                         Language sourceLanguage,
-                                         Language targetLanguage) {
-        String normalized = cleanPhraseText(text);
-
-
-        if (!StringUtils.hasText(normalized)) {
-            return "";
+    private List<String> translateWithGoogleCloud(List<String> texts,
+                                                  Language sourceLanguage,
+                                                  Language targetLanguage) {
+        if (texts == null || texts.isEmpty()) {
+            return List.of();
         }
 
+        List<String> normalizedTexts = texts.stream()
+                .map(this::cleanPhraseText)
+                .toList();
 
-        String sourceCode = stringValue(sourceLanguage.getMymemoryCode()).trim().toLowerCase(Locale.ROOT);
-        String targetCode = stringValue(targetLanguage.getMymemoryCode()).trim().toLowerCase(Locale.ROOT);
+        List<Integer> indexesToTranslate = new ArrayList<>();
+        List<String> contents = new ArrayList<>();
+        List<String> result = new ArrayList<>(Collections.nCopies(texts.size(), ""));
 
+        for (int i = 0; i < normalizedTexts.size(); i++) {
+            String normalized = normalizedTexts.get(i);
+            if (StringUtils.hasText(normalized)) {
+                indexesToTranslate.add(i);
+                contents.add(normalized);
+            }
+        }
 
-        if (!sourceCode.matches("^[a-z]{2}(-[a-z]{2})?$") || !targetCode.matches("^[a-z]{2}(-[a-z]{2})?$")) {
-            throw new ExternalApiException(
-                    "Для MyMemory указана некорректная языковая пара: " + sourceCode + "|" + targetCode + "."
+        if (contents.isEmpty()) {
+            return result;
+        }
+
+        String projectId = requireConfiguredGoogleProjectId();
+        String location = requireConfiguredGoogleLocation();
+        String sourceCode = normalizeTranslationLanguageCode(sourceLanguage.getMymemoryCode(), "исходного текста");
+        String targetCode = normalizeTranslationLanguageCode(targetLanguage.getMymemoryCode(), "перевода");
+        String parent = LocationName.of(projectId, location).toString();
+
+        try (TranslationServiceClient client = TranslationServiceClient.create()) {
+            TranslateTextRequest request = TranslateTextRequest.newBuilder()
+                    .setParent(parent)
+                    .setMimeType("text/plain")
+                    .setSourceLanguageCode(sourceCode)
+                    .setTargetLanguageCode(targetCode)
+                    .addAllContents(contents)
+                    .build();
+
+            TranslateTextResponse response = client.translateText(request);
+            List<com.google.cloud.translate.v3.Translation> googleTranslations = response.getTranslationsList();
+
+            if (googleTranslations.size() != contents.size()) {
+                throw new ExternalApiException("Google Cloud Translation вернул неполный список переводов.");
+            }
+
+            for (int i = 0; i < googleTranslations.size(); i++) {
+                String translated = stringValue(googleTranslations.get(i).getTranslatedText()).trim();
+
+                if (!StringUtils.hasText(translated)) {
+                    throw new ExternalApiException("Google Cloud Translation вернул пустой перевод.");
+                }
+
+                String finalTranslated = HtmlUtils.htmlUnescape(translated).trim();
+                int originalIndex = indexesToTranslate.get(i);
+                result.set(originalIndex, finalTranslated);
+
+                debugTranslation(
+                        sourceLanguage,
+                        targetLanguage,
+                        texts.get(originalIndex),
+                        normalizedTexts.get(originalIndex),
+                        finalTranslated
+                );
+            }
+
+            return result;
+        } catch (ApiException e) {
+            String errorMessage = StringUtils.hasText(e.getMessage())
+                    ? e.getMessage()
+                    : String.valueOf(e.getStatusCode());
+
+            debugTranslationError(
+                    sourceLanguage,
+                    targetLanguage,
+                    String.join(" || ", texts),
+                    String.join(" || ", normalizedTexts),
+                    errorMessage
             );
-        }
 
+            throw new ExternalApiException("Google Cloud Translation вернул ошибку: " + errorMessage);
+        } catch (IOException e) {
+            debugTranslationError(
+                    sourceLanguage,
+                    targetLanguage,
+                    String.join(" || ", texts),
+                    String.join(" || ", normalizedTexts),
+                    "Не удалось создать клиент Google Cloud Translation."
+            );
 
-        RestTemplate restTemplate = new RestTemplate();
-
-
-        try {
-            UriComponentsBuilder builder = UriComponentsBuilder
-                    .fromHttpUrl("https://api.mymemory.translated.net/get")
-                    .queryParam("q", normalized)
-                    .queryParam("langpair", sourceCode + "|" + targetCode);
-
-
-            if (StringUtils.hasText(myMemoryEmail)) {
-                builder.queryParam("de", myMemoryEmail.trim());
-            }
-
-
-            URI uri = builder.build().encode().toUri();
-
-
-            ResponseEntity<Map> response = restTemplate.getForEntity(uri, Map.class);
-            Map<?, ?> payload = response.getBody();
-
-
-            if (payload == null) {
-                throw new ExternalApiException("MyMemory не вернул ответ.");
-            }
-
-
-            String responseStatus = stringValue(payload.get("responseStatus")).trim();
-            String responseDetails = stringValue(payload.get("responseDetails")).trim();
-
-
-            if (StringUtils.hasText(responseStatus) && !"200".equals(responseStatus)) {
-                throw new ExternalApiException(
-                        StringUtils.hasText(responseDetails)
-                                ? "MyMemory: " + responseDetails
-                                : "MyMemory вернул ошибку перевода."
-                );
-            }
-
-
-            Map<String, Object> responseData = castMap(payload.get("responseData"));
-            String translated = stringValue(responseData.get("translatedText")).trim();
-
-
-            if (!StringUtils.hasText(translated)) {
-                throw new ExternalApiException("MyMemory не вернул текст перевода.");
-            }
-
-
-            if (translated.toLowerCase(Locale.ROOT).contains("invalid language pair specified")) {
-                throw new ExternalApiException(
-                        "MyMemory: INVALID LANGUAGE PAIR SPECIFIED для " + sourceCode + "|" + targetCode + "."
-                );
-            }
-
-
-            return HtmlUtils.htmlUnescape(translated).trim().toUpperCase(Locale.ROOT);
+            throw new ExternalApiException("Не удалось создать клиент Google Cloud Translation.");
         } catch (ExternalApiException e) {
             throw e;
         } catch (Exception e) {
-            throw new ExternalApiException("Не удалось получить ответ от MyMemory.");
+            debugTranslationError(
+                    sourceLanguage,
+                    targetLanguage,
+                    String.join(" || ", texts),
+                    String.join(" || ", normalizedTexts),
+                    StringUtils.hasText(e.getMessage()) ? e.getMessage() : "Неизвестная ошибка"
+            );
+
+            throw new ExternalApiException("Не удалось получить ответ от Google Cloud Translation.");
         }
     }
+
+
+    private String requireConfiguredGoogleProjectId() {
+        if (!StringUtils.hasText(gcpTranslationProjectId)) {
+            throw new IllegalStateException("Не задан gcp.translation.project-id для автоматического перевода.");
+        }
+        return gcpTranslationProjectId.trim();
+    }
+
+    private String requireConfiguredGoogleLocation() {
+        String location = stringValue(gcpTranslationLocation).trim().toLowerCase(Locale.ROOT);
+        if (!StringUtils.hasText(location)) {
+            return "global";
+        }
+        return location;
+    }
+
+    private String normalizeTranslationLanguageCode(String rawCode, String label) {
+        String code = stringValue(rawCode).trim().toLowerCase(Locale.ROOT);
+        if (!code.matches("^[a-z]{2}(-[a-z]{2})?$")) {
+            throw new IllegalStateException("Для языка " + label + " не настроен корректный код перевода.");
+        }
+        return code;
+    }
+
 
     private List<WordBox> filterBoxesForSourceLanguage(List<OcrWord> words, Language sourceLanguage) {
         List<WordBox> allBoxes = new ArrayList<>();
@@ -633,6 +694,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .toList();
 
         if (sourceBoxes.isEmpty()) {
+            debugWordFiltering(allBoxes, List.of(), sourceBoxes, sourceLanguage);
             return List.of();
         }
 
@@ -649,6 +711,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         filtered.sort(Comparator.comparingInt(WordBox::top).thenComparingInt(WordBox::left));
+        debugWordFiltering(allBoxes, filtered, sourceBoxes, sourceLanguage);
         return filtered;
     }
 
@@ -658,9 +721,9 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         List<LineGroup> rawLines = groupRawLines(boxes);
+        debugRawLines(rawLines);
+
         List<Segment> segments = new ArrayList<>();
-        double medianHeight = medianHeight(boxes);
-        double maxLineGap = Math.max(18.0, medianHeight * 2.1);
 
         for (int lineNo = 0; lineNo < rawLines.size(); lineNo++) {
             List<List<WordBox>> splitSegments = splitLineByAdaptiveGaps(rawLines.get(lineNo).items());
@@ -671,6 +734,8 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+        debugSegments(segments);
+
         if (segments.isEmpty()) {
             return List.of();
         }
@@ -679,34 +744,40 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
         for (int i = 0; i < segments.size(); i++) {
             Segment a = segments.get(i);
-            Rectangle rectA = a.rect();
 
             for (int j = i + 1; j < segments.size(); j++) {
                 Segment b = segments.get(j);
-                Rectangle rectB = b.rect();
 
                 if (a.lineNo() == b.lineNo()) {
                     continue;
                 }
 
-                double currentVerticalGap = verticalGap(rectA, rectB);
-                if (currentVerticalGap > maxLineGap) {
+                double fontHeightA = localMedianHeight(a.items());
+                double fontHeightB = localMedianHeight(b.items());
+
+                if (!isFontSizeCompatibleForVerticalMerge(fontHeightA, fontHeightB)) {
                     continue;
                 }
 
-                double overlapRatio = xOverlapRatio(rectA, rectB);
-                int horizontalDistance = horizontalGap(rectA, rectB);
-                double centerDistance = Math.abs(centerX(rectA) - centerX(rectB));
+                double currentVerticalGap = verticalGap(a.rect(), b.rect());
+                double maxAllowedVerticalGap = Math.min(fontHeightA, fontHeightB) * 1.6;
 
-                boolean centerClose = centerDistance <= Math.max(
-                        medianHeight * 2.0,
-                        Math.max(rectA.width, rectB.width) * 0.35
-                );
+                if (currentVerticalGap > maxAllowedVerticalGap) {
+                    continue;
+                }
 
-                boolean shouldMerge = overlapRatio >= 0.22
-                        || (centerClose && horizontalDistance <= medianHeight * 1.25);
+                double overlapRatio = xOverlapRatio(a.rect(), b.rect());
+                double centerDistance = Math.abs(centerX(a.rect()) - centerX(b.rect()));
+                double localFontHeight = (fontHeightA + fontHeightB) / 2.0;
 
-                if (shouldMerge) {
+                boolean horizontallyAligned =
+                        overlapRatio >= 0.18
+                                || centerDistance <= Math.max(
+                                localFontHeight * 1.5,
+                                Math.max(a.rect().width, b.rect().width) * 0.22
+                        );
+
+                if (horizontallyAligned) {
                     dsu.union(i, j);
                 }
             }
@@ -722,50 +793,70 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         for (List<Segment> group : grouped.values()) {
             group.sort(Comparator.comparingInt((Segment s) -> s.rect().y).thenComparingInt(s -> s.rect().x));
 
-            List<String> normalizedLines = new ArrayList<>();
+            List<String> lineTexts = new ArrayList<>();
             int left = Integer.MAX_VALUE;
             int top = Integer.MAX_VALUE;
             int right = Integer.MIN_VALUE;
             int bottom = Integer.MIN_VALUE;
 
             for (Segment segment : group) {
-                String lineText = joinTokensPreservingPunctuation(
+                String text = joinTokensPreservingPunctuation(
                         segment.items().stream().map(WordBox::text).toList()
                 );
-                lineText = cleanPhraseText(lineText);
 
-                if (StringUtils.hasText(lineText)) {
-                    normalizedLines.add(lineText);
+                if (StringUtils.hasText(text)) {
+                    lineTexts.add(text);
                 }
 
-                Rectangle rect = segment.rect();
-                left = Math.min(left, rect.x);
-                top = Math.min(top, rect.y);
-                right = Math.max(right, rect.x + rect.width);
-                bottom = Math.max(bottom, rect.y + rect.height);
+                left = Math.min(left, segment.rect().x);
+                top = Math.min(top, segment.rect().y);
+                right = Math.max(right, segment.rect().x + segment.rect().width);
+                bottom = Math.max(bottom, segment.rect().y + segment.rect().height);
             }
 
-            String translationText = cleanPhraseText(String.join("\n", normalizedLines));
+            String joined = String.join("\n", lineTexts);
+            String translationText = cleanPhraseText(joined);
+
             if (!StringUtils.hasText(translationText)) {
                 continue;
             }
 
-            phrases.add(
-                    new PhraseBox(
-                            new Rectangle(
-                                    left - PHRASE_BOX_PADDING_X,
-                                    top - PHRASE_BOX_PADDING_Y,
-                                    Math.max(1, (right - left) + PHRASE_BOX_PADDING_X * 2),
-                                    Math.max(1, (bottom - top) + PHRASE_BOX_PADDING_Y * 2)
-                            ),
-                            translationText
-                    )
+            Rectangle phraseRect = new Rectangle(
+                    Math.max(0, left - TEXT_PADDING_X),
+                    Math.max(0, top - TEXT_PADDING_Y),
+                    Math.max(1, (right - left) + TEXT_PADDING_X * 2),
+                    Math.max(1, (bottom - top) + TEXT_PADDING_Y * 2)
             );
+
+            phrases.add(new PhraseBox(phraseRect, translationText));
+            debugPhraseGroup(group, joined, translationText, phraseRect);
         }
 
         phrases.sort(Comparator.comparingInt((PhraseBox p) -> p.rect().y).thenComparingInt(p -> p.rect().x));
         return phrases;
     }
+
+    private double localMedianHeight(List<WordBox> items) {
+        if (items == null || items.isEmpty()) {
+            return 18.0;
+        }
+
+        List<Integer> heights = items.stream()
+                .map(WordBox::height)
+                .sorted()
+                .toList();
+
+        return median(heights);
+    }
+
+    private boolean isFontSizeCompatibleForVerticalMerge(double fontHeightA, double fontHeightB) {
+        double min = Math.max(1.0, Math.min(fontHeightA, fontHeightB));
+        double max = Math.max(fontHeightA, fontHeightB);
+        double ratio = max / min;
+
+        return ratio <= 1.35;
+    }
+
 
     private BufferedImage eraseText(BufferedImage source, List<Rectangle> eraseRects) {
         BufferedImage result = new BufferedImage(
@@ -1185,11 +1276,12 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .toList();
 
         if (sorted.size() <= 1) {
+            debugLineSplit(sorted, 0.0, List.of(sorted));
             return List.of(sorted);
         }
 
-        List<Integer> allGaps = new ArrayList<>();
         List<Integer> wordGaps = new ArrayList<>();
+        List<Integer> allGaps = new ArrayList<>();
 
         for (int i = 0; i < sorted.size() - 1; i++) {
             WordBox left = sorted.get(i);
@@ -1201,40 +1293,19 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
 
             allGaps.add(gap);
-
             if (!left.separator() && !right.separator()) {
                 wordGaps.add(gap);
             }
         }
 
-        double medianHeight = medianHeight(sorted);
-        double normalGap;
+        double medianHeight = averageHeight(sorted);
+        double normalGap = median(wordGaps.isEmpty() ? allGaps : wordGaps);
 
-        if (wordGaps.size() >= 2) {
-            normalGap = median(wordGaps);
-        } else if (allGaps.size() >= 2) {
-            normalGap = median(allGaps);
-        } else {
+        if (normalGap <= 0) {
             normalGap = medianHeight * 0.55;
         }
 
-        double baseThreshold = Math.max(
-                22.0,
-                Math.max(medianHeight * 2.1, normalGap * 3.2)
-        );
-
-        List<Integer> gapsForIqr = wordGaps.size() >= 4 ? wordGaps : allGaps;
-        double splitThreshold;
-
-        if (gapsForIqr.size() >= 4) {
-            double q1 = percentile(gapsForIqr, 25.0);
-            double q3 = percentile(gapsForIqr, 75.0);
-            double iqr = Math.max(0.0, q3 - q1);
-            double outlierThreshold = q3 + Math.max(iqr * 1.5, medianHeight * 0.9);
-            splitThreshold = Math.min(baseThreshold, Math.max(outlierThreshold, medianHeight * 1.7));
-        } else {
-            splitThreshold = baseThreshold;
-        }
+        double splitThreshold = Math.max(22.0, Math.max(medianHeight * 2.1, normalGap * 3.2));
 
         List<List<WordBox>> result = new ArrayList<>();
         List<WordBox> current = new ArrayList<>();
@@ -1245,10 +1316,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             WordBox right = sorted.get(i + 1);
             int gap = horizontalGap(left.toRect(), right.toRect());
 
-            boolean splitHere = !left.separator()
-                    && !right.separator()
-                    && gap > splitThreshold;
-
+            boolean splitHere = !left.separator() && !right.separator() && gap > splitThreshold;
             if (splitHere) {
                 result.add(new ArrayList<>(current));
                 current.clear();
@@ -1261,8 +1329,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             result.add(current);
         }
 
+        debugLineSplit(sorted, splitThreshold, result);
         return result;
     }
+
 
 
     private Rectangle toExpandedRectangle(WordBox box) {
@@ -1325,23 +1395,13 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
     private void validateLanguageCodes(Language sourceLanguage, Language targetLanguage) {
         String sourceOcrCode = stringValue(sourceLanguage.getOcrSpaceCode()).trim().toLowerCase(Locale.ROOT);
-        String sourceMyMemoryCode = stringValue(sourceLanguage.getMymemoryCode()).trim().toLowerCase(Locale.ROOT);
-        String targetMyMemoryCode = stringValue(targetLanguage.getMymemoryCode()).trim().toLowerCase(Locale.ROOT);
-
 
         if (!StringUtils.hasText(sourceOcrCode)) {
             throw new IllegalStateException("Для языка исходного текста не настроен код OCR.space.");
         }
 
-
-        if (!sourceMyMemoryCode.matches("^[a-z]{2}(-[a-z]{2})?$")) {
-            throw new IllegalStateException("Для языка исходного текста не настроен корректный код MyMemory.");
-        }
-
-
-        if (!targetMyMemoryCode.matches("^[a-z]{2}(-[a-z]{2})?$")) {
-            throw new IllegalStateException("Для языка перевода не настроен корректный код MyMemory.");
-        }
+        normalizeTranslationLanguageCode(sourceLanguage.getMymemoryCode(), "исходного текста");
+        normalizeTranslationLanguageCode(targetLanguage.getMymemoryCode(), "перевода");
     }
 
     private Set<Integer> normalizeSelectedPages(List<Integer> selectedPageNumbers,
@@ -1541,6 +1601,222 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return builder.toString();
     }
 
+    private void debugWordFiltering(List<WordBox> allBoxes,
+                                    List<WordBox> filtered,
+                                    List<WordBox> sourceBoxes,
+                                    Language sourceLanguage) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        Set<String> filteredIds = filtered.stream()
+                .map(this::boxDebugId)
+                .collect(Collectors.toSet());
+
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== FILTER WORDS START =====");
+        log.info("[AUTO_TRANSLATION_DEBUG] source language = {} | source boxes found = {} | selected boxes = {}",
+                stringValue(sourceLanguage.getName()),
+                sourceBoxes.size(),
+                filtered.size());
+
+        for (WordBox box : allBoxes) {
+            boolean selected = filteredIds.contains(boxDebugId(box));
+            String rawText = stringValue(box.rawText()).trim();
+            String normalizedText = stringValue(box.text()).trim();
+
+            String reason;
+            if (selected && box.sourceWord()) {
+                reason = rawText.equals(normalizedText)
+                        ? "SOURCE_LANGUAGE_TOKEN_SELECTED"
+                        : "SOURCE_LANGUAGE_TOKEN_SELECTED_AFTER_NORMALIZATION";
+            } else if (selected) {
+                reason = "SEPARATOR_SELECTED_NEAR_SOURCE";
+            } else if (box.separator()) {
+                reason = "SEPARATOR_SKIPPED_NOT_NEAR_SOURCE";
+            } else if (!rawText.equals(normalizedText)) {
+                reason = "NORMALIZED_BUT_SKIPPED_NOT_SOURCE_LANGUAGE";
+            } else {
+                reason = "SKIPPED_NOT_SOURCE_LANGUAGE";
+            }
+
+            log.info(
+                    "[AUTO_TRANSLATION_DEBUG] word | selected={} | reason={} | line={} | word={} | raw='{}' | normalized='{}' | rect={}",
+                    selected,
+                    reason,
+                    box.lineIndex(),
+                    box.wordIndex(),
+                    shortDebugText(rawText),
+                    shortDebugText(normalizedText),
+                    rectDebugText(box.toRect())
+            );
+        }
+
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== FILTER WORDS END =====");
+    }
+
+    private void debugRawLines(List<LineGroup> rawLines) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== RAW LINES START =====");
+        for (int i = 0; i < rawLines.size(); i++) {
+            log.info(
+                    "[AUTO_TRANSLATION_DEBUG] raw line {} | rect={} | tokens={}",
+                    i,
+                    rectDebugText(rawLines.get(i).boundingRect()),
+                    tokensDebugText(rawLines.get(i).items())
+            );
+        }
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== RAW LINES END =====");
+    }
+
+    private void debugLineSplit(List<WordBox> sorted, double splitThreshold, List<List<WordBox>> result) {
+        if (!autoTranslationDebug || sorted == null || sorted.isEmpty()) {
+            return;
+        }
+
+        List<String> gaps = new ArrayList<>();
+        for (int i = 0; i < sorted.size() - 1; i++) {
+            WordBox left = sorted.get(i);
+            WordBox right = sorted.get(i + 1);
+            int gap = horizontalGap(left.toRect(), right.toRect());
+            boolean splitHere = !left.separator() && !right.separator() && gap > splitThreshold;
+
+            gaps.add(
+                    "'" + shortDebugText(left.text()) + "' -> '" + shortDebugText(right.text()) + "'"
+                            + " gap=" + gap
+                            + (splitHere ? " [SPLIT]" : "")
+            );
+        }
+
+        List<String> segments = result.stream()
+                .map(this::tokensDebugText)
+                .toList();
+
+        log.info(
+                "[AUTO_TRANSLATION_DEBUG] split line | threshold={} | source={} | gaps={} | segments={}",
+                formatDebugDouble(splitThreshold),
+                tokensDebugText(sorted),
+                gaps,
+                segments
+        );
+    }
+
+    private void debugSegments(List<Segment> segments) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== SEGMENTS START =====");
+        for (int i = 0; i < segments.size(); i++) {
+            Segment segment = segments.get(i);
+            log.info(
+                    "[AUTO_TRANSLATION_DEBUG] segment {} | lineNo={} | rect={} | tokens={}",
+                    i,
+                    segment.lineNo(),
+                    rectDebugText(segment.rect()),
+                    tokensDebugText(segment.items())
+            );
+        }
+        log.info("[AUTO_TRANSLATION_DEBUG] ===== SEGMENTS END =====");
+    }
+
+    private void debugPhraseGroup(List<Segment> group,
+                                  String joinedBeforeClean,
+                                  String translationText,
+                                  Rectangle phraseRect) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        List<String> segmentTexts = group.stream()
+                .map(segment -> tokensDebugText(segment.items()))
+                .toList();
+
+        List<Integer> lineNos = group.stream()
+                .map(Segment::lineNo)
+                .distinct()
+                .toList();
+
+        log.info(
+                "[AUTO_TRANSLATION_DEBUG] phrase | lines={} | rect={} | segments={} | joinedBeforeClean='{}' | translationText='{}'",
+                lineNos,
+                rectDebugText(phraseRect),
+                segmentTexts,
+                shortDebugText(joinedBeforeClean),
+                shortDebugText(translationText)
+        );
+    }
+
+    private void debugTranslation(Language sourceLanguage,
+                                  Language targetLanguage,
+                                  String originalText,
+                                  String normalizedText,
+                                  String translatedText) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        log.info(
+                "[AUTO_TRANSLATION_DEBUG] translation OK | {} -> {} | original='{}' | normalized='{}' | translated='{}'",
+                stringValue(sourceLanguage.getMymemoryCode()),
+                stringValue(targetLanguage.getMymemoryCode()),
+                shortDebugText(originalText),
+                shortDebugText(normalizedText),
+                shortDebugText(translatedText)
+        );
+    }
+
+    private void debugTranslationError(Language sourceLanguage,
+                                       Language targetLanguage,
+                                       String originalText,
+                                       String normalizedText,
+                                       String error) {
+        if (!autoTranslationDebug) {
+            return;
+        }
+
+        log.info(
+                "[AUTO_TRANSLATION_DEBUG] translation ERROR | {} -> {} | original='{}' | normalized='{}' | error='{}'",
+                stringValue(sourceLanguage.getMymemoryCode()),
+                stringValue(targetLanguage.getMymemoryCode()),
+                shortDebugText(originalText),
+                shortDebugText(normalizedText),
+                shortDebugText(error)
+        );
+    }
+
+    private String tokensDebugText(List<WordBox> items) {
+        return items.stream()
+                .map(box -> "'" + shortDebugText(box.text()) + "'")
+                .collect(Collectors.joining(" "));
+    }
+
+    private String rectDebugText(Rectangle rect) {
+        return "[x=%d,y=%d,w=%d,h=%d]".formatted(rect.x, rect.y, rect.width, rect.height);
+    }
+
+    private String shortDebugText(String value) {
+        String text = stringValue(value)
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+
+        if (text.length() <= 220) {
+            return text;
+        }
+
+        return text.substring(0, 220) + "...";
+    }
+
+    private String boxDebugId(WordBox box) {
+        return box.lineIndex() + ":" + box.wordIndex() + ":" + box.left() + ":" + box.top() + ":" + box.width() + ":" + box.height();
+    }
+
+    private String formatDebugDouble(double value) {
+        return String.format(Locale.ROOT, "%.2f", value);
+    }
+
     private void ensurePreviewDirectories() {
         try {
             Files.createDirectories(PREVIEW_SOURCE_DIR);
@@ -1562,7 +1838,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         if (translationCharsUsed > 0) {
-            ApiMonthlyUsage usage = getOrCreateUsage(MYMEMORY_PROVIDER, month);
+            ApiMonthlyUsage usage = getOrCreateUsage(GOOGLE_TRANSLATE_PROVIDER, month);
             usage.setCharsUsed(usage.getCharsUsed() + translationCharsUsed);
             usage.setUpdatedAt(LocalDateTime.now());
             usageRepository.save(usage);
@@ -1572,11 +1848,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     private QuotaSnapshot getQuotaSnapshot() {
         YearMonth month = YearMonth.now();
         ApiMonthlyUsage ocr = getOrCreateUsage(OCR_PROVIDER, month);
-        ApiMonthlyUsage myMemory = getOrCreateUsage(MYMEMORY_PROVIDER, month);
+        ApiMonthlyUsage googleTranslateUsage = getOrCreateUsage(GOOGLE_TRANSLATE_PROVIDER, month);
 
         return new QuotaSnapshot(
                 Math.max(0, ocr.getRequestLimit() - ocr.getRequestsUsed()),
-                Math.max(0, myMemory.getCharLimit() - myMemory.getCharsUsed())
+                Math.max(0, googleTranslateUsage.getCharLimit() - googleTranslateUsage.getCharsUsed())
         );
     }
 
@@ -1592,8 +1868,8 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                         ? Math.max(0, ocrMonthlyRequestLimit)
                                         : 0)
                                 .requestsUsed(0)
-                                .charLimit(MYMEMORY_PROVIDER.equals(provider)
-                                        ? Math.max(0, myMemoryMonthlyCharLimit)
+                                .charLimit(GOOGLE_TRANSLATE_PROVIDER.equals(provider)
+                                        ? Math.max(0, gcpTranslationMonthlyCharLimit)
                                         : 0)
                                 .charsUsed(0)
                                 .updatedAt(LocalDateTime.now())
