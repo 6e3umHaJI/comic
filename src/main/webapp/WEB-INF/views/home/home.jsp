@@ -27,7 +27,7 @@
         <section class="home-section">
             <div class="section-head">
                 <h2>Самые популярные</h2>
-                <a class="see-all" href="<c:url value='/catalog/preset?mode=popular'/>">Все популярные →</a>
+                <a class="see-all" href="<c:url value='/catalog/preset?mode=popular'/>">Все популярные</a>
             </div>
 
             <div class="card-scroller" tabindex="0">
@@ -81,7 +81,7 @@
         <section class="home-section">
             <div class="section-head">
                 <h2>Новинки</h2>
-                <a class="see-all" href="<c:url value='/catalog/preset?mode=new'/>">Все новинки →</a>
+                <a class="see-all" href="<c:url value='/catalog/preset?mode=new'/>">Все новинки</a>
             </div>
 
             <div class="grid-tiles">

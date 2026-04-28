@@ -8,21 +8,13 @@ import java.util.Set;
 
 public interface ReaderService {
 
-    default ReaderData getReaderData(Integer translationId) {
-        return getReaderData(translationId, false);
-    }
-
     ReaderData getReaderData(Integer translationId, boolean allowUnapprovedPreview);
-
-    void markChapterReadIfAuthenticated(Integer chapterId);
 
     void markTranslationOpenedIfAuthenticated(Integer translationId);
 
     Integer getSavedPageIfAuthenticated(Integer translationId);
 
     void saveProgressIfAuthenticated(Integer translationId, Integer page);
-
-    Integer getFirstAvailableTranslationId(Integer comicId);
 
     ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId);
 

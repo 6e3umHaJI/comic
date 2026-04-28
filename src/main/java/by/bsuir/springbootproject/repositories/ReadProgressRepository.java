@@ -44,14 +44,4 @@ public interface ReadProgressRepository extends JpaRepository<ReadProgress, Read
         where rp.translation.id = :translationId
         """)
     void deleteByTranslationId(@Param("translationId") Integer translationId);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-        update Notification n
-        set n.chapter = null,
-            n.linkPath = null,
-            n.isClickable = false
-        where n.chapter.id = :chapterId
-        """)
-    void detachDeletedChapter(@Param("chapterId") Integer chapterId);
 }

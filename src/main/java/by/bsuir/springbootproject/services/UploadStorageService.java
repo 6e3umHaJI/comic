@@ -9,23 +9,23 @@ import java.nio.file.Path;
 public interface UploadStorageService {
 
     @PostConstruct
-    public void init();
+    void init();
 
-    public Path coversDirectory();
+    Path coversDirectory();
 
-    public Path pagesDirectory();
+    Path pagesDirectory();
 
-    public String storeCover(MultipartFile file, String fileName) throws IOException;
+    String storeCover(MultipartFile file, String fileName) throws IOException;
 
-    public void storePage(MultipartFile file, String fileName) throws IOException;
+    void storePage(MultipartFile file, String fileName) throws IOException;
 
-    public void copyPage(Path sourcePath, String fileName) throws IOException;
+    void copyPage(Path sourcePath, String fileName) throws IOException;
 
-    public void deleteCoverIfExists(String fileName);
+    void deleteCoverIfExists(String fileName);
 
-    public void deletePageIfExists(String fileName);
+    void deletePageIfExists(String fileName);
 
-    public Path resolveCover(String fileName);
+    Path resolveCover(String fileName);
 
-    public Path resolvePage(String fileName);
+    Path resolvePage(String fileName);
 }

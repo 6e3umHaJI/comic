@@ -299,13 +299,13 @@ public class AdminComplaintServiceImpl implements AdminComplaintService {
         }
 
         if (comic.getReleaseYear() != null) {
-            if (subtitle.length() > 0) {
+            if (!subtitle.isEmpty()) {
                 subtitle.append(" - ");
             }
             subtitle.append(comic.getReleaseYear());
         }
 
-        return subtitle.length() > 0 ? subtitle.toString() : "Жалоба на тайтл";
+        return !subtitle.isEmpty() ? subtitle.toString() : "Жалоба на тайтл";
     }
 
     private void applyPagination(ModelAndView mv, Page<?> pageData) {

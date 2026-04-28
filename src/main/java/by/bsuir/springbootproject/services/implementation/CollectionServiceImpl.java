@@ -6,7 +6,6 @@ import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.SavedComic;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.entities.UserSection;
-import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.SavedComicRepository;
 import by.bsuir.springbootproject.repositories.UserSectionRepository;
 import by.bsuir.springbootproject.services.CollectionService;
@@ -27,11 +26,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class CollectionServiceImpl implements CollectionService {
 
-    private static final List<String> DEFAULT_SECTIONS = List.of("Читаю", "В планах", "Прочитано");
-
     private final UserSectionRepository userSectionRepository;
     private final SavedComicRepository savedComicRepository;
-    private final ComicRepository comicRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -89,7 +85,7 @@ public class CollectionServiceImpl implements CollectionService {
 
         int safePage = totalPages == 0
                 ? 0
-                : Math.min(Math.max(0, page), totalPages - 1);
+                : Math.clamp(page, 0, totalPages - 1);
 
         int fromIndex = totalPages == 0 ? 0 : safePage * pageSize;
         int toIndex = totalPages == 0 ? 0 : Math.min(fromIndex + pageSize, totalItems);
@@ -176,11 +172,7 @@ public class CollectionServiceImpl implements CollectionService {
                     saved -> saved.getComic().getPopularityScore() == null ? Long.MIN_VALUE : saved.getComic().getPopularityScore()
             );
             case "avgRating" -> Comparator.comparingDouble(
-                    saved -> saved.getComic().getAvgRating() == null ? Double.NEGATIVE_INFINITY : saved.getComic().getAvgRating().doubleValue()
-            );
-            case "addedAt" -> Comparator.comparing(
-                    SavedComic::getAddedAt,
-                    Comparator.nullsLast(LocalDateTime::compareTo)
+                    saved -> saved.getComic().getAvgRating() == null ? Double.NEGATIVE_INFINITY : saved.getComic().getAvgRating()
             );
             default -> Comparator.comparing(
                     SavedComic::getAddedAt,
@@ -466,27 +458,5 @@ public class CollectionServiceImpl implements CollectionService {
                 .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
 
         savedComicRepository.deleteBySectionIdAndComicIds(form.getSectionId(), form.getComicIds());
-    }
-
-
-    @Override
-    public void ensureDefaultSections(User user) {
-        List<UserSection> existing = userSectionRepository.findByUserIdOrderByIsDefaultDescNameAsc(user.getId());
-        Set<String> names = existing.stream()
-                .map(UserSection::getName)
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
-
-        for (String name : DEFAULT_SECTIONS) {
-            if (!names.contains(name.toLowerCase())) {
-                userSectionRepository.save(
-                        UserSection.builder()
-                                .user(user)
-                                .name(name)
-                                .isDefault(true)
-                                .build()
-                );
-            }
-        }
     }
 }

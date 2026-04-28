@@ -2,16 +2,12 @@ package by.bsuir.springbootproject.services.implementation;
 
 import by.bsuir.springbootproject.dto.TranslationSubmissionForm;
 import by.bsuir.springbootproject.entities.ApiMonthlyUsage;
-import by.bsuir.springbootproject.entities.AutoTranslationPreview;
-import by.bsuir.springbootproject.entities.AutoTranslationPreviewPage;
 import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.ComicPage;
 import by.bsuir.springbootproject.entities.Language;
 import by.bsuir.springbootproject.entities.Translation;
 import by.bsuir.springbootproject.entities.User;
 import by.bsuir.springbootproject.repositories.ApiMonthlyUsageRepository;
-import by.bsuir.springbootproject.repositories.AutoTranslationPreviewPageRepository;
-import by.bsuir.springbootproject.repositories.AutoTranslationPreviewRepository;
 import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.LanguageRepository;
 import by.bsuir.springbootproject.services.AutoTranslationService;
@@ -97,9 +93,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     private static final double MERGE_IOU_THRESHOLD = 0.35;
     private static final int OCR_ENGINE = 2;
 
-    private static final Pattern PAGE_FILE_PATTERN =
-            Pattern.compile("^(\\d{1,3})\\.(jpg|webp)$", Pattern.CASE_INSENSITIVE);
-
+    private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.jpg$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SEPARATOR_PATTERN =
             Pattern.compile("^[\\p{Punct}«»“”‘’…0-9]+$");
 
@@ -128,8 +122,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
     private final ComicRepository comicRepository;
     private final LanguageRepository languageRepository;
-    private final AutoTranslationPreviewRepository previewRepository;
-    private final AutoTranslationPreviewPageRepository previewPageRepository;
     private final ApiMonthlyUsageRepository usageRepository;
     private final NotificationService notificationService;
     private final UploadStorageService uploadStorageService;
@@ -1324,12 +1316,12 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
             Matcher matcher = PAGE_FILE_PATTERN.matcher(originalName);
             if (!matcher.matches()) {
-                throw new IllegalArgumentException("Можно загружать только JPG и WEBP с именами вида 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp.");
+                throw new IllegalArgumentException("Можно загружать только JPG с именами вида 001.jpg, 002.jpg, 003.jpg.");
             }
 
             String contentType = stringValue(file.getContentType()).toLowerCase(Locale.ROOT);
-            if (!"image/jpeg".equals(contentType) && !"image/webp".equals(contentType)) {
-                throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
+            if (!"image/jpeg".equals(contentType)) {
+                throw new IllegalArgumentException("Можно загружать только файлы JPG.");
             }
 
             result.add(new PageFileCandidate(Integer.parseInt(matcher.group(1)), file));

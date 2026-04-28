@@ -665,3 +665,133 @@
     margin-left: 0;
 }
 
+
+.collections-layout,
+.collections-main,
+.collections-main-head,
+.collections-toolbar-row,
+.collections-search-form,
+.collections-sort-row,
+.collections-bulk-row,
+.collections-selection-row {
+    min-width: 0;
+}
+
+@media (max-width: 760px) {
+    .collections-layout {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .collections-sidebar {
+        width: 100%;
+        padding: 12px;
+    }
+
+    .collections-main {
+        width: 100%;
+    }
+
+    .collections-main-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .collections-title-row {
+        align-items: flex-start;
+    }
+
+    .collections-search-form {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .collections-search-form input[type="text"],
+    .collections-search-form .btn {
+        width: 100%;
+    }
+
+    .collections-sort-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .collections-main .sort-inline {
+        width: 100%;
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .collections-main .sort-inline label {
+        width: 100%;
+    }
+
+    .collections-main .sort-inline select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .collections-main .view-toggle {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .collections-bulk-row,
+    .collections-selection-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .collections-bulk-row .btn,
+    .collections-selection-row .btn {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .collections-actions,
+    .collections-rename-inline,
+    .collections-create-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .collections-actions .btn,
+    .collections-rename-inline .btn,
+    .collections-create-actions .btn {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .collection-tab {
+        padding: 10px 12px;
+    }
+}
+
+@media (max-width: 420px) {
+    .collections-sidebar {
+        padding: 10px;
+    }
+
+    .collections-title-row {
+        gap: 8px;
+    }
+
+    .collections-title-tools {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .collection-icon-action {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+    }
+}

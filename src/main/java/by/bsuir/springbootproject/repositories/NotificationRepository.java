@@ -28,10 +28,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     long countByUser_Id(Integer userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Notification n set n.isRead = true where n.user.id = :userId and n.isRead = false")
-    void markAllAsReadByUserId(@Param("userId") Integer userId);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update Notification n
             set n.translation = null,

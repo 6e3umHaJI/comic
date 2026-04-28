@@ -32,6 +32,4 @@ public interface CollectionService {
     void moveComics(Integer userId, CollectionMoveForm form);
 
     void removeComics(Integer userId, CollectionRemoveForm form);
-
-    void ensureDefaultSections(User user);
 }

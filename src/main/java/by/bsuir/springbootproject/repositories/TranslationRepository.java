@@ -282,16 +282,6 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     Optional<Translation> findReaderPreviewById(@Param("id") Integer id);
 
     @Query("""
-        select max(ch.chapterNumber)
-        from Translation t
-        join t.chapter ch
-        where ch.comic.id = :comicId
-          and t.language.id = :languageId
-        """)
-    Integer findMaxChapterNumberByComicIdAndLanguageId(@Param("comicId") Integer comicId,
-                                                       @Param("languageId") Integer languageId);
-
-    @Query("""
         select distinct t
         from Translation t
         join fetch t.chapter ch

@@ -18,13 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -101,7 +95,7 @@ public class ComicServiceImpl implements ComicService {
     public List<Chapter> getChapters(Integer comicId) {
         Comic comic = getComicById(comicId);
         return comic.getChapters().stream()
-                .sorted((a, b) -> a.getChapterNumber().compareTo(b.getChapterNumber()))
+                .sorted(Comparator.comparing(Chapter::getChapterNumber))
                 .toList();
     }
 
@@ -140,17 +134,6 @@ public class ComicServiceImpl implements ComicService {
     @Override
     public List<Object[]> getApprovedLangStatsByComic(int comicId) {
         return comicRepository.getApprovedLangStatsByComic(comicId);
-    }
-
-    @Override
-    public Map<Integer, List<String>> getApprovedLangsByChapter(int comicId) {
-        return translationRepository.findApprovedLangsByChapterIds(
-                        getChapters(comicId).stream().map(Chapter::getId).toList()
-                ).stream()
-                .collect(Collectors.groupingBy(
-                        row -> (Integer) row[0],
-                        Collectors.mapping(row -> (String) row[1], Collectors.toList())
-                ));
     }
 
     @Override

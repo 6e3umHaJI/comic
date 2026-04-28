@@ -1,12 +1,7 @@
 package by.bsuir.springbootproject.services.implementation;
 
-import by.bsuir.springbootproject.entities.AgeRating;
-import by.bsuir.springbootproject.entities.ComicStatus;
-import by.bsuir.springbootproject.entities.ComicType;
-import by.bsuir.springbootproject.entities.Genre;
-import by.bsuir.springbootproject.entities.Language;
+import by.bsuir.springbootproject.constants.Values;
 import by.bsuir.springbootproject.entities.SearchCriteria;
-import by.bsuir.springbootproject.entities.Tag;
 import by.bsuir.springbootproject.repositories.AgeRatingRepository;
 import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.ComicSearchSpecification;
@@ -25,15 +20,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.ModelAndView;
 
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ComicCatalogServiceImpl implements ComicCatalogService {
+
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 60;
+    private static final int VISIBLE_PAGES = 5;
+
+    private static final String DEFAULT_SORT_FIELD = "popularityScore";
+    private static final String DEFAULT_SORT_DIRECTION = "desc";
+    private static final String DEFAULT_VIEW_MODE = "card";
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "popularityScore",
+            "createdAt",
+            "title",
+            "releaseYear",
+            "avgRating",
+            "ratingsCount",
+            "chaptersCount",
+            "updatedAt",
+            "id"
+    );
 
     private final ComicRepository comicRepository;
     private final GenreRepository genreRepository;
@@ -45,31 +57,7 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
 
     @Override
     public ModelAndView findComics(SearchCriteria criteria) {
-        var genres = genreRepository.findAll().stream()
-                .sorted(Comparator.comparing(Genre::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        var tags = tagRepository.findAll().stream()
-                .sorted(Comparator.comparing(Tag::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        var types = typeRepository.findAll().stream()
-                .sorted(Comparator.comparing(ComicType::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        var statuses = statusRepository.findAll().stream()
-                .sorted(Comparator.comparing(ComicStatus::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        var ageRatings = ageRatingRepository.findAll().stream()
-                .sorted(Comparator.comparing(AgeRating::getId))
-                .toList();
-
-        var languages = languageRepository.findAll().stream()
-                .sorted(Comparator.comparing(Language::getName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
-        sanitizeCriteria(criteria, genres, tags, types, statuses, ageRatings, languages);
+        normalizeCriteria(criteria);
 
         Sort sort = buildSort(criteria);
         Pageable pageable = PageRequest.of(
@@ -78,16 +66,16 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
                 sort
         );
 
-        Page<?> comics = comicRepository.findAll(new ComicSearchSpecification(criteria), pageable);
+        Page comics = comicRepository.findAll(new ComicSearchSpecification(criteria), pageable);
 
         int totalPages = comics.getTotalPages();
         int currentPage = comics.getNumber() + 1;
-        int visiblePages = 5;
-        int beginPage = Math.max(1, currentPage - 2);
-        int endPage = Math.min(beginPage + visiblePages - 1, totalPages);
 
-        if (endPage - beginPage < visiblePages - 1) {
-            beginPage = Math.max(1, endPage - visiblePages + 1);
+        int beginPage = Math.max(1, currentPage - 2);
+        int endPage = Math.min(beginPage + VISIBLE_PAGES - 1, totalPages);
+
+        if (endPage - beginPage < VISIBLE_PAGES - 1) {
+            beginPage = Math.max(1, endPage - VISIBLE_PAGES + 1);
         }
 
         boolean showLeftDots = beginPage > 2;
@@ -102,67 +90,130 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
         mv.addObject("endPage", endPage);
         mv.addObject("showLeftDots", showLeftDots);
         mv.addObject("showRightDots", showRightDots);
-        mv.addObject("genres", genres);
-        mv.addObject("tags", tags);
-        mv.addObject("types", types);
-        mv.addObject("statuses", statuses);
-        mv.addObject("ageRatings", ageRatings);
-        mv.addObject("languages", languages);
-
+        mv.addObject("genres", genreRepository.findAll());
+        mv.addObject("tags", tagRepository.findAll());
+        mv.addObject("types", typeRepository.findAll());
+        mv.addObject("statuses", statusRepository.findAll());
+        mv.addObject("ageRatings", ageRatingRepository.findAll());
+        mv.addObject("languages", languageRepository.findAll());
         return mv;
     }
 
-    private void sanitizeCriteria(SearchCriteria criteria,
-                                  java.util.List<Genre> genres,
-                                  java.util.List<Tag> tags,
-                                  java.util.List<ComicType> types,
-                                  java.util.List<ComicStatus> statuses,
-                                  java.util.List<AgeRating> ageRatings,
-                                  java.util.List<Language> languages) {
-        criteria.setSelectedGenres(sanitizeValues(
-                criteria.getSelectedGenres(),
-                genres.stream().map(Genre::getName).collect(Collectors.toSet())
-        ));
-
-        criteria.setSelectedTags(sanitizeValues(
-                criteria.getSelectedTags(),
-                tags.stream().map(Tag::getName).collect(Collectors.toSet())
-        ));
-
-        criteria.setSelectedTypes(sanitizeValues(
-                criteria.getSelectedTypes(),
-                types.stream().map(ComicType::getName).collect(Collectors.toSet())
-        ));
-
-        criteria.setSelectedComicStatuses(sanitizeValues(
-                criteria.getSelectedComicStatuses(),
-                statuses.stream().map(ComicStatus::getName).collect(Collectors.toSet())
-        ));
-
-        criteria.setSelectedAgeRatings(sanitizeValues(
-                criteria.getSelectedAgeRatings(),
-                ageRatings.stream().map(AgeRating::getName).collect(Collectors.toSet())
-        ));
-
-        criteria.setSelectedLanguages(sanitizeValues(
-                criteria.getSelectedLanguages(),
-                languages.stream().map(Language::getName).collect(Collectors.toSet())
-        ));
-    }
-
-    private String[] sanitizeValues(String[] selectedValues, Set<String> allowedValues) {
-        if (selectedValues == null || selectedValues.length == 0) {
-            return new String[0];
+    private void normalizeCriteria(SearchCriteria criteria) {
+        if (criteria == null) {
+            throw new IllegalArgumentException("Параметры поиска не переданы.");
         }
 
-        return Arrays.stream(selectedValues)
-                .filter(value -> value != null && allowedValues.contains(value))
-                .distinct()
-                .toArray(String[]::new);
+        if (criteria.getPageNumber() < Values.DEFAULT_START_PAGE) {
+            criteria.setPageNumber(Values.DEFAULT_START_PAGE);
+        }
+
+        if (criteria.getPageSize() < MIN_PAGE_SIZE || criteria.getPageSize() > MAX_PAGE_SIZE) {
+            criteria.setPageSize(Values.DEFAULT_PAGE_SIZE);
+        }
+
+        if (criteria.getSortField() == null || !ALLOWED_SORT_FIELDS.contains(criteria.getSortField())) {
+            criteria.setSortField(DEFAULT_SORT_FIELD);
+        }
+
+        if (!"asc".equalsIgnoreCase(criteria.getSortDirection())
+                && !"desc".equalsIgnoreCase(criteria.getSortDirection())) {
+            criteria.setSortDirection(DEFAULT_SORT_DIRECTION);
+        }
+
+        if (!"card".equalsIgnoreCase(criteria.getViewMode())
+                && !"list".equalsIgnoreCase(criteria.getViewMode())) {
+            criteria.setViewMode(DEFAULT_VIEW_MODE);
+        }
+
+        if (criteria.getKeyWords() == null) {
+            criteria.setKeyWords("");
+        }
+
+        criteria.setSelectedTypes(nonNullArray(criteria.getSelectedTypes()));
+        criteria.setSelectedLanguages(nonNullArray(criteria.getSelectedLanguages()));
+        criteria.setSelectedComicStatuses(nonNullArray(criteria.getSelectedComicStatuses()));
+        criteria.setSelectedAgeRatings(nonNullArray(criteria.getSelectedAgeRatings()));
+        criteria.setSelectedGenres(nonNullArray(criteria.getSelectedGenres()));
+        criteria.setSelectedTags(nonNullArray(criteria.getSelectedTags()));
+
+        normalizeRanges(criteria);
+    }
+
+    private String[] nonNullArray(String[] value) {
+        return value == null ? new String[0] : value;
+    }
+
+    private void normalizeRanges(SearchCriteria criteria) {
+        if (criteria.getReleaseYearFrom() != null && criteria.getReleaseYearTo() != null
+                && criteria.getReleaseYearFrom() > criteria.getReleaseYearTo()) {
+            Integer tmp = criteria.getReleaseYearFrom();
+            criteria.setReleaseYearFrom(criteria.getReleaseYearTo());
+            criteria.setReleaseYearTo(tmp);
+        }
+
+        if (criteria.getRatingsCountFrom() != null && criteria.getRatingsCountFrom() < 0) {
+            criteria.setRatingsCountFrom(0);
+        }
+
+        if (criteria.getRatingsCountTo() != null && criteria.getRatingsCountTo() < 0) {
+            criteria.setRatingsCountTo(0);
+        }
+
+        if (criteria.getRatingsCountFrom() != null && criteria.getRatingsCountTo() != null
+                && criteria.getRatingsCountFrom() > criteria.getRatingsCountTo()) {
+            Integer tmp = criteria.getRatingsCountFrom();
+            criteria.setRatingsCountFrom(criteria.getRatingsCountTo());
+            criteria.setRatingsCountTo(tmp);
+        }
+
+        if (criteria.getAvgRatingFrom() != null) {
+            criteria.setAvgRatingFrom(clamp(criteria.getAvgRatingFrom(), 0.0, 10.0));
+        }
+
+        if (criteria.getAvgRatingTo() != null) {
+            criteria.setAvgRatingTo(clamp(criteria.getAvgRatingTo(), 0.0, 10.0));
+        }
+
+        if (criteria.getAvgRatingFrom() != null && criteria.getAvgRatingTo() != null
+                && criteria.getAvgRatingFrom() > criteria.getAvgRatingTo()) {
+            Double tmp = criteria.getAvgRatingFrom();
+            criteria.setAvgRatingFrom(criteria.getAvgRatingTo());
+            criteria.setAvgRatingTo(tmp);
+        }
+
+        if (criteria.getChaptersCountFrom() != null && criteria.getChaptersCountFrom() < 0) {
+            criteria.setChaptersCountFrom(0);
+        }
+
+        if (criteria.getChaptersCountTo() != null && criteria.getChaptersCountTo() < 0) {
+            criteria.setChaptersCountTo(0);
+        }
+
+        if (criteria.getChaptersCountFrom() != null && criteria.getChaptersCountTo() != null
+                && criteria.getChaptersCountFrom() > criteria.getChaptersCountTo()) {
+            Integer tmp = criteria.getChaptersCountFrom();
+            criteria.setChaptersCountFrom(criteria.getChaptersCountTo());
+            criteria.setChaptersCountTo(tmp);
+        }
+
+        if (criteria.getUpdatedFrom() != null && criteria.getUpdatedTo() != null
+                && criteria.getUpdatedFrom().isAfter(criteria.getUpdatedTo())) {
+            var tmp = criteria.getUpdatedFrom();
+            criteria.setUpdatedFrom(criteria.getUpdatedTo());
+            criteria.setUpdatedTo(tmp);
+        }
+    }
+
+    private Double clamp(Double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private Sort buildSort(SearchCriteria criteria) {
-        Sort.Direction direction = Sort.Direction.fromString(criteria.getSortDirection());
+        Sort.Direction direction = "asc".equalsIgnoreCase(criteria.getSortDirection())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
         String field = criteria.getSortField();
 
         if ("popularityScore".equals(field)) {
@@ -179,6 +230,9 @@ public class ComicCatalogServiceImpl implements ComicCatalogService {
             );
         }
 
-        return Sort.by(direction, field);
+        return Sort.by(
+                new Sort.Order(direction, field),
+                new Sort.Order(Sort.Direction.DESC, "id")
+        );
     }
 }

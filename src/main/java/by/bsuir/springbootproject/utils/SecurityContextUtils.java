@@ -30,7 +30,12 @@ public class SecurityContextUtils {
         Object principal = authentication.getPrincipal();
 
         if (principal instanceof UserPrincipal userPrincipal) {
-            return Optional.ofNullable(userPrincipal.getUser());
+            Integer userId = userPrincipal.getUserId();
+            if (userId == null) {
+                return Optional.empty();
+            }
+
+            return userRepository.findById(userId);
         }
 
         if (principal instanceof OidcUser oidcUser) {
@@ -38,6 +43,7 @@ public class SecurityContextUtils {
             if (email == null || email.isBlank()) {
                 return Optional.empty();
             }
+
             return userRepository.findByEmail(email);
         }
 

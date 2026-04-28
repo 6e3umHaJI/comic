@@ -314,22 +314,20 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
 
         String extension = StringUtils.getFilenameExtension(originalName);
         String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
-        if (!"jpg".equals(normalizedExtension) && !"webp".equals(normalizedExtension)) {
-            throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
+        if (!"jpg".equals(normalizedExtension)) {
+            throw new IllegalArgumentException("Можно загружать только JPG-файлы.");
         }
 
         String contentType = file.getContentType();
         String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
-        if (!"image/jpeg".equals(normalizedContentType) && !"image/webp".equals(normalizedContentType)) {
-            throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
+        if (!"image/jpeg".equals(normalizedContentType)) {
+            throw new IllegalArgumentException("Можно загружать только JPG-файлы.");
         }
     }
 
 
     private String storePageFile(MultipartFile file) {
-        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().trim();
-        String extension = extractExtension(originalName, file.getContentType());
-        String storedFileName = UUID.randomUUID() + "." + extension;
+        String storedFileName = UUID.randomUUID() + ".jpg";
 
         try {
             uploadStorageService.storePage(file, storedFileName);
@@ -373,25 +371,6 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
         return normalized.length() > MAX_TITLE_LENGTH
                 ? normalized.substring(0, MAX_TITLE_LENGTH)
                 : normalized;
-    }
-
-    private String extractExtension(String originalName, String contentType) {
-        String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
-        if ("image/webp".equals(normalizedContentType)) {
-            return "webp";
-        }
-
-        if ("image/jpeg".equals(normalizedContentType)) {
-            return "jpg";
-        }
-
-        String extension = StringUtils.getFilenameExtension(originalName);
-        String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
-        if ("webp".equals(normalizedExtension)) {
-            return "webp";
-        }
-
-        return "jpg";
     }
 
     private void requireAdmin(User admin) {

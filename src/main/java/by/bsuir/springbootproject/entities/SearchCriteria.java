@@ -25,11 +25,22 @@ public class SearchCriteria implements Serializable {
     private int pageSize;
     private String viewMode;
 
+    @Builder.Default
     private String[] selectedTypes = new String[0];
+
+    @Builder.Default
     private String[] selectedLanguages = new String[0];
+
+    @Builder.Default
     private String[] selectedComicStatuses = new String[0];
+
+    @Builder.Default
     private String[] selectedAgeRatings = new String[0];
+
+    @Builder.Default
     private String[] selectedGenres = new String[0];
+
+    @Builder.Default
     private String[] selectedTags = new String[0];
 
     private boolean strictGenreMatch;
@@ -53,7 +64,6 @@ public class SearchCriteria implements Serializable {
 
     public void reset() {
         keyWords = "";
-
         selectedTypes = new String[0];
         selectedLanguages = new String[0];
         selectedComicStatuses = new String[0];
@@ -67,16 +77,12 @@ public class SearchCriteria implements Serializable {
 
         releaseYearFrom = null;
         releaseYearTo = null;
-
         ratingsCountFrom = null;
         ratingsCountTo = null;
-
         avgRatingFrom = null;
         avgRatingTo = null;
-
         chaptersCountFrom = null;
         chaptersCountTo = null;
-
         updatedFrom = null;
         updatedTo = null;
     }

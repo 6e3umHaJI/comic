@@ -24,8 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -38,6 +36,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.Locale;
+import java.util.stream.Stream;
+
 import by.bsuir.springbootproject.services.UploadStorageService;
 
 @Service
@@ -61,8 +61,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private static final int MAX_SEARCH_QUERY_LENGTH = 255;
     private static final int MODERATION_PAGE_SIZE = 10;
 
-    private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.(jpg|webp)$", Pattern.CASE_INSENSITIVE);
-
+    private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.jpg$", Pattern.CASE_INSENSITIVE);
 
     private final ComicRepository comicRepository;
     private final ChapterRepository chapterRepository;
@@ -100,7 +99,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         actualForm.setComicId(comicId);
 
         if (actualForm.getLanguageId() == null) {
-            actualForm.setLanguageId(languages.get(0).getId());
+            actualForm.setLanguageId(languages.getFirst().getId());
         }
 
         if (actualForm.getAutoTranslate() == null) {
@@ -108,7 +107,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         }
 
         if (admin && actualForm.getSourceLanguageId() == null && !sourceLanguages.isEmpty()) {
-            actualForm.setSourceLanguageId(sourceLanguages.get(0).getId());
+            actualForm.setSourceLanguageId(sourceLanguages.getFirst().getId());
         }
 
         if (admin && Boolean.TRUE.equals(actualForm.getAutoTranslate())) {
@@ -116,12 +115,12 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
                     .anyMatch(language -> language.getId().equals(actualForm.getLanguageId()));
 
             if (!targetSupported && !autoTargetLanguages.isEmpty()) {
-                Language fallback = autoTargetLanguages.get(0);
+                Language fallback = autoTargetLanguages.getFirst();
                 if (actualForm.getSourceLanguageId() != null) {
                     fallback = autoTargetLanguages.stream()
                             .filter(language -> !language.getId().equals(actualForm.getSourceLanguageId()))
                             .findFirst()
-                            .orElse(autoTargetLanguages.get(0));
+                            .orElse(autoTargetLanguages.getFirst());
                 }
                 actualForm.setLanguageId(fallback.getId());
             }
@@ -138,7 +137,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
         List<Integer> chapterOptions = getAllowedChapterNumbers(comicId, actualForm.getLanguageId());
         if (actualForm.getChapterNumber() == null && !chapterOptions.isEmpty()) {
-            actualForm.setChapterNumber(chapterOptions.get(chapterOptions.size() - 1));
+            actualForm.setChapterNumber(chapterOptions.getLast());
         }
 
         ModelAndView mv = new ModelAndView(VIEW_FORM);
@@ -170,7 +169,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     @Override
     public Map<String, Object> getChapterOptions(Integer comicId, Integer languageId) {
         List<Integer> values = getAllowedChapterNumbers(comicId, languageId);
-        Integer defaultValue = values.isEmpty() ? null : values.get(values.size() - 1);
+        Integer defaultValue = values.isEmpty() ? null : values.getLast();
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("chapterNumbers", values);
@@ -412,11 +411,11 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         int currentPage = totalPages == 0 ? 1 : pendingPage.getNumber() + 1;
 
         int beginPage = Math.max(1, currentPage - 2);
-        int endPage = Math.min(Math.max(totalPages, 1), currentPage + 2);
+        int endPage = Math.clamp(totalPages, 1, currentPage + 2);
 
         if (endPage - beginPage < 4) {
             beginPage = Math.max(1, endPage - 4);
-            endPage = Math.min(Math.max(totalPages, 1), beginPage + 4);
+            endPage = Math.clamp(totalPages, 1, beginPage + 4);
         }
 
         mv.addObject("translations", pendingPage.getContent());
@@ -554,7 +553,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
         int maxAllowedChapterNumber = approvedChapterNumbers.isEmpty()
                 ? 1
-                : approvedChapterNumbers.get(approvedChapterNumbers.size() - 1) + 1;
+                : approvedChapterNumbers.getLast() + 1;
 
         List<Integer> result = new ArrayList<>(maxAllowedChapterNumber);
         for (int i = 1; i <= maxAllowedChapterNumber; i++) {
@@ -617,8 +616,8 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             throw new IllegalArgumentException("Загрузите страницы перевода.");
         }
 
-        List<MultipartFile> actualFiles = List.of(pageFiles).stream()
-                .filter(file -> file != null && !file.isEmpty())
+        List<MultipartFile> actualFiles = Stream.of(pageFiles)
+                .filter(file -> !file.isEmpty())
                 .toList();
 
         if (actualFiles.isEmpty()) {
@@ -643,13 +642,13 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
             Matcher matcher = PAGE_FILE_PATTERN.matcher(originalName);
             if (!matcher.matches()) {
-                throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP с именами вида 001.jpg, 002.jpg, 003.jpg или 001.webp, 002.webp, 003.webp.");
+                throw new IllegalArgumentException("Можно загружать только JPG-файлы с именами вида 001.jpg, 002.jpg, 003.jpg.");
             }
 
             String contentType = file.getContentType();
             String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
-            if (!"image/jpeg".equals(normalizedContentType) && !"image/webp".equals(normalizedContentType)) {
-                throw new IllegalArgumentException("Можно загружать только файлы JPG и WEBP.");
+            if (!"image/jpeg".equals(normalizedContentType)) {
+                throw new IllegalArgumentException("Можно загружать только JPG-файлы.");
             }
 
             int pageNumber = Integer.parseInt(matcher.group(1));
@@ -669,14 +668,10 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     }
 
     private String buildStoredFileName(Integer translationId, int pageNumber, String originalFilename) {
-        String extension = StringUtils.getFilenameExtension(originalFilename);
-        String normalizedExtension = StringUtils.hasText(extension) ? extension.toLowerCase() : "jpg";
-
-        return "tr_%d_p%03d_%s.%s".formatted(
+        return "tr_%d_p%03d_%s.jpg".formatted(
                 translationId,
                 pageNumber,
-                UUID.randomUUID().toString().replace("-", ""),
-                normalizedExtension
+                UUID.randomUUID().toString().replace("-", "")
         );
     }
 

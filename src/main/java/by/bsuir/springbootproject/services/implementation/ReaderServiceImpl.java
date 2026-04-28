@@ -146,15 +146,6 @@ public class ReaderServiceImpl implements ReaderService {
     }
 
     @Override
-    public Integer getFirstAvailableTranslationId(Integer comicId) {
-        return translationRepository.findFirstApprovedByComic(comicId, PageRequest.of(0, 1))
-                .stream()
-                .findFirst()
-                .map(Translation::getId)
-                .orElse(null);
-    }
-
-    @Override
     public ContinueReadingInfo getContinueReadingInfoIfAuthenticated(Integer comicId) {
         return securityContextUtils.getUserFromContext()
                 .flatMap(user -> findLastReadProgress(user.getId(), comicId))
@@ -206,7 +197,7 @@ public class ReaderServiceImpl implements ReaderService {
         return securityContextUtils.getUserFromContext()
                 .flatMap(user -> readProgressRepository.findByUser_IdAndTranslation_Id(user.getId(), translationId))
                 .map(ReadProgress::getCurrentPage)
-                .filter(page -> page != null && page > 0)
+                .filter(page -> page > 0)
                 .orElse(1);
     }
 
@@ -241,11 +232,6 @@ public class ReaderServiceImpl implements ReaderService {
                 .map(row -> (String) row[1])
                 .distinct()
                 .toList();
-    }
-
-    @Override
-    @Transactional
-    public void markChapterReadIfAuthenticated(Integer chapterId) {
     }
 
     private Optional<ReadProgressSnapshot> findLastReadProgress(Integer userId, Integer comicId) {

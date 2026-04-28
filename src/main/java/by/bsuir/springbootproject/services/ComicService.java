@@ -27,8 +27,6 @@ public interface ComicService {
 
     List<Object[]> getApprovedLangStatsByComic(int comicId);
 
-    Map<Integer, List<String>> getApprovedLangsByChapter(int comicId);
-
     long getRelatedComicsCount(int id);
 
     List<RelatedWithType> getRelatedComicsWithTypePaged(int id, int page, int size);

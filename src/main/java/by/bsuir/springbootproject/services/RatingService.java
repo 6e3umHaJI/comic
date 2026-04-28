@@ -1,6 +1,5 @@
 package by.bsuir.springbootproject.services;
 
-import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.Rating;
 import by.bsuir.springbootproject.entities.User;
 

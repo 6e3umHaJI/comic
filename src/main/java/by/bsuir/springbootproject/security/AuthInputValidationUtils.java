@@ -5,12 +5,6 @@ import java.util.regex.Pattern;
 
 public final class AuthInputValidationUtils {
 
-    public static final int USERNAME_MIN_LENGTH = 3;
-    public static final int USERNAME_MAX_LENGTH = 30;
-    public static final int PASSWORD_MIN_LENGTH = 8;
-    public static final int PASSWORD_MAX_LENGTH = 72;
-    public static final int GMAIL_LOCAL_MIN_LENGTH = 6;
-    public static final int GMAIL_LOCAL_MAX_LENGTH = 30;
     public static final int GMAIL_FULL_MAX_LENGTH = 40;
     public static final int GENERIC_EMAIL_MAX_LENGTH = 254;
 
@@ -25,9 +19,6 @@ public final class AuthInputValidationUtils {
 
     private static final Pattern GENERIC_EMAIL_PATTERN =
             Pattern.compile("^[^\\s@]{1,64}@[^\\s@]{1,190}\\.[^\\s@]{2,63}$");
-
-    private AuthInputValidationUtils() {
-    }
 
     public static String normalize(String value) {
         return value == null ? "" : value.trim();
