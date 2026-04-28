@@ -28,11 +28,9 @@ import org.springframework.web.servlet.ModelAndView;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
+import by.bsuir.springbootproject.services.UploadStorageService;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -70,6 +68,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
     private final RelationTypeRepository relationTypeRepository;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final UploadStorageService uploadStorageService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -579,12 +578,9 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         }
 
         String fileName = UUID.randomUUID() + "." + extension;
-        Path coversDir = Path.of("src/main/webapp/assets/covers");
 
         try {
-            Files.createDirectories(coversDir);
-            Files.copy(coverFile.getInputStream(), coversDir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
-            return fileName;
+            return uploadStorageService.storeCover(coverFile, fileName);
         } catch (IOException e) {
             throw new IllegalStateException("Не удалось сохранить обложку.");
         }
@@ -602,12 +598,7 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
             return;
         }
 
-        Path oldCoverPath = Path.of("src/main/webapp/assets/covers", normalizedOld);
-
-        try {
-            Files.deleteIfExists(oldCoverPath);
-        } catch (IOException ignored) {
-        }
+        uploadStorageService.deleteCoverIfExists(normalizedOld);
     }
 
     private String extractExtension(String filename) {

@@ -91,9 +91,7 @@
         const query = String(languageSearch?.value || "").trim().toLowerCase();
         const currentValue = languageSelect.value;
 
-        const options = getLanguageOptionsForCurrentMode().filter((item) => {
-            return !query || item.text.toLowerCase().includes(query);
-        });
+        const options = getLanguageOptionsForCurrentMode().filter((item) => !query || item.text.toLowerCase().includes(query));
 
         languageSelect.innerHTML = "";
 
@@ -139,9 +137,7 @@
             return true;
         }
 
-        const fallback = Array.from(languageSelect.options).find((option) => {
-            return option.value && option.value !== sourceLanguageId && !option.disabled;
-        });
+        const fallback = Array.from(languageSelect.options).find((option) => option.value && option.value !== sourceLanguageId && !option.disabled);
 
         if (fallback) {
             languageSelect.value = fallback.value;
@@ -188,10 +184,7 @@
         }
 
         const sorted = actualFiles
-            .map((file) => ({
-                file,
-                pageNumber: extractPageNumber(file)
-            }))
+            .map((file) => ({ file, pageNumber: extractPageNumber(file) }))
             .sort((left, right) => left.pageNumber - right.pageNumber);
 
         for (let i = 0; i < sorted.length; i++) {
@@ -330,10 +323,6 @@
             sourceLanguageField.classList.toggle("hidden", !enabled);
         }
 
-        if (loadingBox) {
-            loadingBox.classList.add("hidden");
-        }
-
         rebuildLanguageOptions();
         renderFilesList(false);
         updateSelectedPageNumbersInputs();
@@ -342,13 +331,11 @@
     function setSubmittingState(isSubmitting) {
         if (submitButton) {
             submitButton.disabled = isSubmitting;
-            submitButton.textContent = isSubmitting
-                ? (autoTranslateCheckbox?.checked ? "Обработка..." : "Сохранение...")
-                : "Сохранить";
+            submitButton.textContent = isSubmitting ? "Обработка..." : "Сохранить";
         }
 
         if (loadingBox) {
-            loadingBox.classList.toggle("hidden", !(isSubmitting && autoTranslateCheckbox?.checked));
+            loadingBox.classList.toggle("hidden", !isSubmitting || !autoTranslateCheckbox?.checked);
         }
     }
 
@@ -420,8 +407,6 @@
         await loadChapterOptions();
     });
 
-    chapterSelect?.addEventListener("change", hideStatus);
-
     titleInput?.addEventListener("input", () => {
         titleInput.value = limitOnly(titleInput.value, LIMITS.title);
     });
@@ -468,6 +453,7 @@
 
         if (autoTranslateCheckbox?.checked) {
             const selectedOption = languageSelect.options[languageSelect.selectedIndex];
+
             if (!selectedOption || selectedOption.dataset.autoTranslateSupported !== "true") {
                 event.preventDefault();
                 showStatus("Для автоматического перевода можно выбрать только язык с заполненным кодом перевода.");

@@ -33,3 +33,11 @@ build/
 .vscode/
 /src/main/webapp/assets/covers/
 /src/main/webapp/assets/pages/
+
+.env
+secrets/*
+!secrets/.gitkeep
+
+docker/uploads/*
+!docker/uploads/.gitkeep
+

@@ -1,13 +1,23 @@
 package by.bsuir.springbootproject.entities;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDate;
 
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class SearchCriteria {
+public class SearchCriteria implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private String keyWords;
     private String sortField;
     private String sortDirection;
@@ -28,17 +38,22 @@ public class SearchCriteria {
 
     private Integer releaseYearFrom;
     private Integer releaseYearTo;
+
     private Integer ratingsCountFrom;
     private Integer ratingsCountTo;
+
     private Double avgRatingFrom;
     private Double avgRatingTo;
+
     private Integer chaptersCountFrom;
     private Integer chaptersCountTo;
+
     private LocalDate updatedFrom;
     private LocalDate updatedTo;
 
     public void reset() {
         keyWords = "";
+
         selectedTypes = new String[0];
         selectedLanguages = new String[0];
         selectedComicStatuses = new String[0];
@@ -52,12 +67,16 @@ public class SearchCriteria {
 
         releaseYearFrom = null;
         releaseYearTo = null;
+
         ratingsCountFrom = null;
         ratingsCountTo = null;
+
         avgRatingFrom = null;
         avgRatingTo = null;
+
         chaptersCountFrom = null;
         chaptersCountTo = null;
+
         updatedFrom = null;
         updatedTo = null;
     }

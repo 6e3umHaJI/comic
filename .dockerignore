@@ -1,0 +1,12 @@
+.git
+.idea
+target
+*.iml
+
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+!src/main/resources/application-docker.properties
+
+secrets
+docker/uploads
+.env

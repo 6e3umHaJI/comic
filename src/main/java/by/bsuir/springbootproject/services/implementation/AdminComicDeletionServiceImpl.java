@@ -23,9 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import by.bsuir.springbootproject.services.UploadStorageService;
+
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -40,8 +39,6 @@ public class AdminComicDeletionServiceImpl implements AdminComicDeletionService 
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String SCOPE_COMIC = "COMIC";
     private static final String SCOPE_TRANSLATION = "TRANSLATION";
-    private static final Path COVERS_STORAGE_DIR = Path.of("src/main/webapp/assets/covers");
-    private static final Path PAGES_STORAGE_DIR = Path.of("src/main/webapp/assets/pages");
 
     private final ComicRepository comicRepository;
     private final ChapterRepository chapterRepository;
@@ -54,6 +51,8 @@ public class AdminComicDeletionServiceImpl implements AdminComicDeletionService 
     private final NotificationRepository notificationRepository;
     private final ComplaintRepository complaintRepository;
     private final NotificationService notificationService;
+    private final UploadStorageService uploadStorageService;
+
 
     @Override
     public void deleteComic(Integer comicId, User admin) {
@@ -147,10 +146,7 @@ public class AdminComicDeletionServiceImpl implements AdminComicDeletionService 
 
     private void deletePageFiles(Set<String> fileNames) {
         for (String fileName : fileNames) {
-            try {
-                Files.deleteIfExists(PAGES_STORAGE_DIR.resolve(fileName));
-            } catch (IOException ignored) {
-            }
+            uploadStorageService.deletePageIfExists(fileName);
         }
     }
 
@@ -163,9 +159,6 @@ public class AdminComicDeletionServiceImpl implements AdminComicDeletionService 
             return;
         }
 
-        try {
-            Files.deleteIfExists(COVERS_STORAGE_DIR.resolve(coverFileName));
-        } catch (IOException ignored) {
-        }
+        uploadStorageService.deleteCoverIfExists(coverFileName);
     }
 }

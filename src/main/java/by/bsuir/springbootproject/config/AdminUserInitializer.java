@@ -18,8 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminUserInitializer implements CommandLineRunner {
 
-    // Логин: admin
-    // Пароль: Admin12345!
     private static final String ADMIN_EMAIL = "admin@comic.local";
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "Admin12345";

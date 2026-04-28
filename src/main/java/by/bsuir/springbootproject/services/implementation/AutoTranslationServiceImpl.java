@@ -16,6 +16,7 @@ import by.bsuir.springbootproject.repositories.ComicRepository;
 import by.bsuir.springbootproject.repositories.LanguageRepository;
 import by.bsuir.springbootproject.services.AutoTranslationService;
 import by.bsuir.springbootproject.services.NotificationService;
+import by.bsuir.springbootproject.services.UploadStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
@@ -44,7 +45,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -70,6 +70,7 @@ import com.google.cloud.translate.v3.TranslateTextRequest;
 import com.google.cloud.translate.v3.TranslateTextResponse;
 import com.google.cloud.translate.v3.TranslationServiceClient;
 
+import org.springframework.dao.DataIntegrityViolationException;
 
 @Service
 @RequiredArgsConstructor
@@ -125,15 +126,14 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             Map.entry('y', 'у')
     );
 
-   private static final Path PAGES_STORAGE_DIR =
-            Paths.get("src/main/webapp/assets/pages");
-
     private final ComicRepository comicRepository;
     private final LanguageRepository languageRepository;
     private final AutoTranslationPreviewRepository previewRepository;
     private final AutoTranslationPreviewPageRepository previewPageRepository;
     private final ApiMonthlyUsageRepository usageRepository;
     private final NotificationService notificationService;
+    private final UploadStorageService uploadStorageService;
+
     @Value("${ocrspace.api.key:}")
     private String ocrApiKey;
 
@@ -204,12 +204,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             );
         }
 
-        try {
-            Files.createDirectories(PAGES_STORAGE_DIR);
-        } catch (IOException e) {
-            throw new IllegalStateException("Не удалось подготовить директорию для автоматического перевода.");
-        }
-
         List<String> createdFileNames = new ArrayList<>();
         List<ComicPage> resultPages = new ArrayList<>();
         int ocrRequestsUsed = 0;
@@ -230,7 +224,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     writeMultipartAsJpg(candidate.file(), tempSource);
 
                     String finalFileName = buildAutoStoredFileName(translation.getId(), candidate.pageNumber());
-                    Path finalPath = PAGES_STORAGE_DIR.resolve(finalFileName);
                     boolean selected = selectedPages.contains(candidate.pageNumber());
 
                     if (selected) {
@@ -242,11 +235,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                 beforeUsage.remainingMyMemoryChars() - translationCharsUsed
                         );
 
-                        Files.copy(tempResult, finalPath, StandardCopyOption.REPLACE_EXISTING);
+                        uploadStorageService.copyPage(tempResult, finalFileName);
                         ocrRequestsUsed += 1;
                         translationCharsUsed += translationResult.sourceCharacters();
                     } else {
-                        Files.copy(tempSource, finalPath, StandardCopyOption.REPLACE_EXISTING);
+                        uploadStorageService.copyPage(tempSource, finalFileName);
                     }
 
                     createdFileNames.add(finalFileName);
@@ -1482,15 +1475,37 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         YearMonth month = YearMonth.now();
 
         if (ocrRequestsUsed > 0) {
-            ApiMonthlyUsage usage = getOrCreateUsage(OCR_PROVIDER, month);
-            usage.setRequestsUsed(usage.getRequestsUsed() + ocrRequestsUsed);
+            ApiMonthlyUsage usage = getOrCreateUsageForUpdate(OCR_PROVIDER, month);
+
+            int requestLimit = safeInt(usage.getRequestLimit());
+            int requestsUsed = safeInt(usage.getRequestsUsed());
+
+            if (requestsUsed + ocrRequestsUsed > requestLimit) {
+                throw new IllegalStateException(
+                        "В OCR.space закончился общий месячный лимит запросов. " +
+                                "Нужно: " + ocrRequestsUsed + ", доступно: " + Math.max(0, requestLimit - requestsUsed) + "."
+                );
+            }
+
+            usage.setRequestsUsed(requestsUsed + ocrRequestsUsed);
             usage.setUpdatedAt(LocalDateTime.now());
             usageRepository.save(usage);
         }
 
         if (translationCharsUsed > 0) {
-            ApiMonthlyUsage usage = getOrCreateUsage(GOOGLE_TRANSLATE_PROVIDER, month);
-            usage.setCharsUsed(usage.getCharsUsed() + translationCharsUsed);
+            ApiMonthlyUsage usage = getOrCreateUsageForUpdate(GOOGLE_TRANSLATE_PROVIDER, month);
+
+            int charLimit = safeInt(usage.getCharLimit());
+            int charsUsed = safeInt(usage.getCharsUsed());
+
+            if (charsUsed + translationCharsUsed > charLimit) {
+                throw new IllegalStateException(
+                        "В Google Cloud Translation закончился общий месячный лимит символов. " +
+                                "Нужно: " + translationCharsUsed + ", доступно: " + Math.max(0, charLimit - charsUsed) + "."
+                );
+            }
+
+            usage.setCharsUsed(charsUsed + translationCharsUsed);
             usage.setUpdatedAt(LocalDateTime.now());
             usageRepository.save(usage);
         }
@@ -1498,46 +1513,82 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
 
     private QuotaSnapshot getQuotaSnapshot() {
         YearMonth month = YearMonth.now();
+
         ApiMonthlyUsage ocr = getOrCreateUsage(OCR_PROVIDER, month);
         ApiMonthlyUsage googleTranslateUsage = getOrCreateUsage(GOOGLE_TRANSLATE_PROVIDER, month);
 
         return new QuotaSnapshot(
-                Math.max(0, ocr.getRequestLimit() - ocr.getRequestsUsed()),
-                Math.max(0, googleTranslateUsage.getCharLimit() - googleTranslateUsage.getCharsUsed())
+                Math.max(0, safeInt(ocr.getRequestLimit()) - safeInt(ocr.getRequestsUsed())),
+                Math.max(0, safeInt(googleTranslateUsage.getCharLimit()) - safeInt(googleTranslateUsage.getCharsUsed()))
         );
     }
 
     private ApiMonthlyUsage getOrCreateUsage(String provider, YearMonth month) {
         String monthKey = month.toString();
 
-        return usageRepository.findByProviderAndMonthKey(provider, monthKey)
-                .orElseGet(() -> usageRepository.save(
-                        ApiMonthlyUsage.builder()
-                                .provider(provider)
-                                .monthKey(monthKey)
-                                .requestLimit(OCR_PROVIDER.equals(provider)
-                                        ? Math.max(0, ocrMonthlyRequestLimit)
-                                        : 0)
-                                .requestsUsed(0)
-                                .charLimit(GOOGLE_TRANSLATE_PROVIDER.equals(provider)
-                                        ? Math.max(0, gcpTranslationMonthlyCharLimit)
-                                        : 0)
-                                .charsUsed(0)
-                                .updatedAt(LocalDateTime.now())
-                                .build()
-                ));
+        ApiMonthlyUsage usage = usageRepository.findByProviderAndMonthKey(provider, monthKey)
+                .orElseGet(() -> createUsage(provider, monthKey));
+
+        syncConfiguredLimits(usage, provider);
+        return usageRepository.save(usage);
+    }
+
+    private ApiMonthlyUsage getOrCreateUsageForUpdate(String provider, YearMonth month) {
+        String monthKey = month.toString();
+
+        ApiMonthlyUsage usage = usageRepository.findLockedByProviderAndMonthKey(provider, monthKey)
+                .orElseGet(() -> {
+                    try {
+                        usageRepository.saveAndFlush(buildNewUsage(provider, monthKey));
+                    } catch (DataIntegrityViolationException ignored) {
+                    }
+
+                    return usageRepository.findLockedByProviderAndMonthKey(provider, monthKey)
+                            .orElseThrow(() -> new IllegalStateException("Не удалось получить общий счётчик лимитов API."));
+                });
+
+        syncConfiguredLimits(usage, provider);
+        return usageRepository.saveAndFlush(usage);
+    }
+
+    private ApiMonthlyUsage createUsage(String provider, String monthKey) {
+        try {
+            return usageRepository.saveAndFlush(buildNewUsage(provider, monthKey));
+        } catch (DataIntegrityViolationException ignored) {
+            return usageRepository.findByProviderAndMonthKey(provider, monthKey)
+                    .orElseThrow(() -> new IllegalStateException("Не удалось создать общий счётчик лимитов API."));
+        }
+    }
+
+    private ApiMonthlyUsage buildNewUsage(String provider, String monthKey) {
+        return ApiMonthlyUsage.builder()
+                .provider(provider)
+                .monthKey(monthKey)
+                .requestLimit(OCR_PROVIDER.equals(provider) ? Math.max(0, ocrMonthlyRequestLimit) : 0)
+                .requestsUsed(0)
+                .charLimit(GOOGLE_TRANSLATE_PROVIDER.equals(provider) ? Math.max(0, gcpTranslationMonthlyCharLimit) : 0)
+                .charsUsed(0)
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    private void syncConfiguredLimits(ApiMonthlyUsage usage, String provider) {
+        if (OCR_PROVIDER.equals(provider)) {
+            usage.setRequestLimit(Math.max(0, ocrMonthlyRequestLimit));
+            usage.setCharLimit(0);
+        } else if (GOOGLE_TRANSLATE_PROVIDER.equals(provider)) {
+            usage.setRequestLimit(0);
+            usage.setCharLimit(Math.max(0, gcpTranslationMonthlyCharLimit));
+        }
+    }
+
+    private int safeInt(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private void deleteFinalFiles(List<String> fileNames) {
         for (String fileName : fileNames) {
-            if (!StringUtils.hasText(fileName)) {
-                continue;
-            }
-
-            try {
-                Files.deleteIfExists(PAGES_STORAGE_DIR.resolve(fileName));
-            } catch (IOException ignored) {
-            }
+            uploadStorageService.deletePageIfExists(fileName);
         }
     }
 

@@ -14,6 +14,7 @@ import by.bsuir.springbootproject.repositories.ReadProgressRepository;
 import by.bsuir.springbootproject.repositories.TranslationRepository;
 import by.bsuir.springbootproject.services.AdminTranslationManageService;
 import by.bsuir.springbootproject.services.NotificationService;
+import by.bsuir.springbootproject.services.UploadStorageService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +26,6 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -50,7 +48,6 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
     private static final long MAX_FILE_SIZE_BYTES = 1024L * 1024L;
     private static final int MAX_TITLE_LENGTH = 255;
     private static final int TEMP_PAGE_NUMBER_START = 100000;
-    private static final Path PAGES_STORAGE_DIR = Path.of("src/main/webapp/assets/pages");
 
     private final TranslationRepository translationRepository;
     private final ComicPageRepository comicPageRepository;
@@ -60,6 +57,7 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
     private final NotificationRepository notificationRepository;
     private final ComplaintRepository complaintRepository;
     private final NotificationService notificationService;
+    private final UploadStorageService uploadStorageService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -329,18 +327,12 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
 
 
     private String storePageFile(MultipartFile file) {
-        try {
-            Files.createDirectories(PAGES_STORAGE_DIR);
-        } catch (IOException e) {
-            throw new IllegalStateException("Не удалось подготовить директорию для страниц.");
-        }
-
         String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().trim();
         String extension = extractExtension(originalName, file.getContentType());
         String storedFileName = UUID.randomUUID() + "." + extension;
 
         try {
-            Files.copy(file.getInputStream(), PAGES_STORAGE_DIR.resolve(storedFileName), StandardCopyOption.REPLACE_EXISTING);
+            uploadStorageService.storePage(file, storedFileName);
             return storedFileName;
         } catch (IOException e) {
             throw new IllegalStateException("Не удалось сохранить страницы перевода.");
@@ -369,10 +361,7 @@ public class AdminTranslationManageServiceImpl implements AdminTranslationManage
                 continue;
             }
 
-            try {
-                Files.deleteIfExists(PAGES_STORAGE_DIR.resolve(fileName));
-            } catch (IOException ignored) {
-            }
+            uploadStorageService.deletePageIfExists(fileName);
         }
     }
 

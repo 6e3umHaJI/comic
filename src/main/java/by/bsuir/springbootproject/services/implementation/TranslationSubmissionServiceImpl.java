@@ -26,7 +26,6 @@ import org.springframework.web.servlet.ModelAndView;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -39,6 +38,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.Locale;
+import by.bsuir.springbootproject.services.UploadStorageService;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +50,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
     private static final String STATUS_PENDING = "На проверке";
     private static final String STATUS_APPROVED = "Одобрено";
-    private static final String STATUS_REJECTED = "Отклонено";
 
     private static final String TYPE_OFFICIAL = "Официальный";
     private static final String TYPE_AMATEUR = "Любительский";
@@ -64,7 +63,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
     private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.(jpg|webp)$", Pattern.CASE_INSENSITIVE);
 
-    private static final Path PAGES_STORAGE_DIR = Paths.get("src/main/webapp/assets/pages");
 
     private final ComicRepository comicRepository;
     private final ChapterRepository chapterRepository;
@@ -77,6 +75,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
     private final AutoTranslationService autoTranslationService;
+    private final UploadStorageService uploadStorageService;
 
     @Override
     public ModelAndView getCreatePage(Integer comicId, User user, TranslationSubmissionForm form, String errorMessage) {
@@ -273,8 +272,6 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
         List<String> savedFiles = new ArrayList<>();
 
         try {
-            Files.createDirectories(PAGES_STORAGE_DIR);
-
             List<ComicPage> pages = new ArrayList<>();
 
             if (automatic) {
@@ -303,8 +300,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
                             candidate.file().getOriginalFilename()
                     );
 
-                    Path targetPath = PAGES_STORAGE_DIR.resolve(savedFileName).normalize();
-                    candidate.file().transferTo(targetPath);
+                    uploadStorageService.storePage(candidate.file(), savedFileName);
                     savedFiles.add(savedFileName);
 
                     pages.add(
@@ -686,10 +682,7 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
 
     private void deleteStoredFiles(List<String> fileNames) {
         for (String fileName : fileNames) {
-            try {
-                Files.deleteIfExists(PAGES_STORAGE_DIR.resolve(fileName));
-            } catch (IOException ignored) {
-            }
+            uploadStorageService.deletePageIfExists(fileName);
         }
     }
 
