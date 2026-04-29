@@ -9,7 +9,15 @@ import lombok.experimental.SuperBuilder;
 
 @AttributeOverride(name = "id", column = @Column(name = "rating_id"))
 @Entity
-@Table(name = "ratings")
+@Table(
+        name = "ratings",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_ratings_user_comic",
+                        columnNames = {"user_id", "comic_id"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,15 +25,15 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public class Rating extends BaseEntity {
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "comic_id")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "comic_id", nullable = false)
     private Comic comic;
 
-    @ManyToOne
-    @JoinColumn(name = "score_id")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "score_id", nullable = false)
     private RatingScore score;
 }

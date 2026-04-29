@@ -70,7 +70,7 @@ public class Notification extends BaseEntity {
     @Column(name = "actor_username_snapshot", length = 100)
     private String actorUsernameSnapshot;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 300)
     private String message;
 
     @Column(name = "created_at")

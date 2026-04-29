@@ -11,6 +11,7 @@ import by.bsuir.springbootproject.repositories.UserSectionRepository;
 import by.bsuir.springbootproject.security.AuthInputValidationUtils;
 import by.bsuir.springbootproject.services.AuthService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,12 +42,6 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalStateException("Email Google-аккаунта не подтвержден.");
         }
 
-        String normalizedUsername = AuthInputValidationUtils.normalize(form.getUsername());
-
-        if (!AuthInputValidationUtils.isValidUsername(normalizedUsername)) {
-            throw new IllegalArgumentException(AuthInputValidationUtils.getUsernameValidationMessage());
-        }
-
         if (!AuthInputValidationUtils.isValidPassword(form.getPassword())) {
             throw new IllegalArgumentException(AuthInputValidationUtils.getPasswordValidationMessage());
         }
@@ -59,33 +54,51 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Пароли не совпадают.");
         }
 
-        if (userRepository.existsByEmail(pending.getEmail())) {
+        String normalizedEmail = AuthInputValidationUtils.normalize(pending.getEmail());
+        String normalizedUsername = AuthInputValidationUtils.normalize(form.getUsername());
+
+        if (!AuthInputValidationUtils.isValidUsername(normalizedUsername)) {
+            throw new IllegalArgumentException(AuthInputValidationUtils.getUsernameValidationMessage());
+        }
+
+        if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new IllegalArgumentException("Пользователь с такой почтой уже существует.");
         }
 
-        if (userRepository.existsByUsername(normalizedUsername)) {
+        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
             throw new IllegalArgumentException("Такой никнейм уже занят.");
         }
+
 
         UserRole userRole = userRoleRepository.findByName("USER")
                 .orElseThrow(() -> new IllegalStateException("Роль USER не найдена. Проверь таблицу user_roles."));
 
         User user = User.builder()
-                .email(pending.getEmail())
+                .email(normalizedEmail)
                 .username(normalizedUsername)
                 .passwordHash(passwordEncoder.encode(form.getPassword()))
                 .role(userRole)
                 .canPropose(false)
                 .build();
 
-        User savedUser = userRepository.save(user);
-        createDefaultSections(savedUser);
-        return savedUser;
+        try {
+            User savedUser = userRepository.saveAndFlush(user);
+            createDefaultSections(savedUser);
+            return savedUser;
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Пользователь с такой почтой или никнеймом уже существует.");
+        }
+
     }
 
     private void createDefaultSections(User user) {
         List<String> defaults = List.of("Читаю", "Любимые", "В планах", "Прочитано");
+
         for (String name : defaults) {
+            if (userSectionRepository.existsByUserIdAndNameIgnoreCase(user.getId(), name)) {
+                continue;
+            }
+
             userSectionRepository.save(
                     UserSection.builder()
                             .user(user)

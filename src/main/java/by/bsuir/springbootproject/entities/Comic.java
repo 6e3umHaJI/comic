@@ -26,18 +26,18 @@ public class Comic extends BaseEntity {
     private String originalTitle;
 
     @ManyToOne
-    @JoinColumn(name = "type_id")
+    @JoinColumn(name = "type_id", nullable = false)
     private ComicType type;
 
     @ManyToOne
     @JoinColumn(name = "age_rating_id")
     private AgeRating ageRating;
 
-    @Column(name = "release_year")
+    @Column(name = "release_year", nullable = false)
     private Integer releaseYear;
 
     @ManyToOne
-    @JoinColumn(name = "comic_status_id")
+    @JoinColumn(name = "comic_status_id", nullable = false)
     private ComicStatus comicStatus;
 
     @Column(name = "short_description", nullable = false, length = 500)
@@ -58,21 +58,23 @@ public class Comic extends BaseEntity {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Builder.Default
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     @Builder.Default
     @Column(name = "popularity_score", nullable = false)
     private Long popularityScore = 0L;
 
-    @Column(name = "ratings_count")
-    private Integer ratingsCount;
-
-    @Column(name = "chapters_count")
-    private Integer chaptersCount;
+    @Builder.Default
+    @Column(name = "ratings_count", nullable = false)
+    private Integer ratingsCount = 0;
 
     @Builder.Default
-    @Column(name = "avg_rating")
+    @Column(name = "chapters_count", nullable = false)
+    private Integer chaptersCount = 0;
+
+    @Builder.Default
+    @Column(name = "avg_rating", nullable = false)
     private Double avgRating = 0.0;
 
     @Builder.Default

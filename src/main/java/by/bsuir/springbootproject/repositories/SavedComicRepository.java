@@ -37,9 +37,10 @@ public interface SavedComicRepository extends JpaRepository<SavedComic, Integer>
     @Modifying
     @Query(
             value = """
-                    insert into saved_comics (section_id, comic_id, added_at)
-                    values (:sectionId, :comicId, :addedAt)
-                    """,
+                insert into saved_comics (section_id, comic_id, added_at)
+                values (:sectionId, :comicId, :addedAt)
+                on conflict (section_id, comic_id) do nothing
+                """,
             nativeQuery = true
     )
     void insertSavedComic(@Param("sectionId") Integer sectionId,

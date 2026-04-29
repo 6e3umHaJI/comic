@@ -136,6 +136,8 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
                 ? ageRatingRepository.findById(form.getAgeRatingId()).orElse(null)
                 : null);
 
+        normalizeComicCounters(comic);
+
         if (coverFile != null && !coverFile.isEmpty()) {
             comic.setCover(storeCover(coverFile));
         } else if (!isEdit && (comic.getCover() == null || comic.getCover().isBlank())) {
@@ -167,6 +169,27 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
         deleteOldCoverIfUnused(oldCover, comic.getCover());
 
         return comic.getId();
+    }
+
+    private void normalizeComicCounters(Comic comic) {
+        if (comic.getPopularityScore() == null) {
+            comic.setPopularityScore(0L);
+        }
+        if (comic.getAvgRating() == null) {
+            comic.setAvgRating(0.0);
+        }
+        if (comic.getRatingsCount() == null) {
+            comic.setRatingsCount(0);
+        }
+        if (comic.getChaptersCount() == null) {
+            comic.setChaptersCount(0);
+        }
+        if (comic.getCreatedAt() == null) {
+            comic.setCreatedAt(LocalDateTime.now());
+        }
+        if (comic.getUpdatedAt() == null) {
+            comic.setUpdatedAt(LocalDateTime.now());
+        }
     }
 
     @Override
@@ -311,6 +334,12 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
                 }
 
                 if (!name.isBlank()) {
+                    Genre existingByName = genreRepository.findByNameIgnoreCase(name).orElse(null);
+
+                    if (existingByName != null && !existingByName.getId().equals(genre.getId())) {
+                        throw new IllegalArgumentException("Жанр с таким названием уже существует.");
+                    }
+
                     genre.setName(name);
                     genreRepository.save(genre);
                 }
@@ -362,6 +391,12 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
                 }
 
                 if (!name.isBlank()) {
+                    Tag existingByName = tagRepository.findByNameIgnoreCase(name).orElse(null);
+
+                    if (existingByName != null && !existingByName.getId().equals(tag.getId())) {
+                        throw new IllegalArgumentException("Тег с таким названием уже существует.");
+                    }
+
                     tag.setName(name);
                     tagRepository.save(tag);
                 }
@@ -440,12 +475,19 @@ public class AdminComicManageServiceImpl implements AdminComicManageService {
 
         for (RelationInput relationInput : relationInputs) {
             Integer relatedComicId = relationInput.getRelatedComicId();
+
             if (relatedComicId == null || relatedComicId <= 0) {
                 continue;
             }
+
             if (comicId.equals(relatedComicId)) {
                 continue;
             }
+
+            if (!comicRepository.existsById(relatedComicId)) {
+                throw new IllegalArgumentException("Связанный комикс не найден.");
+            }
+
             if (!addedComicIds.add(relatedComicId)) {
                 continue;
             }

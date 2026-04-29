@@ -20,4 +20,18 @@ public interface RatingRepository extends JpaRepository<Rating, Integer> {
             where r.comic.id = :comicId
             """)
     void deleteAllByComicId(@Param("comicId") Integer comicId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                insert into ratings (user_id, comic_id, score_id)
+                values (:userId, :comicId, :scoreId)
+                on conflict (user_id, comic_id)
+                do update set score_id = excluded.score_id
+                """,
+            nativeQuery = true
+    )
+    void upsertRating(@Param("userId") Integer userId,
+                      @Param("comicId") Integer comicId,
+                      @Param("scoreId") Integer scoreId);
 }

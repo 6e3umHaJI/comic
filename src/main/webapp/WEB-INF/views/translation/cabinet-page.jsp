@@ -19,9 +19,6 @@
             <div class="translation-cabinet-head">
                 <div>
                     <h1 class="translation-cabinet-title">Загруженные главы</h1>
-                    <div class="translation-cabinet-subtitle">
-                        Все ваши переводы списком: обложка слева, подробная информация справа.
-                    </div>
                 </div>
             </div>
 

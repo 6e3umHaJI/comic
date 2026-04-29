@@ -23,27 +23,24 @@ public class RatingServiceImpl implements RatingService {
 
     @Override
     public Rating rateComic(User user, int comicId, int value) {
-        if (value < 1 || value > 5)
+        if (user == null || user.getId() == null) {
+            throw new IllegalStateException("Авторизуйтесь, чтобы поставить оценку.");
+        }
+
+        if (value < 1 || value > 5) {
             throw new IllegalArgumentException("Оценка должна быть от 1 до 5");
+        }
 
         Comic comic = comicRepository.findById(comicId)
                 .orElseThrow(() -> new RuntimeException("Комикс не найден"));
+
         RatingScore score = scoreRepository.findByValue((short) value)
                 .orElseThrow(() -> new RuntimeException("Неверное значение рейтинга"));
 
+        ratingRepository.upsertRating(user.getId(), comic.getId(), score.getId());
+
         return ratingRepository.findByUserAndComic(user, comic)
-                .map(rating -> {
-                    rating.setScore(score);
-                    return ratingRepository.save(rating);
-                })
-                .orElseGet(() -> {
-                    Rating rating = Rating.builder()
-                            .user(user)
-                            .comic(comic)
-                            .score(score)
-                            .build();
-                    return ratingRepository.save(rating);
-                });
+                .orElseThrow(() -> new IllegalStateException("Не удалось сохранить оценку."));
     }
 
     @Override

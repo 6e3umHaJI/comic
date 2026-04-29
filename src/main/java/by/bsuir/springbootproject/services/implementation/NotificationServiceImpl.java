@@ -38,12 +38,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private static final String TYPE_NEW_TRANSLATION = "Добавлен новый перевод";
     private static final String TYPE_NEW_CHAPTER = "Добавлена новая глава";
-    private static final String TYPE_CHAPTER_APPROVED = "Ваша глава прошла модерацию";
-    private static final String TYPE_CHAPTER_REJECTED = "Ваша глава не прошла модерацию";
+    private static final String TYPE_TRANSLATION_APPROVED = "Ваш перевод прошел модерацию";
+    private static final String TYPE_TRANSLATION_REJECTED = "Ваш перевод не прошел модерацию";
     private static final String TYPE_ADMIN_MESSAGE = "Уведомление от администрации";
     private static final String TYPE_COMIC_REMOVED_FROM_COLLECTION = "Тайтл из коллекции был удалён";
-    private static final String TYPE_USER_CHAPTER_DELETED = "Ваша глава была удалена";
-    private static final String TYPE_UPLOAD_RIGHTS_REVOKED = "Право на добавление глав ограничено";
+    private static final String TYPE_USER_TRANSLATION_DELETED = "Ваш перевод был удален";
+    private static final String TYPE_UPLOAD_RIGHTS_REVOKED = "Право на добавление переводов ограничено";
     private static final String TYPE_COMPLAINT_REVIEWED = "Ваша жалоба рассмотрена";
     private static final int MAX_NOTIFICATION_MESSAGE_LENGTH = 300;
 
@@ -224,7 +224,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         createNotification(
                 userId,
-                TYPE_CHAPTER_APPROVED,
+                TYPE_TRANSLATION_APPROVED,
                 comic,
                 translation.getChapter(),
                 translation,
@@ -247,7 +247,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         createNotification(
                 userId,
-                TYPE_CHAPTER_REJECTED,
+                TYPE_TRANSLATION_REJECTED,
                 comic,
                 translation.getChapter(),
                 translation,
@@ -310,7 +310,7 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         Comic comic = comicId != null ? comicRepository.findById(comicId).orElse(null) : null;
-        Notification notification = baseNotification(userId, TYPE_USER_CHAPTER_DELETED);
+        Notification notification = baseNotification(userId, TYPE_USER_TRANSLATION_DELETED);
 
         notification.setComic(comic);
         notification.setComicTitleSnapshot(hasText(comicTitle) ? comicTitle : (comic != null ? comic.getTitle() : null));
@@ -318,7 +318,9 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setLanguageNameSnapshot(languageName);
         notification.setIsClickable(false);
         notification.setLinkPath(null);
-        notification.setMessage(hasText(message) ? message : "Ваша глава была удалена.");
+        notification.setMessage(trimNotificationMessage(
+                hasText(message) ? message : "Ваша глава была удалена."
+        ));
 
         notificationRepository.save(notification);
     }
@@ -452,7 +454,7 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setActorUsernameSnapshot(
                 translation != null && translation.getUser() != null ? translation.getUser().getUsername() : null
         );
-        notification.setMessage(message);
+        notification.setMessage(trimNotificationMessage(message));
 
         notificationRepository.save(notification);
     }
@@ -545,7 +547,7 @@ public class NotificationServiceImpl implements NotificationService {
                 yield hasText(comicTitle) ? comicTitle : "Результат по жалобе";
             }
             case TYPE_COMIC_REMOVED_FROM_COLLECTION -> hasText(comicTitle) ? comicTitle : "Удалённый тайтл";
-            case TYPE_USER_CHAPTER_DELETED -> hasText(comicTitle) ? comicTitle : "Удалённая глава";
+            case TYPE_USER_TRANSLATION_DELETED -> hasText(comicTitle) ? comicTitle : "Удалённая глава";
             default -> hasText(comicTitle) ? comicTitle : "Комикс";
         };
     }
@@ -570,7 +572,7 @@ public class NotificationServiceImpl implements NotificationService {
                     chapterNumber != null ? "Глава " + chapterNumber : null,
                     message
             );
-            case TYPE_CHAPTER_APPROVED, TYPE_CHAPTER_REJECTED, TYPE_USER_CHAPTER_DELETED -> joinDetails(
+            case TYPE_TRANSLATION_APPROVED, TYPE_TRANSLATION_REJECTED, TYPE_USER_TRANSLATION_DELETED -> joinDetails(
                     chapterNumber != null ? "Глава " + chapterNumber : null,
                     hasText(languageName) ? "Язык: " + languageName : null,
                     message
@@ -649,7 +651,7 @@ public class NotificationServiceImpl implements NotificationService {
             }
 
             if (!builder.isEmpty()) {
-                builder.append(" - ");
+                builder.append(". ");
             }
 
             builder.append(value);

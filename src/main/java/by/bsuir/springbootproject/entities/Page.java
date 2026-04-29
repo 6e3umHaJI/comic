@@ -9,7 +9,19 @@ import lombok.experimental.SuperBuilder;
 
 @AttributeOverride(name = "id", column = @Column(name = "page_id"))
 @Entity
-@Table(name = "pages")
+@Table(
+        name = "pages",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_pages_translation_page",
+                        columnNames = {"translation_id", "page_number"}
+                ),
+                @UniqueConstraint(
+                        name = "uq_pages_image_path",
+                        columnNames = {"image_path"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
