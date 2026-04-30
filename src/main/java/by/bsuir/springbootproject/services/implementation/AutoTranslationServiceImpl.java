@@ -1,8 +1,7 @@
 package by.bsuir.springbootproject.services.implementation;
 
-import by.bsuir.springbootproject.dto.TranslationSubmissionForm;
+
 import by.bsuir.springbootproject.entities.ApiMonthlyUsage;
-import by.bsuir.springbootproject.entities.Comic;
 import by.bsuir.springbootproject.entities.ComicPage;
 import by.bsuir.springbootproject.entities.Language;
 import by.bsuir.springbootproject.entities.Translation;
@@ -13,22 +12,36 @@ import by.bsuir.springbootproject.repositories.LanguageRepository;
 import by.bsuir.springbootproject.services.AutoTranslationService;
 import by.bsuir.springbootproject.services.NotificationService;
 import by.bsuir.springbootproject.services.UploadStorageService;
+import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.translate.v3.LocationName;
+import com.google.cloud.translate.v3.TranslateTextRequest;
+import com.google.cloud.translate.v3.TranslateTextResponse;
+import com.google.cloud.translate.v3.TranslationServiceClient;
+import com.google.cloud.vision.v1.AnnotateImageRequest;
+import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;
+import com.google.cloud.vision.v1.Block;
+import com.google.cloud.vision.v1.BoundingPoly;
+import com.google.cloud.vision.v1.Feature;
+import com.google.cloud.vision.v1.Image;
+import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.cloud.vision.v1.ImageContext;
+import com.google.cloud.vision.v1.Page;
+import com.google.cloud.vision.v1.Paragraph;
+import com.google.cloud.vision.v1.Symbol;
+import com.google.cloud.vision.v1.TextAnnotation;
+import com.google.cloud.vision.v1.Vertex;
+import com.google.cloud.vision.v1.Word;
+import com.google.protobuf.ByteString;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.beans.factory.annotation.Value;
+
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -57,25 +70,19 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.net.URI;
-import java.nio.file.StandardCopyOption;
 
-import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.translate.v3.LocationName;
-import com.google.cloud.translate.v3.TranslateTextRequest;
-import com.google.cloud.translate.v3.TranslateTextResponse;
-import com.google.cloud.translate.v3.TranslationServiceClient;
-
-import org.springframework.dao.DataIntegrityViolationException;
+import java.util.HashSet;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AutoTranslationServiceImpl implements AutoTranslationService {
 
+
     private static final String ADMIN_ROLE = "ADMIN";
-    private static final String OCR_PROVIDER = "OCR_SPACE";
+    private static final String GOOGLE_VISION_PROVIDER = "GOOGLE_CLOUD_VISION";
     private static final String GOOGLE_TRANSLATE_PROVIDER = "GOOGLE_CLOUD_TRANSLATE";
+
 
     private static final int MAX_PAGE_COUNT = 200;
     private static final long MAX_FILE_SIZE_BYTES = 1024L * 1024L;
@@ -91,11 +98,14 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     private static final int PHRASE_BOX_PADDING_X = 4;
     private static final int PHRASE_BOX_PADDING_Y = 3;
     private static final double MERGE_IOU_THRESHOLD = 0.35;
-    private static final int OCR_ENGINE = 2;
+
+    private static final int DEBUG_TEXT_LIMIT = 12000;
+    private static final int DEBUG_LIST_LIMIT = 500;
 
     private static final Pattern PAGE_FILE_PATTERN = Pattern.compile("^(\\d{1,3})\\.jpg$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SEPARATOR_PATTERN =
             Pattern.compile("^[\\p{Punct}«»“”‘’…0-9]+$");
+
 
     private static final Map<Character, Character> RU_CONFUSABLES = Map.ofEntries(
             Map.entry('A', 'А'),
@@ -120,29 +130,51 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             Map.entry('y', 'у')
     );
 
+
     private final ComicRepository comicRepository;
     private final LanguageRepository languageRepository;
     private final ApiMonthlyUsageRepository usageRepository;
     private final NotificationService notificationService;
     private final UploadStorageService uploadStorageService;
 
-    @Value("${ocrspace.api.key:}")
-    private String ocrApiKey;
 
-    @Value("${ocrspace.monthly-request-limit:25000}")
-    private int ocrMonthlyRequestLimit;
+    @Value("${gcp.vision.monthly-request-limit:1000}")
+    private int visionMonthlyRequestLimit;
+
 
     @Value("${gcp.translation.project-id:}")
     private String gcpTranslationProjectId;
 
+
     @Value("${gcp.translation.location:global}")
     private String gcpTranslationLocation;
+
 
     @Value("${gcp.translation.monthly-char-limit:500000}")
     private int gcpTranslationMonthlyCharLimit;
 
+
     @Value("${gcp.translation.estimated-chars-per-page:3500}")
     private int gcpTranslationEstimatedCharsPerPage;
+
+    @Value("${autotranslation.debug-logging:true}")
+    private boolean autoTranslationDebugLogging;
+
+    @Value("${autotranslation.large-text-filter.enabled:true}")
+    private boolean largeTextFilterEnabled;
+
+    @Value("${autotranslation.large-text-filter.max-short-text-chars:6}")
+    private int largeTextMaxShortTextChars;
+
+    @Value("${autotranslation.large-text-filter.max-area-percent:2.0}")
+    private double largeTextMaxAreaPercent;
+
+    @Value("${autotranslation.large-text-filter.max-width-percent:38.0}")
+    private double largeTextMaxWidthPercent;
+
+    @Value("${autotranslation.large-text-filter.max-height-percent:16.0}")
+    private double largeTextMaxHeightPercent;
+
 
     @Override
     public List<ComicPage> generateTranslationPages(Translation translation,
@@ -152,54 +184,66 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                                     List<Integer> selectedPageNumbers) {
         requireAdmin(admin);
 
+
         if (translation == null || translation.getId() == null) {
             throw new IllegalArgumentException("Перевод для автоматического перевода не найден.");
         }
+
 
         if (sourceLanguageId == null) {
             throw new IllegalArgumentException("Выберите язык исходного текста.");
         }
 
+
         Language sourceLanguage = languageRepository.findById(sourceLanguageId)
                 .orElseThrow(() -> new IllegalArgumentException("Язык исходного текста не найден."));
+
 
         Language targetLanguage = translation.getLanguage();
         if (targetLanguage == null || targetLanguage.getId() == null) {
             throw new IllegalStateException("Язык перевода не найден.");
         }
 
+
         if (targetLanguage.getId().equals(sourceLanguage.getId())) {
             throw new IllegalArgumentException("Язык исходного текста и язык перевода должны отличаться.");
         }
 
+
         validateLanguageCodes(sourceLanguage, targetLanguage);
+
 
         List<PageFileCandidate> files = prepareFiles(pageFiles);
         Set<Integer> selectedPages = normalizeSelectedPages(selectedPageNumbers, files);
 
+
         QuotaSnapshot beforeUsage = getQuotaSnapshot();
 
-        if (selectedPages.size() > beforeUsage.remainingOcrRequests()) {
+
+        if (selectedPages.size() > beforeUsage.remainingVisionRequests()) {
             throw new IllegalStateException(
-                    "В OCR.space осталось слишком мало запросов для этого запуска. Нужно страниц: "
+                    "В Google Cloud Vision осталось слишком мало OCR-запросов для этого запуска. Нужно страниц: "
                             + selectedPages.size()
-                            + ", доступно: " + beforeUsage.remainingOcrRequests() + "."
+                            + ", доступно: " + beforeUsage.remainingVisionRequests() + "."
             );
         }
 
+
         int estimatedChars = selectedPages.size() * Math.max(1, gcpTranslationEstimatedCharsPerPage);
-        if (estimatedChars > beforeUsage.remainingMyMemoryChars()) {
+        if (estimatedChars > beforeUsage.remainingGoogleTranslateChars()) {
             throw new IllegalStateException(
                     "На Google Cloud Translation, скорее всего, не хватит символов для перевода выбранных страниц. Нужно примерно: "
                             + estimatedChars
-                            + ", доступно: " + beforeUsage.remainingMyMemoryChars() + "."
+                            + ", доступно: " + beforeUsage.remainingGoogleTranslateChars() + "."
             );
         }
 
+
         List<String> createdFileNames = new ArrayList<>();
         List<ComicPage> resultPages = new ArrayList<>();
-        int ocrRequestsUsed = 0;
+        int visionRequestsUsed = 0;
         int translationCharsUsed = 0;
+
 
         try {
             for (PageFileCandidate candidate : files) {
@@ -212,11 +256,14 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                         ".jpg"
                 );
 
+
                 try {
                     writeMultipartAsJpg(candidate.file(), tempSource);
 
+
                     String finalFileName = buildAutoStoredFileName(translation.getId(), candidate.pageNumber());
                     boolean selected = selectedPages.contains(candidate.pageNumber());
+
 
                     if (selected) {
                         TranslationResult translationResult = translatePage(
@@ -224,15 +271,20 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                 tempResult,
                                 sourceLanguage,
                                 targetLanguage,
-                                beforeUsage.remainingMyMemoryChars() - translationCharsUsed
+                                beforeUsage.remainingGoogleTranslateChars() - translationCharsUsed,
+                                translation.getId(),
+                                candidate.pageNumber()
                         );
 
+
+
                         uploadStorageService.copyPage(tempResult, finalFileName);
-                        ocrRequestsUsed += 1;
+                        visionRequestsUsed += 1;
                         translationCharsUsed += translationResult.sourceCharacters();
                     } else {
                         uploadStorageService.copyPage(tempSource, finalFileName);
                     }
+
 
                     createdFileNames.add(finalFileName);
                     resultPages.add(
@@ -248,16 +300,18 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 }
             }
 
-            applyUsage(ocrRequestsUsed, translationCharsUsed);
+
+            applyUsage(visionRequestsUsed, translationCharsUsed);
             return resultPages;
         } catch (IOException e) {
             deleteFinalFiles(createdFileNames);
-            throw new IllegalStateException("Не удалось сохранить изображения автоматического перевода.");
+            throw new IllegalStateException("Не удалось сохранить изображения автоматического перевода.", e);
         } catch (RuntimeException e) {
             deleteFinalFiles(createdFileNames);
             throw e;
         }
     }
+
 
     private void writeMultipartAsJpg(MultipartFile file, Path targetPath) {
         try {
@@ -266,11 +320,13 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 throw new IllegalStateException("Не удалось прочитать исходное изображение для автоматического перевода.");
             }
 
+
             BufferedImage rgbImage = new BufferedImage(
                     sourceImage.getWidth(),
                     sourceImage.getHeight(),
                     BufferedImage.TYPE_INT_RGB
             );
+
 
             Graphics2D graphics = rgbImage.createGraphics();
             graphics.setColor(Color.WHITE);
@@ -278,13 +334,15 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             graphics.drawImage(sourceImage, 0, 0, null);
             graphics.dispose();
 
+
             if (!ImageIO.write(rgbImage, "jpg", targetPath.toFile())) {
                 throw new IllegalStateException("Не удалось сохранить временное JPG-изображение.");
             }
         } catch (IOException e) {
-            throw new IllegalStateException("Не удалось подготовить JPG-файл для OCR.space.");
+            throw new IllegalStateException("Не удалось подготовить JPG-файл для Google Cloud Vision.", e);
         }
     }
+
 
     private String buildAutoStoredFileName(Integer translationId, int pageNumber) {
         return "tr_%d_p%03d_%s.jpg".formatted(
@@ -294,18 +352,36 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         );
     }
 
+
     private TranslationResult translatePage(Path sourcePath,
                                             Path resultPath,
                                             Language sourceLanguage,
                                             Language targetLanguage,
-                                            int remainingGoogleChars) {
+                                            int remainingGoogleChars,
+                                            Integer translationId,
+                                            int pageNumber) {
         BufferedImage originalImage = readImage(sourcePath);
 
+
         List<OcrWord> ocrWords = runOcr(sourcePath, sourceLanguage);
-        List<WordBox> filteredBoxes = filterBoxesForSourceLanguage(ocrWords, sourceLanguage);
+
+        FilterResult filterResult = filterBoxesForSourceLanguage(ocrWords, sourceLanguage);
+        List<WordBox> filteredBoxes = filterResult.filteredBoxes();
 
         if (filteredBoxes.isEmpty()) {
             throw new IllegalStateException("На выбранной странице не удалось найти текст исходного языка для автоматического перевода.");
+        }
+
+        LargeTextFilterResult largeTextFilterResult = filterLargeShortInscriptionBoxes(
+                filteredBoxes,
+                originalImage.getWidth(),
+                originalImage.getHeight()
+        );
+
+        filteredBoxes = largeTextFilterResult.keptBoxes();
+
+        if (filteredBoxes.isEmpty()) {
+            throw new IllegalStateException("После фильтра крупных коротких надписей не осталось текста для автоматического перевода.");
         }
 
         List<Rectangle> eraseRects = mergeRectangles(
@@ -313,7 +389,6 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                         .map(this::toExpandedRectangle)
                         .toList()
         );
-
         BufferedImage erasedImage = eraseText(originalImage, eraseRects);
         List<PhraseBox> phrases = groupIntoPhrases(filteredBoxes);
 
@@ -321,8 +396,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             throw new IllegalStateException("На выбранной странице не удалось собрать реплики для перевода.");
         }
 
-        int sourceCharsUsed = phrases.stream()
+        List<String> textsForTranslation = phrases.stream()
                 .map(PhraseBox::translationText)
+                .toList();
+
+        int sourceCharsUsed = textsForTranslation.stream()
                 .mapToInt(String::length)
                 .sum();
 
@@ -335,7 +413,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         List<String> translatedTexts = translateWithGoogleCloud(
-                phrases.stream().map(PhraseBox::translationText).toList(),
+                textsForTranslation,
                 sourceLanguage,
                 targetLanguage
         );
@@ -347,88 +425,249 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
     }
 
 
+
     private List<OcrWord> runOcr(Path imagePath, Language sourceLanguage) {
-        String apiKey = requireConfiguredOcrApiKey();
-        RestTemplate restTemplate = new RestTemplate();
+        String languageHint = normalizeVisionLanguageHint(sourceLanguage.getCode());
+
 
         try {
-            byte[] fileBytes = Files.readAllBytes(imagePath);
+            ByteString imageBytes = ByteString.readFrom(Files.newInputStream(imagePath));
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("apikey", apiKey);
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("language", stringValue(sourceLanguage.getOcrSpaceCode()).trim().toLowerCase(Locale.ROOT));
-            body.add("isOverlayRequired", "true");
-            body.add("OCREngine", String.valueOf(OCR_ENGINE));
-            body.add("file", new ByteArrayResource(fileBytes) {
-                @Override
-                public String getFilename() {
-                    return imagePath.getFileName().toString();
+            Image image = Image.newBuilder()
+                    .setContent(imageBytes)
+                    .build();
+
+
+            Feature feature = Feature.newBuilder()
+                    .setType(Feature.Type.DOCUMENT_TEXT_DETECTION)
+                    .build();
+
+
+            ImageContext.Builder imageContextBuilder = ImageContext.newBuilder();
+            if (StringUtils.hasText(languageHint)) {
+                imageContextBuilder.addLanguageHints(languageHint);
+            }
+
+
+            AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
+                    .setImage(image)
+                    .addFeatures(feature)
+                    .setImageContext(imageContextBuilder.build())
+                    .build();
+
+
+            try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
+                BatchAnnotateImagesResponse batchResponse = client.batchAnnotateImages(List.of(request));
+
+
+                if (batchResponse.getResponsesCount() == 0) {
+                    throw new ExternalApiException("Google Cloud Vision не вернул ответ.");
                 }
-            });
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    "https://api.ocr.space/parse/image",
-                    new HttpEntity<>(body, headers),
-                    Map.class
-            );
 
-            Map<?, ?> data = response.getBody();
-            if (data == null) {
-                throw new ExternalApiException("OCR.space не вернул ответ.");
+                AnnotateImageResponse response = batchResponse.getResponses(0);
+
+
+                if (response.hasError()) {
+                    throw new ExternalApiException(
+                            "Google Cloud Vision вернул ошибку: " + response.getError().getMessage()
+                    );
+                }
+
+
+                TextAnnotation annotation = response.getFullTextAnnotation();
+
+
+                if (annotation == null || !StringUtils.hasText(annotation.getText())) {
+                    throw new ExternalApiException("Google Cloud Vision не нашёл текст на изображении.");
+                }
+
+                List<OcrWord> result = extractVisionWords(annotation);
+
+
+                if (result.isEmpty()) {
+                    throw new ExternalApiException("Google Cloud Vision не вернул слова с координатами.");
+                }
+
+
+                return result;
             }
+        } catch (ExternalApiException e) {
+            throw e;
+        } catch (ApiException e) {
+            String errorMessage = StringUtils.hasText(e.getMessage())
+                    ? e.getMessage()
+                    : String.valueOf(e.getStatusCode());
 
-            if (Boolean.TRUE.equals(data.get("IsErroredOnProcessing"))) {
-                throw new ExternalApiException("OCR.space вернул ошибку обработки изображения.");
-            }
 
-            List<Map<String, Object>> parsedResults = castList(data.get("ParsedResults"));
-            List<OcrWord> result = new ArrayList<>();
+            throw new ExternalApiException("Google Cloud Vision вернул ошибку: " + errorMessage, e);
+        } catch (IOException e) {
+            throw new ExternalApiException("Не удалось прочитать изображение для Google Cloud Vision.", e);
+        } catch (Exception e) {
+            throw new ExternalApiException("Не удалось получить ответ от Google Cloud Vision.", e);
+        }
+    }
 
-            for (Map<String, Object> parsed : parsedResults) {
-                Map<String, Object> overlay = castMap(parsed.get("TextOverlay"));
-                List<Map<String, Object>> lines = castList(overlay.get("Lines"));
 
-                for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
-                    Map<String, Object> line = lines.get(lineIndex);
-                    List<Map<String, Object>> lineWords = castList(line.get("Words"));
+    private List<OcrWord> extractVisionWords(TextAnnotation annotation) {
+        List<OcrWord> result = new ArrayList<>();
 
-                    for (int wordIndex = 0; wordIndex < lineWords.size(); wordIndex++) {
-                        Map<String, Object> word = lineWords.get(wordIndex);
 
-                        String rawText = stringValue(word.get("WordText"));
+        int lineIndex = 0;
+        int wordIndex = 0;
+
+
+        for (Page page : annotation.getPagesList()) {
+            for (Block block : page.getBlocksList()) {
+                for (Paragraph paragraph : block.getParagraphsList()) {
+                    boolean paragraphHasWords = false;
+                    boolean lastWordHadLineBreak = false;
+
+
+                    for (Word word : paragraph.getWordsList()) {
+                        String rawText = extractVisionWordText(word);
+
+
                         if (!StringUtils.hasText(rawText)) {
                             continue;
                         }
+
+
+                        Rectangle rect = toRectangle(word.getBoundingBox());
+
+
+                        if (rect.width <= 0 || rect.height <= 0) {
+                            continue;
+                        }
+
 
                         result.add(
                                 new OcrWord(
                                         lineIndex,
                                         wordIndex,
                                         rawText,
-                                        toInt(word.get("Left")),
-                                        toInt(word.get("Top")),
-                                        toInt(word.get("Width")),
-                                        toInt(word.get("Height"))
+                                        rect.x,
+                                        rect.y,
+                                        rect.width,
+                                        rect.height
                                 )
                         );
+
+
+                        paragraphHasWords = true;
+                        wordIndex++;
+
+
+                        if (hasLineBreakAfterWord(word)) {
+                            lineIndex++;
+                            wordIndex = 0;
+                            lastWordHadLineBreak = true;
+                        } else {
+                            lastWordHadLineBreak = false;
+                        }
+                    }
+
+
+                    if (paragraphHasWords && !lastWordHadLineBreak) {
+                        lineIndex++;
+                        wordIndex = 0;
                     }
                 }
             }
-
-            if (result.isEmpty()) {
-                throw new ExternalApiException("OCR.space не нашёл текст на изображении.");
-            }
-
-            return result;
-        } catch (ExternalApiException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new ExternalApiException("Не удалось получить ответ от OCR.space.");
         }
+
+
+        return result;
     }
+
+
+    private String extractVisionWordText(Word word) {
+        StringBuilder builder = new StringBuilder();
+
+
+        for (Symbol symbol : word.getSymbolsList()) {
+            builder.append(symbol.getText());
+        }
+
+
+        return builder.toString().trim();
+    }
+
+
+    private boolean hasLineBreakAfterWord(Word word) {
+        if (word == null || word.getSymbolsCount() == 0) {
+            return false;
+        }
+
+
+        Symbol lastSymbol = word.getSymbols(word.getSymbolsCount() - 1);
+
+
+        if (!lastSymbol.hasProperty() || !lastSymbol.getProperty().hasDetectedBreak()) {
+            return false;
+        }
+
+
+        TextAnnotation.DetectedBreak.BreakType breakType =
+                lastSymbol.getProperty().getDetectedBreak().getType();
+
+
+        return breakType == TextAnnotation.DetectedBreak.BreakType.EOL_SURE_SPACE
+                || breakType == TextAnnotation.DetectedBreak.BreakType.LINE_BREAK;
+    }
+
+
+    private Rectangle toRectangle(BoundingPoly boundingPoly) {
+        if (boundingPoly == null || boundingPoly.getVerticesCount() == 0) {
+            return new Rectangle(0, 0, 0, 0);
+        }
+
+
+        int left = Integer.MAX_VALUE;
+        int top = Integer.MAX_VALUE;
+        int right = Integer.MIN_VALUE;
+        int bottom = Integer.MIN_VALUE;
+
+
+        for (Vertex vertex : boundingPoly.getVerticesList()) {
+            int x = vertex.getX();
+            int y = vertex.getY();
+
+
+            left = Math.min(left, x);
+            top = Math.min(top, y);
+            right = Math.max(right, x);
+            bottom = Math.max(bottom, y);
+        }
+
+
+        if (left == Integer.MAX_VALUE || top == Integer.MAX_VALUE) {
+            return new Rectangle(0, 0, 0, 0);
+        }
+
+
+        return new Rectangle(
+                Math.max(0, left),
+                Math.max(0, top),
+                Math.max(1, right - left),
+                Math.max(1, bottom - top)
+        );
+    }
+
+
+    private String normalizeVisionLanguageHint(String rawCode) {
+        String code = stringValue(rawCode).trim().toLowerCase(Locale.ROOT);
+
+
+        if (!StringUtils.hasText(code)) {
+            return "";
+        }
+
+
+        return code;
+    }
+
 
     private List<String> translateWithGoogleCloud(List<String> texts,
                                                   Language sourceLanguage,
@@ -437,13 +676,16 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             return List.of();
         }
 
+
         List<String> normalizedTexts = texts.stream()
                 .map(this::cleanPhraseText)
                 .toList();
 
+
         List<Integer> indexesToTranslate = new ArrayList<>();
         List<String> contents = new ArrayList<>();
         List<String> result = new ArrayList<>(Collections.nCopies(texts.size(), ""));
+
 
         for (int i = 0; i < normalizedTexts.size(); i++) {
             String normalized = normalizedTexts.get(i);
@@ -453,15 +695,17 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         if (contents.isEmpty()) {
             return result;
         }
 
         String projectId = requireConfiguredGoogleProjectId();
         String location = requireConfiguredGoogleLocation();
-        String sourceCode = normalizeTranslationLanguageCode(sourceLanguage.getTranslationCode(), "исходного текста");
-        String targetCode = normalizeTranslationLanguageCode(targetLanguage.getTranslationCode(), "перевода");
+        String sourceCode = normalizeTranslationLanguageCode(sourceLanguage.getCode(), "исходного текста");
+        String targetCode = normalizeTranslationLanguageCode(targetLanguage.getCode(), "перевода");
         String parent = LocationName.of(projectId, location).toString();
+
 
         try (TranslationServiceClient client = TranslationServiceClient.create()) {
             TranslateTextRequest request = TranslateTextRequest.newBuilder()
@@ -472,8 +716,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     .addAllContents(contents)
                     .build();
 
+
             TranslateTextResponse response = client.translateText(request);
             List<com.google.cloud.translate.v3.Translation> googleTranslations = response.getTranslationsList();
+
 
             if (googleTranslations.size() != contents.size()) {
                 throw new ExternalApiException("Google Cloud Translation вернул неполный список переводов.");
@@ -482,14 +728,17 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             for (int i = 0; i < googleTranslations.size(); i++) {
                 String translated = stringValue(googleTranslations.get(i).getTranslatedText()).trim();
 
+
                 if (!StringUtils.hasText(translated)) {
                     throw new ExternalApiException("Google Cloud Translation вернул пустой перевод.");
                 }
+
 
                 String finalTranslated = HtmlUtils.htmlUnescape(translated).trim();
                 int originalIndex = indexesToTranslate.get(i);
                 result.set(originalIndex, finalTranslated);
             }
+
 
             return result;
         } catch (ApiException e) {
@@ -497,13 +746,14 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     ? e.getMessage()
                     : String.valueOf(e.getStatusCode());
 
-            throw new ExternalApiException("Google Cloud Translation вернул ошибку: " + errorMessage);
+
+            throw new ExternalApiException("Google Cloud Translation вернул ошибку: " + errorMessage, e);
         } catch (IOException e) {
-            throw new ExternalApiException("Не удалось создать клиент Google Cloud Translation.");
+            throw new ExternalApiException("Не удалось создать клиент Google Cloud Translation.", e);
         } catch (ExternalApiException e) {
             throw e;
         } catch (Exception e) {
-            throw new ExternalApiException("Не удалось получить ответ от Google Cloud Translation.");
+            throw new ExternalApiException("Не удалось получить ответ от Google Cloud Translation.", e);
         }
     }
 
@@ -515,6 +765,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return gcpTranslationProjectId.trim();
     }
 
+
     private String requireConfiguredGoogleLocation() {
         String location = stringValue(gcpTranslationLocation).trim().toLowerCase(Locale.ROOT);
         if (!StringUtils.hasText(location)) {
@@ -523,17 +774,21 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return location;
     }
 
+
     private String normalizeTranslationLanguageCode(String rawCode, String label) {
         String code = stringValue(rawCode).trim().toLowerCase(Locale.ROOT);
+
 
         if (!StringUtils.hasText(code)) {
             throw new IllegalStateException("Для языка " + label + " не настроен код перевода.");
         }
 
+
         return code;
     }
 
-    private List<WordBox> filterBoxesForSourceLanguage(List<OcrWord> words, Language sourceLanguage) {
+
+    private FilterResult filterBoxesForSourceLanguage(List<OcrWord> words, Language sourceLanguage) {
         List<WordBox> allBoxes = new ArrayList<>();
 
         for (OcrWord word : words) {
@@ -561,7 +816,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .toList();
 
         if (sourceBoxes.isEmpty()) {
-            return List.of();
+            return new FilterResult(allBoxes, List.of());
         }
 
         List<WordBox> filtered = new ArrayList<>();
@@ -577,16 +832,111 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
 
         filtered.sort(Comparator.comparingInt(WordBox::top).thenComparingInt(WordBox::left));
-        return filtered;
+
+        return new FilterResult(allBoxes, filtered);
     }
+
+    private LargeTextFilterResult filterLargeShortInscriptionBoxes(List<WordBox> boxes,
+                                                                   int imageWidth,
+                                                                   int imageHeight) {
+        if (!largeTextFilterEnabled || boxes == null || boxes.isEmpty()) {
+            return new LargeTextFilterResult(
+                    boxes == null ? List.of() : boxes,
+                    List.of()
+            );
+        }
+
+        double imageArea = Math.max(1.0, imageWidth * (double) imageHeight);
+
+        List<WordBox> kept = new ArrayList<>();
+        List<SkippedLargeTextBox> skipped = new ArrayList<>();
+
+        for (WordBox box : boxes) {
+            int chars = countVisibleCharacters(box.text());
+
+            double widthPercent = box.width() * 100.0 / Math.max(1.0, imageWidth);
+            double heightPercent = box.height() * 100.0 / Math.max(1.0, imageHeight);
+            double areaPercent = box.width() * (double) box.height() * 100.0 / imageArea;
+
+            boolean shortText = chars <= Math.max(1, largeTextMaxShortTextChars);
+
+            boolean tooLargeByArea = areaPercent >= largeTextMaxAreaPercent;
+            boolean tooLargeByWidth = widthPercent >= largeTextMaxWidthPercent;
+            boolean tooLargeByHeight = heightPercent >= largeTextMaxHeightPercent;
+
+            if (shortText && (tooLargeByArea || tooLargeByWidth || tooLargeByHeight)) {
+                skipped.add(
+                        new SkippedLargeTextBox(
+                                box,
+                                chars,
+                                areaPercent,
+                                widthPercent,
+                                heightPercent,
+                                buildLargeTextSkipReason(
+                                        chars,
+                                        areaPercent,
+                                        widthPercent,
+                                        heightPercent,
+                                        tooLargeByArea,
+                                        tooLargeByWidth,
+                                        tooLargeByHeight
+                                )
+                        )
+                );
+                continue;
+            }
+
+            kept.add(box);
+        }
+
+        return new LargeTextFilterResult(kept, skipped);
+    }
+
+    private String buildLargeTextSkipReason(int chars,
+                                            double areaPercent,
+                                            double widthPercent,
+                                            double heightPercent,
+                                            boolean tooLargeByArea,
+                                            boolean tooLargeByWidth,
+                                            boolean tooLargeByHeight) {
+        List<String> reasons = new ArrayList<>();
+
+        reasons.add("короткий текст: chars=%d <= limit=%d".formatted(
+                chars,
+                Math.max(1, largeTextMaxShortTextChars)
+        ));
+
+        if (tooLargeByArea) {
+            reasons.add("площадь %.2f%% >= %.2f%%".formatted(areaPercent, largeTextMaxAreaPercent));
+        }
+
+        if (tooLargeByWidth) {
+            reasons.add("ширина %.2f%% >= %.2f%%".formatted(widthPercent, largeTextMaxWidthPercent));
+        }
+
+        if (tooLargeByHeight) {
+            reasons.add("высота %.2f%% >= %.2f%%".formatted(heightPercent, largeTextMaxHeightPercent));
+        }
+
+        return String.join("; ", reasons);
+    }
+
+    private int countVisibleCharacters(String value) {
+        return (int) stringValue(value).codePoints()
+                .filter(codePoint -> !Character.isWhitespace(codePoint))
+                .count();
+    }
+
 
     private List<PhraseBox> groupIntoPhrases(List<WordBox> boxes) {
         if (boxes.isEmpty()) {
             return List.of();
         }
 
+
         List<LineGroup> rawLines = groupRawLines(boxes);
         List<Segment> segments = new ArrayList<>();
+
 
         for (int lineNo = 0; lineNo < rawLines.size(); lineNo++) {
             List<List<WordBox>> splitSegments = splitLineByAdaptiveGaps(rawLines.get(lineNo).items());
@@ -597,39 +947,50 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         if (segments.isEmpty()) {
             return List.of();
         }
 
+
         DisjointSet dsu = new DisjointSet(segments.size());
+
 
         for (int i = 0; i < segments.size(); i++) {
             Segment a = segments.get(i);
 
+
             for (int j = i + 1; j < segments.size(); j++) {
                 Segment b = segments.get(j);
+
 
                 if (a.lineNo() == b.lineNo()) {
                     continue;
                 }
 
+
                 double fontHeightA = localMedianHeight(a.items());
                 double fontHeightB = localMedianHeight(b.items());
+
 
                 if (!isFontSizeCompatibleForVerticalMerge(fontHeightA, fontHeightB)) {
                     continue;
                 }
 
+
                 double currentVerticalGap = verticalGap(a.rect(), b.rect());
                 double maxAllowedVerticalGap = Math.min(fontHeightA, fontHeightB) * 1.6;
+
 
                 if (currentVerticalGap > maxAllowedVerticalGap) {
                     continue;
                 }
 
+
                 double overlapRatio = xOverlapRatio(a.rect(), b.rect());
                 double centerDistance = Math.abs(centerX(a.rect()) - centerX(b.rect()));
                 double localFontHeight = (fontHeightA + fontHeightB) / 2.0;
+
 
                 boolean horizontallyAligned =
                         overlapRatio >= 0.18
@@ -638,21 +999,26 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                                 Math.max(a.rect().width, b.rect().width) * 0.22
                         );
 
+
                 if (horizontallyAligned) {
                     dsu.union(i, j);
                 }
             }
         }
 
+
         Map<Integer, List<Segment>> grouped = new HashMap<>();
         for (int i = 0; i < segments.size(); i++) {
             grouped.computeIfAbsent(dsu.find(i), key -> new ArrayList<>()).add(segments.get(i));
         }
 
+
         List<PhraseBox> phrases = new ArrayList<>();
+
 
         for (List<Segment> group : grouped.values()) {
             group.sort(Comparator.comparingInt((Segment s) -> s.rect().y).thenComparingInt(s -> s.rect().x));
+
 
             List<String> lineTexts = new ArrayList<>();
             int left = Integer.MAX_VALUE;
@@ -660,14 +1026,17 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             int right = Integer.MIN_VALUE;
             int bottom = Integer.MIN_VALUE;
 
+
             for (Segment segment : group) {
                 String text = joinTokensPreservingPunctuation(
                         segment.items().stream().map(WordBox::text).toList()
                 );
 
+
                 if (StringUtils.hasText(text)) {
                     lineTexts.add(text);
                 }
+
 
                 left = Math.min(left, segment.rect().x);
                 top = Math.min(top, segment.rect().y);
@@ -675,12 +1044,15 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 bottom = Math.max(bottom, segment.rect().y + segment.rect().height);
             }
 
+
             String joined = String.join("\n", lineTexts);
             String translationText = cleanPhraseText(joined);
+
 
             if (!StringUtils.hasText(translationText)) {
                 continue;
             }
+
 
             Rectangle phraseRect = new Rectangle(
                     Math.max(0, left - TEXT_PADDING_X),
@@ -689,30 +1061,37 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     Math.max(1, (bottom - top) + TEXT_PADDING_Y * 2)
             );
 
+
             phrases.add(new PhraseBox(phraseRect, translationText));
         }
+
 
         phrases.sort(Comparator.comparingInt((PhraseBox p) -> p.rect().y).thenComparingInt(p -> p.rect().x));
         return phrases;
     }
+
 
     private double localMedianHeight(List<WordBox> items) {
         if (items == null || items.isEmpty()) {
             return 18.0;
         }
 
+
         List<Integer> heights = items.stream()
                 .map(WordBox::height)
                 .sorted()
                 .toList();
 
+
         return median(heights);
     }
+
 
     private boolean isFontSizeCompatibleForVerticalMerge(double fontHeightA, double fontHeightB) {
         double min = Math.max(1.0, Math.min(fontHeightA, fontHeightB));
         double max = Math.max(fontHeightA, fontHeightB);
         double ratio = max / min;
+
 
         return ratio <= 1.35;
     }
@@ -725,9 +1104,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 BufferedImage.TYPE_INT_RGB
         );
 
+
         Graphics2D graphics = result.createGraphics();
         graphics.drawImage(source, 0, 0, null);
         graphics.dispose();
+
 
         for (Rectangle rect : eraseRects) {
             Rectangle clipped = clipRectToImage(rect, result.getWidth(), result.getHeight());
@@ -735,8 +1116,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 continue;
             }
 
+
             fillRectWithSmoothedBackground(result, clipped);
         }
+
 
         return result;
     }
@@ -751,11 +1134,13 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 BufferedImage.TYPE_INT_RGB
         );
 
+
         Graphics2D g2 = result.createGraphics();
         g2.drawImage(base, 0, 0, null);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
 
         for (int i = 0; i < phrases.size(); i++) {
             String translated = i < translatedTexts.size() ? translatedTexts.get(i) : "";
@@ -763,17 +1148,21 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 continue;
             }
 
+
             Rectangle clipped = clipRectToImage(phrases.get(i).rect(), result.getWidth(), result.getHeight());
             if (clipped.width <= 2 || clipped.height <= 2) {
                 continue;
             }
 
+
             drawTextIntoRect(g2, translated, clipped);
         }
+
 
         g2.dispose();
         return result;
     }
+
 
     private void drawTextIntoRect(Graphics2D graphics, String text, Rectangle rect) {
         String normalized = stringValue(text).trim().toUpperCase(Locale.ROOT);
@@ -781,30 +1170,36 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             return;
         }
 
+
         BufferedImage layer = new BufferedImage(
                 Math.max(1, rect.width),
                 Math.max(1, rect.height),
                 BufferedImage.TYPE_INT_ARGB
         );
 
+
         Graphics2D boxGraphics = layer.createGraphics();
         boxGraphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         boxGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         boxGraphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
+
         TextFit fit = fitTextToRect(boxGraphics, normalized, rect.width, rect.height);
         boxGraphics.setFont(fit.font());
         FontMetrics metrics = boxGraphics.getFontMetrics(fit.font());
 
+
         int lineHeight = metrics.getHeight();
         int totalHeight = lineHeight * fit.lines().size() + Math.max(0, fit.lines().size() - 1) * fit.spacing();
         int startY = ((rect.height - totalHeight) / 2) + metrics.getAscent();
+
 
         for (int i = 0; i < fit.lines().size(); i++) {
             String line = fit.lines().get(i);
             int lineWidth = metrics.stringWidth(line);
             int x = Math.max(TEXT_PADDING_X, (rect.width - lineWidth) / 2);
             int y = startY + i * (lineHeight + fit.spacing());
+
 
             boxGraphics.setColor(Color.WHITE);
             for (int dx = -TEXT_STROKE_WIDTH; dx <= TEXT_STROKE_WIDTH; dx++) {
@@ -819,9 +1214,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 }
             }
 
+
             boxGraphics.setColor(Color.BLACK);
             boxGraphics.drawString(line, x, y);
         }
+
 
         boxGraphics.dispose();
         graphics.drawImage(layer, rect.x, rect.y, null);
@@ -832,7 +1229,9 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         graphics.setFont(font);
         FontMetrics metrics = graphics.getFontMetrics(font);
 
+
         List<String> result = new ArrayList<>();
+
 
         for (String rawLine : text.split("\\n")) {
             if (rawLine.isBlank()) {
@@ -840,20 +1239,25 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 continue;
             }
 
+
             String[] words = rawLine.split("\\s+");
             StringBuilder current = new StringBuilder();
+
 
             for (String word : words) {
                 if (!StringUtils.hasText(word)) {
                     continue;
                 }
 
+
                 List<String> pieces = (metrics.stringWidth(word) + TEXT_STROKE_WIDTH * 2 > maxWidth)
                         ? splitLongWord(graphics, word, font, maxWidth)
                         : List.of(word);
 
+
                 for (String piece : pieces) {
                     String candidate = current.isEmpty() ? piece : current + " " + piece;
+
 
                     if (metrics.stringWidth(candidate) + TEXT_STROKE_WIDTH * 2 <= maxWidth) {
                         current = new StringBuilder(candidate);
@@ -866,17 +1270,21 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 }
             }
 
+
             if (!current.isEmpty()) {
                 result.add(current.toString());
             }
         }
 
+
         return result.isEmpty() ? List.of(text) : result;
     }
+
 
     private TextFit fitTextToRect(Graphics2D graphics, String text, int boxWidth, int boxHeight) {
         int usableWidth = Math.max(1, boxWidth - TEXT_PADDING_X * 2);
         int usableHeight = Math.max(1, boxHeight - TEXT_PADDING_Y * 2);
+
 
         for (int size = MAX_FONT_SIZE; size >= MIN_FONT_SIZE; size--) {
             Font font = new Font(Font.SANS_SERIF, Font.BOLD, size);
@@ -884,19 +1292,23 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             graphics.setFont(font);
             FontMetrics metrics = graphics.getFontMetrics(font);
 
+
             int spacing = Math.max(1, Math.round(size * 0.15f));
             int maxLineWidth = 0;
             for (String line : lines) {
                 maxLineWidth = Math.max(maxLineWidth, metrics.stringWidth(line));
             }
 
+
             int totalHeight = metrics.getHeight() * lines.size() + Math.max(0, lines.size() - 1) * spacing;
             int totalWidth = maxLineWidth + TEXT_STROKE_WIDTH * 2;
+
 
             if (totalWidth <= usableWidth && totalHeight <= usableHeight) {
                 return new TextFit(font, lines, spacing);
             }
         }
+
 
         Font font = new Font(Font.SANS_SERIF, Font.BOLD, MIN_FONT_SIZE);
         List<String> lines = wrapText(graphics, text, font, usableWidth);
@@ -904,15 +1316,19 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return new TextFit(font, lines, spacing);
     }
 
+
     private List<String> splitLongWord(Graphics2D graphics, String word, Font font, int maxWidth) {
         graphics.setFont(font);
         FontMetrics metrics = graphics.getFontMetrics(font);
 
+
         List<String> parts = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 
+
         for (char ch : word.toCharArray()) {
             String candidate = current + String.valueOf(ch);
+
 
             if (metrics.stringWidth(candidate) + TEXT_STROKE_WIDTH * 2 <= maxWidth || current.isEmpty()) {
                 current = new StringBuilder(candidate);
@@ -922,18 +1338,22 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         if (!current.isEmpty()) {
             parts.add(current.toString());
         }
 
+
         return parts;
     }
+
 
     private Rectangle clipRectToImage(Rectangle rect, int imageWidth, int imageHeight) {
         int x1 = Math.max(0, rect.x);
         int y1 = Math.max(0, rect.y);
         int x2 = Math.min(imageWidth, rect.x + rect.width);
         int y2 = Math.min(imageHeight, rect.y + rect.height);
+
 
         return new Rectangle(
                 x1,
@@ -943,9 +1363,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         );
     }
 
+
     private void fillRectWithSmoothedBackground(BufferedImage image, Rectangle rect) {
         Color sampled = sampleMedianBackgroundColor(image, rect);
         int fillRgb = sampled.getRGB();
+
 
         for (int y = rect.y; y < rect.y + rect.height; y++) {
             for (int x = rect.x; x < rect.x + rect.width; x++) {
@@ -953,8 +1375,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         for (int iteration = 0; iteration < SMOOTH_ITERATIONS; iteration++) {
             int[][] next = new int[rect.height][rect.width];
+
 
             for (int y = rect.y; y < rect.y + rect.height; y++) {
                 for (int x = rect.x; x < rect.x + rect.width; x++) {
@@ -963,9 +1387,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     int left = image.getRGB(Math.max(0, x - 1), y);
                     int right = image.getRGB(Math.min(image.getWidth() - 1, x + 1), y);
 
+
                     next[y - rect.y][x - rect.x] = averageRgb(up, down, left, right);
                 }
             }
+
 
             for (int y = rect.y; y < rect.y + rect.height; y++) {
                 for (int x = rect.x; x < rect.x + rect.width; x++) {
@@ -975,21 +1401,25 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private Color sampleMedianBackgroundColor(BufferedImage image, Rectangle rect) {
         int startX = Math.max(0, rect.x - SAMPLE_RING);
         int startY = Math.max(0, rect.y - SAMPLE_RING);
         int endX = Math.min(image.getWidth(), rect.x + rect.width + SAMPLE_RING);
         int endY = Math.min(image.getHeight(), rect.y + rect.height + SAMPLE_RING);
 
+
         List<Integer> reds = new ArrayList<>();
         List<Integer> greens = new ArrayList<>();
         List<Integer> blues = new ArrayList<>();
+
 
         for (int y = startY; y < endY; y++) {
             for (int x = startX; x < endX; x++) {
                 if (x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height) {
                     continue;
                 }
+
 
                 int rgb = image.getRGB(x, y);
                 Color color = new Color(rgb);
@@ -999,9 +1429,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         if (reds.isEmpty()) {
             return Color.WHITE;
         }
+
 
         return new Color(
                 (int) Math.round(median(reds)),
@@ -1010,10 +1442,12 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         );
     }
 
+
     private int averageRgb(int... rgbs) {
         int red = 0;
         int green = 0;
         int blue = 0;
+
 
         for (int rgb : rgbs) {
             Color color = new Color(rgb);
@@ -1022,9 +1456,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             blue += color.getBlue();
         }
 
+
         int count = Math.max(1, rgbs.length);
         return new Color(red / count, green / count, blue / count).getRGB();
     }
+
 
     private double intersectionOverUnion(Rectangle a, Rectangle b) {
         int x1 = Math.max(a.x, b.x);
@@ -1032,17 +1468,21 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         int x2 = Math.min(a.x + a.width, b.x + b.width);
         int y2 = Math.min(a.y + a.height, b.y + b.height);
 
+
         int intersectionWidth = Math.max(0, x2 - x1);
         int intersectionHeight = Math.max(0, y2 - y1);
         double intersection = (double) intersectionWidth * intersectionHeight;
+
 
         if (intersection <= 0.0) {
             return 0.0;
         }
 
+
         double union = (double) a.width * a.height + (double) b.width * b.height - intersection;
         return union <= 0.0 ? 0.0 : intersection / union;
     }
+
 
     private double medianHeight(List<WordBox> boxes) {
         List<Integer> heights = boxes.stream()
@@ -1050,42 +1490,52 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .sorted()
                 .toList();
 
+
         return median(heights);
     }
+
 
     private double percentile(List<Integer> values, double percentile) {
         if (values == null || values.isEmpty()) {
             return 0.0;
         }
 
+
         List<Integer> sorted = new ArrayList<>(values);
         sorted.sort(Integer::compareTo);
+
 
         if (sorted.size() == 1) {
             return sorted.get(0);
         }
 
+
         double rank = (percentile / 100.0) * (sorted.size() - 1);
         int low = (int) Math.floor(rank);
         int high = (int) Math.ceil(rank);
+
 
         if (low == high) {
             return sorted.get(low);
         }
 
+
         double weight = rank - low;
         return sorted.get(low) * (1.0 - weight) + sorted.get(high) * weight;
     }
 
+
     private List<LineGroup> groupRawLines(List<WordBox> boxes) {
         Map<Integer, List<WordBox>> byLine = new HashMap<>();
         boolean hasLineIndexes = boxes.stream().anyMatch(box -> box.lineIndex() != null);
+
 
         if (hasLineIndexes) {
             for (WordBox box : boxes) {
                 int lineKey = box.lineIndex() == null ? Integer.MAX_VALUE - box.top() : box.lineIndex();
                 byLine.computeIfAbsent(lineKey, key -> new ArrayList<>()).add(box);
             }
+
 
             return byLine.entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
@@ -1097,17 +1547,22 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     .toList();
         }
 
+
         List<WordBox> sorted = new ArrayList<>(boxes);
         sorted.sort(Comparator.comparingInt(WordBox::top).thenComparingInt(WordBox::left));
 
+
         List<LineGroup> groups = new LinkedList<>();
+
 
         for (WordBox box : sorted) {
             boolean added = false;
 
+
             for (LineGroup group : groups) {
                 double centerDiff = Math.abs(centerY(group.boundingRect()) - centerY(box.toRect()));
                 double tolerance = Math.max(4.0, averageHeight(group.items()) * 0.6);
+
 
                 if (centerDiff <= tolerance) {
                     group.items().add(box);
@@ -1116,6 +1571,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 }
             }
 
+
             if (!added) {
                 List<WordBox> items = new ArrayList<>();
                 items.add(box);
@@ -1123,33 +1579,41 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         for (LineGroup group : groups) {
             group.items().sort(Comparator.comparingInt(WordBox::left));
         }
 
+
         return groups;
     }
+
 
     private List<List<WordBox>> splitLineByAdaptiveGaps(List<WordBox> items) {
         List<WordBox> sorted = items.stream()
                 .sorted(Comparator.comparingInt(WordBox::left))
                 .toList();
 
+
         if (sorted.size() <= 1) {
             return List.of(sorted);
         }
 
+
         List<Integer> wordGaps = new ArrayList<>();
         List<Integer> allGaps = new ArrayList<>();
+
 
         for (int i = 0; i < sorted.size() - 1; i++) {
             WordBox left = sorted.get(i);
             WordBox right = sorted.get(i + 1);
             int gap = horizontalGap(left.toRect(), right.toRect());
 
+
             if (gap <= 0) {
                 continue;
             }
+
 
             allGaps.add(gap);
             if (!left.separator() && !right.separator()) {
@@ -1157,23 +1621,29 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         double medianHeight = averageHeight(sorted);
         double normalGap = median(wordGaps.isEmpty() ? allGaps : wordGaps);
+
 
         if (normalGap <= 0) {
             normalGap = medianHeight * 0.55;
         }
 
+
         double splitThreshold = Math.max(22.0, Math.max(medianHeight * 2.1, normalGap * 3.2));
+
 
         List<List<WordBox>> result = new ArrayList<>();
         List<WordBox> current = new ArrayList<>();
         current.add(sorted.get(0));
 
+
         for (int i = 0; i < sorted.size() - 1; i++) {
             WordBox left = sorted.get(i);
             WordBox right = sorted.get(i + 1);
             int gap = horizontalGap(left.toRect(), right.toRect());
+
 
             boolean splitHere = !left.separator() && !right.separator() && gap > splitThreshold;
             if (splitHere) {
@@ -1181,16 +1651,18 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 current.clear();
             }
 
+
             current.add(right);
         }
+
 
         if (!current.isEmpty()) {
             result.add(current);
         }
 
+
         return result;
     }
-
 
 
     private Rectangle toExpandedRectangle(WordBox box) {
@@ -1202,30 +1674,37 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         );
     }
 
+
     private List<Rectangle> mergeRectangles(List<Rectangle> rects) {
         List<Rectangle> working = new ArrayList<>(rects);
         boolean merged = true;
+
 
         while (merged) {
             merged = false;
             List<Rectangle> next = new ArrayList<>();
             boolean[] used = new boolean[working.size()];
 
+
             for (int i = 0; i < working.size(); i++) {
                 if (used[i]) {
                     continue;
                 }
 
+
                 Rectangle current = new Rectangle(working.get(i));
                 used[i] = true;
+
 
                 for (int j = i + 1; j < working.size(); j++) {
                     if (used[j]) {
                         continue;
                     }
 
+
                     Rectangle other = working.get(j);
                     double iou = intersectionOverUnion(current, other);
+
 
                     if (iou >= MERGE_IOU_THRESHOLD || isSameLineAndClose(current, other)) {
                         current = current.union(other);
@@ -1234,11 +1713,14 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     }
                 }
 
+
                 next.add(current);
             }
 
+
             working = next;
         }
+
 
         return working;
     }
@@ -1251,17 +1733,15 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return sameLine && horizontalDistance <= 8;
     }
 
+
     private void validateLanguageCodes(Language sourceLanguage, Language targetLanguage) {
-        if (!StringUtils.hasText(stringValue(sourceLanguage.getOcrSpaceCode()).trim())) {
-            throw new IllegalStateException("Для языка исходного текста не настроен код OCR.space.");
+        if (!StringUtils.hasText(stringValue(sourceLanguage.getCode()).trim())) {
+            throw new IllegalStateException("Для языка исходного текста не настроен код языка.");
         }
 
-        if (!StringUtils.hasText(stringValue(sourceLanguage.getTranslationCode()).trim())) {
-            throw new IllegalStateException("Для языка исходного текста не настроен код перевода.");
-        }
 
-        if (!StringUtils.hasText(stringValue(targetLanguage.getTranslationCode()).trim())) {
-            throw new IllegalStateException("Для языка перевода не настроен код перевода.");
+        if (!StringUtils.hasText(stringValue(targetLanguage.getCode()).trim())) {
+            throw new IllegalStateException("Для языка перевода не настроен код языка.");
         }
     }
 
@@ -1272,62 +1752,77 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .map(PageFileCandidate::pageNumber)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
+
         Set<Integer> selected = selectedPageNumbers == null || selectedPageNumbers.isEmpty()
                 ? new LinkedHashSet<>(available)
                 : selectedPageNumbers.stream()
                   .filter(available::contains)
                   .collect(Collectors.toCollection(LinkedHashSet::new));
 
+
         if (selected.isEmpty()) {
             throw new IllegalArgumentException("Отметьте хотя бы одну страницу для автоматического перевода.");
         }
 
+
         return selected;
     }
+
 
     private List<PageFileCandidate> prepareFiles(MultipartFile[] pageFiles) {
         if (pageFiles == null) {
             throw new IllegalArgumentException("Загрузите страницы перевода.");
         }
 
+
         List<MultipartFile> actualFiles = List.of(pageFiles).stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
+
 
         if (actualFiles.isEmpty()) {
             throw new IllegalArgumentException("Загрузите страницы перевода.");
         }
 
+
         if (actualFiles.size() > MAX_PAGE_COUNT) {
             throw new IllegalArgumentException("Максимум можно загрузить 200 страниц.");
         }
 
+
         List<PageFileCandidate> result = new ArrayList<>();
+
 
         for (MultipartFile file : actualFiles) {
             if (file.getSize() > MAX_FILE_SIZE_BYTES) {
                 throw new IllegalArgumentException("Каждое изображение должно быть не больше 1 МБ.");
             }
 
+
             String originalName = StringUtils.getFilename(file.getOriginalFilename());
             if (!StringUtils.hasText(originalName)) {
                 throw new IllegalArgumentException("У всех файлов должны быть корректные имена.");
             }
+
 
             Matcher matcher = PAGE_FILE_PATTERN.matcher(originalName);
             if (!matcher.matches()) {
                 throw new IllegalArgumentException("Можно загружать только JPG с именами вида 001.jpg, 002.jpg, 003.jpg.");
             }
 
+
             String contentType = stringValue(file.getContentType()).toLowerCase(Locale.ROOT);
             if (!"image/jpeg".equals(contentType)) {
                 throw new IllegalArgumentException("Можно загружать только файлы JPG.");
             }
 
+
             result.add(new PageFileCandidate(Integer.parseInt(matcher.group(1)), file));
         }
 
+
         result.sort(Comparator.comparingInt(PageFileCandidate::pageNumber));
+
 
         for (int i = 0; i < result.size(); i++) {
             if (result.get(i).pageNumber() != i + 1) {
@@ -1335,25 +1830,32 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         return result;
     }
+
 
     private String normalizeSourceToken(String text, Language sourceLanguage) {
         String normalized = stringValue(text).trim();
 
-        if (!"ru".equalsIgnoreCase(sourceLanguage.getTranslationCode())) {
+
+        if (!"ru".equalsIgnoreCase(sourceLanguage.getCode())) {
             return normalized;
         }
+
 
         if (!normalized.matches(".*[A-Za-z].*") || normalized.matches(".*[А-Яа-яЁё].*")) {
             return normalized;
         }
 
+
         StringBuilder fixed = new StringBuilder();
         boolean changed = false;
 
+
         for (char ch : normalized.toCharArray()) {
             Character replacement = RU_CONFUSABLES.get(ch);
+
 
             if (replacement != null) {
                 fixed.append(replacement);
@@ -1361,20 +1863,25 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 continue;
             }
 
+
             if (Character.isLetter(ch)) {
                 return normalized;
             }
 
+
             fixed.append(ch);
         }
+
 
         String result = fixed.toString();
         return changed && result.matches(".*[А-Яа-яЁё].*") ? result : normalized;
     }
 
+
     private boolean isSeparatorToken(String text) {
         return StringUtils.hasText(text) && SEPARATOR_PATTERN.matcher(text.trim()).matches();
     }
+
 
     private boolean isSeparatorNearSource(WordBox candidate, List<WordBox> sourceBoxes) {
         for (WordBox source : sourceBoxes) {
@@ -1382,23 +1889,28 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 continue;
             }
 
+
             int gap = horizontalGap(candidate.toRect(), source.toRect());
             if (gap <= Math.max(8, candidate.height())) {
                 return true;
             }
         }
 
+
         return false;
     }
+
 
     private boolean sameLineOrClose(WordBox left, WordBox right) {
         if (left.lineIndex() != null && right.lineIndex() != null) {
             return left.lineIndex().equals(right.lineIndex());
         }
 
+
         return Math.abs(centerY(left.toRect()) - centerY(right.toRect()))
                 <= Math.max(left.height(), right.height()) * 0.75;
     }
+
 
     private boolean isTextInSourceLanguage(String text, Language language) {
         String value = stringValue(text).trim();
@@ -1406,7 +1918,9 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             return false;
         }
 
-        String code = stringValue(language.getTranslationCode()).toLowerCase(Locale.ROOT);
+
+        String code = stringValue(language.getCode()).toLowerCase(Locale.ROOT);
+
 
         return switch (code) {
             case "ru" -> value.matches(".*[А-Яа-яЁё].*");
@@ -1420,6 +1934,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         };
     }
 
+
     private String cleanPhraseText(String value) {
         String text = stringValue(value).replace("\r", "");
         text = text.replaceAll("([\\p{L}]{2,})\\s*[-‐-‒–—]\\s*\\n\\s*([\\p{L}]{2,})", "$1$2");
@@ -1431,24 +1946,30 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return text.trim();
     }
 
+
     private String joinTokensPreservingPunctuation(List<String> tokens) {
         StringBuilder builder = new StringBuilder();
         Set<String> noSpaceBefore = Set.of(".", ",", "!", "?", ";", ":", "%", ")", "]", "}", "»", "…");
         Set<String> noSpaceAfter = Set.of("(", "[", "{", "«");
 
+
         for (String raw : tokens) {
             String token = stringValue(raw).trim();
+
 
             if (!StringUtils.hasText(token)) {
                 continue;
             }
+
 
             if (builder.isEmpty()) {
                 builder.append(token);
                 continue;
             }
 
+
             String previous = builder.substring(builder.length() - 1);
+
 
             if (noSpaceBefore.contains(token)
                     || noSpaceAfter.contains(previous)
@@ -1460,26 +1981,27 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         return builder.toString();
     }
 
-    private void applyUsage(int ocrRequestsUsed, int translationCharsUsed) {
+    private void applyUsage(int visionRequestsUsed, int translationCharsUsed) {
         YearMonth month = YearMonth.now();
 
-        if (ocrRequestsUsed > 0) {
-            ApiMonthlyUsage usage = getOrCreateUsageForUpdate(OCR_PROVIDER, month);
+        if (visionRequestsUsed > 0) {
+            ApiMonthlyUsage usage = getOrCreateUsageForUpdate(GOOGLE_VISION_PROVIDER, month);
 
             int requestLimit = safeInt(usage.getRequestLimit());
             int requestsUsed = safeInt(usage.getRequestsUsed());
 
-            if (requestsUsed + ocrRequestsUsed > requestLimit) {
+            if (requestsUsed + visionRequestsUsed > requestLimit) {
                 throw new IllegalStateException(
-                        "В OCR.space закончился общий месячный лимит запросов. " +
-                                "Нужно: " + ocrRequestsUsed + ", доступно: " + Math.max(0, requestLimit - requestsUsed) + "."
+                        "В Google Cloud Vision закончился общий месячный лимит OCR-запросов. " +
+                                "Нужно: " + visionRequestsUsed + ", доступно: " + Math.max(0, requestLimit - requestsUsed) + "."
                 );
             }
 
-            usage.setRequestsUsed(requestsUsed + ocrRequestsUsed);
+            usage.setRequestsUsed(requestsUsed + visionRequestsUsed);
             usage.setUpdatedAt(LocalDateTime.now());
             usageRepository.save(usage);
         }
@@ -1503,30 +2025,39 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
+
     private QuotaSnapshot getQuotaSnapshot() {
         YearMonth month = YearMonth.now();
 
-        ApiMonthlyUsage ocr = getOrCreateUsage(OCR_PROVIDER, month);
+
+        ApiMonthlyUsage visionUsage = getOrCreateUsage(GOOGLE_VISION_PROVIDER, month);
         ApiMonthlyUsage googleTranslateUsage = getOrCreateUsage(GOOGLE_TRANSLATE_PROVIDER, month);
 
+
         return new QuotaSnapshot(
-                Math.max(0, safeInt(ocr.getRequestLimit()) - safeInt(ocr.getRequestsUsed())),
+                Math.max(0, safeInt(visionUsage.getRequestLimit()) - safeInt(visionUsage.getRequestsUsed())),
                 Math.max(0, safeInt(googleTranslateUsage.getCharLimit()) - safeInt(googleTranslateUsage.getCharsUsed()))
         );
     }
 
+
     private ApiMonthlyUsage getOrCreateUsage(String provider, YearMonth month) {
         String monthKey = month.toString();
 
+
         ApiMonthlyUsage usage = usageRepository.findByProviderAndMonthKey(provider, monthKey)
                 .orElseGet(() -> createUsage(provider, monthKey));
+
 
         syncConfiguredLimits(usage, provider);
         return usageRepository.save(usage);
     }
 
+
     private ApiMonthlyUsage getOrCreateUsageForUpdate(String provider, YearMonth month) {
         String monthKey = month.toString();
+
 
         ApiMonthlyUsage usage = usageRepository.findLockedByProviderAndMonthKey(provider, monthKey)
                 .orElseGet(() -> {
@@ -1535,13 +2066,16 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                     } catch (DataIntegrityViolationException ignored) {
                     }
 
+
                     return usageRepository.findLockedByProviderAndMonthKey(provider, monthKey)
                             .orElseThrow(() -> new IllegalStateException("Не удалось получить общий счётчик лимитов API."));
                 });
 
+
         syncConfiguredLimits(usage, provider);
         return usageRepository.saveAndFlush(usage);
     }
+
 
     private ApiMonthlyUsage createUsage(String provider, String monthKey) {
         try {
@@ -1552,11 +2086,12 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private ApiMonthlyUsage buildNewUsage(String provider, String monthKey) {
         return ApiMonthlyUsage.builder()
                 .provider(provider)
                 .monthKey(monthKey)
-                .requestLimit(OCR_PROVIDER.equals(provider) ? Math.max(0, ocrMonthlyRequestLimit) : 0)
+                .requestLimit(GOOGLE_VISION_PROVIDER.equals(provider) ? Math.max(0, visionMonthlyRequestLimit) : 0)
                 .requestsUsed(0)
                 .charLimit(GOOGLE_TRANSLATE_PROVIDER.equals(provider) ? Math.max(0, gcpTranslationMonthlyCharLimit) : 0)
                 .charsUsed(0)
@@ -1564,9 +2099,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                 .build();
     }
 
+
     private void syncConfiguredLimits(ApiMonthlyUsage usage, String provider) {
-        if (OCR_PROVIDER.equals(provider)) {
-            usage.setRequestLimit(Math.max(0, ocrMonthlyRequestLimit));
+        if (GOOGLE_VISION_PROVIDER.equals(provider)) {
+            usage.setRequestLimit(Math.max(0, visionMonthlyRequestLimit));
             usage.setCharLimit(0);
         } else if (GOOGLE_TRANSLATE_PROVIDER.equals(provider)) {
             usage.setRequestLimit(0);
@@ -1574,9 +2110,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private int safeInt(Integer value) {
         return value == null ? 0 : value;
     }
+
 
     private void deleteFinalFiles(List<String> fileNames) {
         for (String fileName : fileNames) {
@@ -1584,9 +2122,11 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private String buildStoredFileName(Integer translationId, int pageNumber, String originalFilename) {
         String extension = getFileExtension(originalFilename);
         String normalizedExtension = StringUtils.hasText(extension) ? extension.toLowerCase(Locale.ROOT) : "jpg";
+
 
         return "tr_%d_p%03d_%s.%s".formatted(
                 translationId,
@@ -1596,6 +2136,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         );
     }
 
+
     private BufferedImage readImage(Path path) {
         try {
             BufferedImage image = ImageIO.read(path.toFile());
@@ -1604,27 +2145,22 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
             return image;
         } catch (IOException e) {
-            throw new IllegalStateException("Не удалось прочитать изображение для автоматического перевода.");
+            throw new IllegalStateException("Не удалось прочитать изображение для автоматического перевода.", e);
         }
     }
+
 
     private void writeImage(BufferedImage image, Path path) {
         String extension = getFileExtension(path.getFileName().toString());
 
+
         try {
             ImageIO.write(image, extension, path.toFile());
         } catch (IOException e) {
-            throw new IllegalStateException("Не удалось сохранить результат автоматического перевода.");
+            throw new IllegalStateException("Не удалось сохранить результат автоматического перевода.", e);
         }
     }
 
-    private String requireConfiguredOcrApiKey() {
-        if (!StringUtils.hasText(ocrApiKey)) {
-            throw new IllegalStateException("Не задан ocrspace.api.key для автоматического перевода.");
-        }
-
-        return ocrApiKey.trim();
-    }
 
     private void requireAdmin(User admin) {
         if (admin == null || admin.getRole() == null || !ADMIN_ROLE.equalsIgnoreCase(admin.getRole().getName())) {
@@ -1632,92 +2168,80 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
-    private int toInt(Object value) {
-        if (value == null) {
-            return 0;
-        }
-
-        if (value instanceof Number number) {
-            return (int) Math.round(number.doubleValue());
-        }
-
-        return (int) Math.round(Double.parseDouble(String.valueOf(value)));
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> castList(Object value) {
-        if (value == null) {
-            return Collections.emptyList();
-        }
-        return (List<Map<String, Object>>) value;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> castMap(Object value) {
-        if (value == null) {
-            return Collections.emptyMap();
-        }
-        return (Map<String, Object>) value;
-    }
 
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
     }
+
 
     private String getFileExtension(String filename) {
         String extension = org.springframework.util.StringUtils.getFilenameExtension(filename);
         return extension == null ? "" : extension.toLowerCase(Locale.ROOT);
     }
 
+
     private double averageHeight(List<WordBox> boxes) {
         return boxes.stream().mapToInt(WordBox::height).average().orElse(18.0);
     }
+
 
     private double median(List<Integer> values) {
         if (values == null || values.isEmpty()) {
             return 0.0;
         }
 
+
         List<Integer> sorted = new ArrayList<>(values);
         sorted.sort(Integer::compareTo);
+
 
         int middle = sorted.size() / 2;
         if (sorted.size() % 2 == 0) {
             return (sorted.get(middle - 1) + sorted.get(middle)) / 2.0;
         }
 
+
         return sorted.get(middle);
     }
+
 
     private int horizontalGap(Rectangle left, Rectangle right) {
         if (left.x + left.width < right.x) {
             return right.x - (left.x + left.width);
         }
 
+
         if (right.x + right.width < left.x) {
             return left.x - (right.x + right.width);
         }
 
+
         return 0;
     }
+
 
     private double verticalGap(Rectangle first, Rectangle second) {
         int firstBottom = first.y + first.height;
         int secondTop = second.y;
 
+
         if (firstBottom < secondTop) {
             return secondTop - firstBottom;
         }
 
+
         int secondBottom = second.y + second.height;
         int firstTop = first.y;
+
 
         if (secondBottom < firstTop) {
             return firstTop - secondBottom;
         }
 
+
         return 0.0;
     }
+
 
     private double xOverlapRatio(Rectangle a, Rectangle b) {
         int overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
@@ -1725,16 +2249,35 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         return overlap / (double) minWidth;
     }
 
+
     private double centerX(Rectangle rect) {
         return rect.x + rect.width / 2.0;
     }
+
 
     private double centerY(Rectangle rect) {
         return rect.y + rect.height / 2.0;
     }
 
+
+    private record FilterResult(List<WordBox> allBoxes, List<WordBox> filteredBoxes) {
+    }
+
+    private record LargeTextFilterResult(List<WordBox> keptBoxes, List<SkippedLargeTextBox> skippedBoxes) {
+    }
+
+    private record SkippedLargeTextBox(WordBox box,
+                                       int charCount,
+                                       double areaPercent,
+                                       double widthPercent,
+                                       double heightPercent,
+                                       String reason) {
+    }
+
+
     private record PageFileCandidate(int pageNumber, MultipartFile file) {
     }
+
 
     private record OcrWord(Integer lineIndex,
                            Integer wordIndex,
@@ -1744,6 +2287,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
                            int width,
                            int height) {
     }
+
 
     private record WordBox(Integer lineIndex,
                            Integer wordIndex,
@@ -1760,28 +2304,36 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private record PhraseBox(Rectangle rect, String translationText) {
     }
+
 
     private record TranslationResult(int sourceCharacters) {
     }
 
+
     private record TextFit(Font font, List<String> lines, int spacing) {
     }
 
-    private record QuotaSnapshot(int remainingOcrRequests, int remainingMyMemoryChars) {
+
+    private record QuotaSnapshot(int remainingVisionRequests, int remainingGoogleTranslateChars) {
     }
+
 
     private static class LineGroup {
         private final List<WordBox> items;
+
 
         private LineGroup(List<WordBox> items) {
             this.items = items;
         }
 
+
         public List<WordBox> items() {
             return items;
         }
+
 
         public Rectangle boundingRect() {
             int left = items.stream().mapToInt(WordBox::left).min().orElse(0);
@@ -1791,6 +2343,7 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             return new Rectangle(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
         }
     }
+
 
     private record Segment(int lineNo, List<WordBox> items) {
         private Rectangle rect() {
@@ -1802,8 +2355,10 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private static class DisjointSet {
         private final int[] parent;
+
 
         private DisjointSet(int size) {
             this.parent = new int[size];
@@ -1812,18 +2367,22 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
             }
         }
 
+
         private int find(int value) {
             if (parent[value] == value) {
                 return value;
             }
 
+
             parent[value] = find(parent[value]);
             return parent[value];
         }
 
+
         private void union(int left, int right) {
             int rootLeft = find(left);
             int rootRight = find(right);
+
 
             if (rootLeft != rootRight) {
                 parent[rootRight] = rootLeft;
@@ -1831,9 +2390,15 @@ public class AutoTranslationServiceImpl implements AutoTranslationService {
         }
     }
 
+
     private static class ExternalApiException extends RuntimeException {
         private ExternalApiException(String message) {
             super(message);
+        }
+
+
+        private ExternalApiException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

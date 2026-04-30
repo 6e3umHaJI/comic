@@ -75,8 +75,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_translation_types_name_lower
 CREATE TABLE IF NOT EXISTS languages (
                                          language_id SERIAL PRIMARY KEY,
                                          name VARCHAR(50) NOT NULL,
-    ocr_space_code VARCHAR(20),
-    translation_code VARCHAR(10)
+    code VARCHAR(10)
     );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_languages_name_lower
@@ -719,16 +718,16 @@ INSERT INTO translation_types (name) VALUES
                                          ('Автоматический')
     ON CONFLICT DO NOTHING;
 
-INSERT INTO languages (name, ocr_space_code, translation_code) VALUES
-                                                                   ('Русский', 'rus', 'ru'),
-                                                                   ('Английский', 'eng', 'en'),
-                                                                   ('Корейский', NULL, NULL),
-                                                                   ('Японский', NULL, NULL),
-                                                                   ('Французский','fre','fr'),
-                                                                   ('Немецкий','ger','de'),
-                                                                   ('Испанский','spa','es'),
-                                                                   ('Итальянский','ita','it'),
-                                                                   ('Португальский','por','pt')
+INSERT INTO languages (name, code) VALUES
+                                       ('Русский', 'ru'),
+                                       ('Английский', 'en'),
+                                       ('Корейский', NULL),
+                                       ('Японский', NULL),
+                                       ('Французский','fr'),
+                                       ('Немецкий','de'),
+                                       ('Испанский','es'),
+                                       ('Итальянский','it'),
+                                       ('Португальский','pt')
     ON CONFLICT DO NOTHING;
 
 INSERT INTO notification_types (name) VALUES

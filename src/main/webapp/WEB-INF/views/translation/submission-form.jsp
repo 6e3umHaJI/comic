@@ -61,7 +61,7 @@
                         <select id="languageId" name="languageId" class="chapter-upload-select" required>
                             <c:forEach var="language" items="${languages}">
                                 <option value="${language.id}"
-                                        data-auto-translate-supported="${not empty language.translationCode}"
+                                        data-auto-translate-supported="${not empty language.code}"
                                         ${form.languageId == language.id ? 'selected' : ''}>
                                     <c:out value="${language.name}"/>
                                 </option>

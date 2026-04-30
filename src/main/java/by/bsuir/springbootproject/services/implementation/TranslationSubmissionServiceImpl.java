@@ -91,9 +91,8 @@ public class TranslationSubmissionServiceImpl implements TranslationSubmissionSe
             throw new IllegalStateException("В системе нет доступных языков перевода.");
         }
 
-        List<Language> autoTargetLanguages = languageRepository.findAllByTranslationCodeIsNotNullOrderByNameAsc();
-        List<Language> sourceLanguages = languageRepository
-                .findAllByOcrSpaceCodeIsNotNullAndTranslationCodeIsNotNullOrderByNameAsc();
+        List<Language> autoTargetLanguages = languageRepository.findAllByCodeIsNotNullOrderByNameAsc();
+        List<Language> sourceLanguages = languageRepository.findAllByCodeIsNotNullOrderByNameAsc();
 
         TranslationSubmissionForm actualForm = form != null ? form : new TranslationSubmissionForm();
         actualForm.setComicId(comicId);

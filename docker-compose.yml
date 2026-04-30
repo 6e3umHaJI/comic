@@ -33,7 +33,7 @@ services:
 
       APP_UPLOAD_ROOT: /mnt/uploads
 
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-translation-key.json
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
 
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -49,18 +49,16 @@ services:
       APP_RESET_CODE_EXPIRATION_MINUTES: ${APP_RESET_CODE_EXPIRATION_MINUTES:-10}
       APP_RESET_MAX_ATTEMPTS: ${APP_RESET_MAX_ATTEMPTS:-5}
 
-      OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}
-      OCRSPACE_MONTHLY_REQUEST_LIMIT: ${OCRSPACE_MONTHLY_REQUEST_LIMIT:-25000}
-
       GCP_TRANSLATION_PROJECT_ID: ${GCP_TRANSLATION_PROJECT_ID:-}
       GCP_TRANSLATION_LOCATION: ${GCP_TRANSLATION_LOCATION:-global}
       GCP_TRANSLATION_MONTHLY_CHAR_LIMIT: ${GCP_TRANSLATION_MONTHLY_CHAR_LIMIT:-500000}
       GCP_TRANSLATION_ESTIMATED_CHARS_PER_PAGE: ${GCP_TRANSLATION_ESTIMATED_CHARS_PER_PAGE:-3500}
+      GCP_VISION_MONTHLY_REQUEST_LIMIT: ${GCP_VISION_MONTHLY_REQUEST_LIMIT:-1000}
 
       AUTOTRANSLATION_DEBUG: ${AUTOTRANSLATION_DEBUG:-false}
     volumes:
       - ./docker/uploads:/mnt/uploads
-      - ./secrets/google-translation-key.json:/run/secrets/google-translation-key.json:ro
+      - ./secrets/google-service-account.json:/run/secrets/google-service-account.json.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,7 +79,7 @@ services:
 
       APP_UPLOAD_ROOT: /mnt/uploads
 
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-translation-key.json
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
 
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -97,18 +95,16 @@ services:
       APP_RESET_CODE_EXPIRATION_MINUTES: ${APP_RESET_CODE_EXPIRATION_MINUTES:-10}
       APP_RESET_MAX_ATTEMPTS: ${APP_RESET_MAX_ATTEMPTS:-5}
 
-      OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}
-      OCRSPACE_MONTHLY_REQUEST_LIMIT: ${OCRSPACE_MONTHLY_REQUEST_LIMIT:-25000}
-
       GCP_TRANSLATION_PROJECT_ID: ${GCP_TRANSLATION_PROJECT_ID:-}
       GCP_TRANSLATION_LOCATION: ${GCP_TRANSLATION_LOCATION:-global}
       GCP_TRANSLATION_MONTHLY_CHAR_LIMIT: ${GCP_TRANSLATION_MONTHLY_CHAR_LIMIT:-500000}
       GCP_TRANSLATION_ESTIMATED_CHARS_PER_PAGE: ${GCP_TRANSLATION_ESTIMATED_CHARS_PER_PAGE:-3500}
+      GCP_VISION_MONTHLY_REQUEST_LIMIT: ${GCP_VISION_MONTHLY_REQUEST_LIMIT:-1000}
 
       AUTOTRANSLATION_DEBUG: ${AUTOTRANSLATION_DEBUG:-false}
     volumes:
       - ./docker/uploads:/mnt/uploads
-      - ./secrets/google-translation-key.json:/run/secrets/google-translation-key.json:ro
+      - ./secrets/google-service-account.json:/run/secrets/google-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
