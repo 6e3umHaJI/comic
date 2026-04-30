@@ -21,10 +21,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -88,7 +87,7 @@ public class GlobalControllerExceptionHandler {
     }
 
     @ExceptionHandler({
-            NoResourceFoundException.class,
+            org.springframework.web.servlet.resource.NoResourceFoundException.class,
             NoHandlerFoundException.class
     })
     public Object handleNotFound(Exception e, HttpServletRequest request) {
@@ -104,7 +103,8 @@ public class GlobalControllerExceptionHandler {
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public Object handleMethodNotSupported(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
-        log.warn("405 Method not supported: path={}, method={}, message={}",
+        log.warn(
+                "405 Method not supported: path={}, method={}, message={}",
                 request.getRequestURI(),
                 request.getMethod(),
                 e.getMessage()
@@ -195,7 +195,8 @@ public class GlobalControllerExceptionHandler {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
 
-        log.warn("{} ResponseStatusException: path={}, message={}",
+        log.warn(
+                "{} ResponseStatusException: path={}, message={}",
                 status.value(),
                 request.getRequestURI(),
                 e.getReason()

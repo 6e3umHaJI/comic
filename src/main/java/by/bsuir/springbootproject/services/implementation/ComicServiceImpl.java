@@ -17,6 +17,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 
 import java.util.*;
 
@@ -76,7 +79,10 @@ public class ComicServiceImpl implements ComicService {
     @Override
     public Comic getComicById(Integer id) {
         return comicRepository.findByIdForComicPage(id)
-                .orElseThrow(() -> new RuntimeException("Комикс не найден: " + id));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Комикс не найден"
+                ));
     }
 
     @Override
